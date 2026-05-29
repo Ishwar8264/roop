@@ -161,3 +161,30 @@ Stage Summary:
 - API Docs: /api-docs (Swagger UI) + /api/api-spec (JSON spec)
 - proxy.ts: Now uses centralized ERROR_CODES + HTTP_MESSAGES
 - Build: Clean, zero errors
+
+---
+Task ID: 9
+Agent: Main
+Task: PostgreSQL Setup + Database Tables Creation + Dev Server Fix
+
+Work Log:
+- Updated .env with user-provided DATABASE_URL (postgresql://ishwar:IshwarRiverHead@localhost:5432/nikharta_roop?schema=public)
+- Discovered PostgreSQL was NOT installed in the container environment
+- Downloaded PostgreSQL 17 deb packages via apt-get download
+- Extracted PostgreSQL binaries to /home/z/.pgsql/pgsql (user-space install, no root needed)
+- Initialized PostgreSQL data cluster at /home/z/.pgsql/data
+- Started PostgreSQL server on localhost:5432
+- Created user 'ishwar' with password 'IshwarRiverHead'
+- Created database 'nikharta_roop' owned by ishwar
+- Fixed system DATABASE_URL override issue (container sets file: SQLite URL by default)
+- Pushed Prisma schema: all 42 tables created successfully
+- Updated package.json: name → nikharta-roop, scripts include DATABASE_URL override
+- Created start.sh for one-command startup (PostgreSQL + Next.js)
+- Verified all endpoints: Welcome page (200), API spec (200), Swagger docs (200), send-otp (success)
+
+Stage Summary:
+- PostgreSQL: v17 running in user-space at localhost:5432
+- Database: nikharta_roop with 42 tables, user ishwar
+- Dev Server: Running on port 3000 with Turbopack
+- All API endpoints verified working with real PostgreSQL connection
+- Start script: bash /home/z/my-project/start.sh
