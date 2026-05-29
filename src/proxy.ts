@@ -7,7 +7,7 @@
  *   - Protected routes: /bookings/*, /profile/*, /admin/*
  *   - Admin routes: require role=ADMIN in JWT
  *   - Staff routes: require role=STAFF or ADMIN
- *   - Middleware runs BEFORE page renders and BEFORE API route handlers
+ *   - Proxy runs BEFORE page renders and BEFORE API route handlers
  *   - Token read from Authorization header (API) or cookie (future: web pages)
  */
 
@@ -98,9 +98,9 @@ async function getTokenPayload(request: NextRequest) {
   return null;
 }
 
-// ==================== MIDDLEWARE ====================
+// ==================== PROXY ====================
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // 1. Skip static files and internal Next.js routes
