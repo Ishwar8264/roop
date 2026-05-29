@@ -8,7 +8,11 @@
  *   - All schemas reference centralized types from @/types
  */
 
-import type { OpenAPI3 } from "openapi-typescript";
+/**
+ * OpenAPI 3.0.3 spec type — inline definition to avoid external dependency
+ * This matches the OpenAPI 3.0 specification structure
+ */
+type OpenAPISpec = Record<string, unknown>;
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
@@ -75,7 +79,7 @@ const BearerAuthSchema = {
 
 // ==================== FULL OPENAPI SPEC ====================
 
-export const apiSpec: OpenAPI3 = {
+export const apiSpec: OpenAPISpec = {
   openapi: "3.0.3",
   info: {
     title: "Nikharta Roop (निखरता रूप) API",
