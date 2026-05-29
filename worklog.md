@@ -188,3 +188,29 @@ Stage Summary:
 - Dev Server: Running on port 3000 with Turbopack
 - All API endpoints verified working with real PostgreSQL connection
 - Start script: bash /home/z/my-project/start.sh
+
+---
+Task ID: 10
+Agent: Main
+Task: Fix .env persistence + Proper Migration + Remove Swagger UI
+
+Work Log:
+- Fixed .env getting overwritten by container start.sh (added proper DATABASE_URL + JWT secrets)
+- Created .env.example for repo (other developers can copy and fill)
+- Updated .gitignore: .env excluded, .env.example tracked
+- Reset database and ran proper `prisma migrate dev --name init` (not db push)
+- Migration created: prisma/migrations/20260529111349_init/migration.sql (43KB SQL)
+- _prisma_migrations table now tracks migration history
+- Removed Swagger UI (user didn't want it): api-docs/, api-spec/, swagger.ts, swagger-ui-react
+- Removed next-auth dependency (using custom auth with jose + bcryptjs)
+- Created setup-db.sh for local PostgreSQL setup on any machine
+- Build: Clean, zero errors ✅
+
+Stage Summary:
+- Migration: prisma migrate dev (proper, not db push) — 43 tables created
+- .env: Properly configured with PostgreSQL URL + JWT secrets
+- .env.example: In repo for other developers
+- setup-db.sh: One-command local DB setup script
+- Swagger: Removed (all files + dependencies)
+- next-auth: Removed (using custom auth)
+- Build: Clean ✅
