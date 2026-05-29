@@ -177,3 +177,57 @@ Stage Summary:
 - Middleware: Route protection with role-based access control
 - Auto-registration: New users auto-registered on first OTP verify (isNewUser flag)
 - No UI built — API only as requested
+
+---
+Task ID: 7
+Agent: Main
+Task: Centralize API Architecture — HTTP messages, error classes, handler pattern, Zod organization
+
+Work Log:
+- Created src/lib/http.ts — Centralized HTTP codes, error codes, and messages
+  - HTTP_STATUS: All HTTP status codes as constants
+  - ERROR_CODES: Machine-readable error codes (AUTH_*, VAL_*, RES_*, PERM_*, SYS_*)
+  - HTTP_MESSAGES: Hindi-first messages with i18n pattern (messageHi + messageEn)
+  - getMessage() and replaceVars() helpers for template messages
+- Created src/lib/errors.ts — Custom error classes
+  - Base AppError class with code, statusCode, isOperational
+  - Auth errors: AuthMissingTokenError, AuthInvalidTokenError, AuthSessionInvalidError,
+    AuthAccountSuspendedError, AuthOtpInvalidError, AuthOtpExpiredError,
+    AuthOtpMaxAttemptsError, AuthOtpAlreadySentError, AuthRateLimitedError,
+    AuthHourlyLimitError, AuthNoValidOtpError, AuthSmsFailedError
+  - Validation: ValidationError
+  - Resource: NotFoundError, ConflictError
+  - Permission: ForbiddenError, AdminRequiredError, StaffRequiredError
+  - System: InternalError, DatabaseError
+  - isAppError() and toAppError() helpers
+- Created src/lib/api-handler.ts — Standardized API route handler factory
+  - createApiHandler({ schema, handler, successMessage, successStatus })
+  - Automatic Zod validation with proper error responses
+  - Automatic try/catch — AppError subclasses return proper JSON
+  - Consistent response format: { success, data/error, message, statusCode }
+  - No need for try/catch in individual route handlers
+- Reorganized Zod schemas into feature-based structure:
+  - src/lib/validations/common.ts — Reusable primitives (indianMobile, otp6Digit, cuid, etc.)
+  - src/lib/validations/auth/index.ts — Auth-specific schemas
+  - src/lib/validations/booking/ — Placeholder for future
+  - src/lib/validations/service/ — Placeholder for future
+  - src/lib/validations/index.ts — Barrel export
+- Refactored ALL 5 auth API routes to use new pattern:
+  - send-otp: Uses createApiHandler, throws AuthOtpAlreadySentError/AuthHourlyLimitError/AuthSmsFailedError
+  - verify-otp: Uses createApiHandler, throws AuthNoValidOtpError/AuthOtpMaxAttemptsError/AuthOtpInvalidError/AuthAccountSuspendedError
+  - logout: Uses createApiHandler, throws AuthMissingTokenError/AuthInvalidTokenError
+  - me: Uses createApiHandler, throws AuthMissingTokenError/AuthInvalidTokenError/AuthSessionInvalidError/AuthAccountSuspendedError
+  - refresh: Uses createApiHandler, throws AuthInvalidTokenError/AuthSessionInvalidError/AuthAccountSuspendedError
+- Deleted old src/lib/validations/auth.ts (replaced by auth/index.ts)
+- Fixed import path: ./common → ../common in auth/index.ts
+- Fixed Prisma JSON type cast for metadata field
+- TypeScript check: Zero errors
+- Next.js build: Successful
+
+Stage Summary:
+- Architecture: Fully centralized and standardized
+- Pattern: createApiHandler() wraps every route — no raw try/catch needed
+- Errors: All use AppError subclasses from errors.ts
+- Messages: All from HTTP_MESSAGES in http.ts (Hindi-first, i18n ready)
+- Validation: Feature-based Zod schemas with shared primitives
+- Future APIs: Just follow the same pattern — schema + handler + throw errors

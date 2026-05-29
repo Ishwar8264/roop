@@ -3,109 +3,86 @@
  * Responsibility: Issue new access token using refresh token (without re-login)
  * Important Notes:
  *   - POST /api/auth/refresh
- *   - Body: { refreshToken: "eyJhbGciOi..." }
- *   - Verifies refresh token is valid and session still exists
- *   - Issues new access token (15 min) + new refresh token (7 days)
- *   - Old session is deleted and new session is created (session rotation)
- *   - Logs AuthEvent for audit trail
- *   - If refresh token is invalid → 401 (force re-login)
+ *   - Session rotation: old session deleted, new session created
+ *   - Uses createApiHandler for standardized handling
  */
 
-import { NextRequest } from "next/server";
+import { createApiHandler } from "@/lib/api-handler";
 import { prisma } from "@/lib/prisma";
 import { verifyRefreshToken, generateTokenPair } from "@/lib/jwt";
 import { refreshTokenSchema } from "@/lib/validations/auth";
+import { HTTP_MESSAGES } from "@/lib/http";
 import {
-  apiSuccess,
-  apiBadRequest,
-  apiUnauthorized,
-  apiServerError,
-} from "@/lib/api-response";
+  AuthInvalidTokenError,
+  AuthSessionInvalidError,
+  AuthAccountSuspendedError,
+} from "@/lib/errors";
 
-export async function POST(request: NextRequest) {
-  try {
-    // 1. Parse and validate request body
-    const body = await request.json();
-    const parsed = refreshTokenSchema.safeParse(body);
+export const POST = createApiHandler({
+  schema: refreshTokenSchema,
+  successMessage: HTTP_MESSAGES.AUTH_TOKEN_REFRESHED.messageEn,
+  handler: async ({ parsedBody, request }) => {
+    const { refreshToken } = parsedBody;
 
-    if (!parsed.success) {
-      const firstError = parsed.error.issues[0];
-      return apiBadRequest(firstError.message);
-    }
-
-    const { refreshToken } = parsed.data;
-
-    // 2. Verify refresh token
+    // 1. Verify refresh token
     const payload = await verifyRefreshToken(refreshToken);
     if (!payload) {
-      return apiUnauthorized("Invalid or expired refresh token. Please login again.");
+      throw new AuthInvalidTokenError();
     }
 
-    // 3. Verify session still exists (not logged out)
+    // 2. Verify session still exists
     const session = await prisma.authSession.findUnique({
       where: { id: payload.sessionId },
     });
 
     if (!session) {
-      return apiUnauthorized(
-        "Session has been invalidated. Please login again."
-      );
+      throw new AuthSessionInvalidError();
     }
 
-    // 4. Verify user still exists and is active
+    // 3. Verify user still exists and is active
     const user = await prisma.user.findUnique({
       where: { id: payload.userId },
     });
 
     if (!user || !user.isActive) {
-      // Delete session — force re-login
+      // Delete all sessions — force re-login
       await prisma.authSession.deleteMany({
         where: { userId: payload.userId },
       });
-
-      return apiUnauthorized(
-        "Account not found or suspended. Please login again."
-      );
+      throw new AuthAccountSuspendedError();
     }
 
-    // 5. Delete old session (session rotation — prevents token reuse)
+    // 4. Delete old session (session rotation)
     await prisma.authSession.delete({
       where: { id: payload.sessionId },
     });
 
-    // 6. Create new session and tokens
-    const newTokens = await generateTokenPair({
-      userId: user.id,
-      mobile: user.mobile,
-      role: user.role,
-      sessionId: "", // Placeholder — set after session creation
-    });
-
+    // 5. Create new session and tokens
     const newSession = await prisma.authSession.create({
       data: {
         userId: user.id,
-        token: await hashToken(newTokens.accessToken),
-        device: session.device, // Preserve device info from old session
+        token: "placeholder",
+        device: session.device,
         ip: request.headers.get("x-forwarded-for") || null,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       },
     });
 
-    // 7. Regenerate tokens with proper sessionId
-    const finalTokens = await generateTokenPair({
+    const tokens = await generateTokenPair({
       userId: user.id,
       mobile: user.mobile,
       role: user.role,
       sessionId: newSession.id,
     });
 
-    // Update session with proper token hash
+    // Update session with token hash
+    const tokenHash = await hashTokenSha256(tokens.accessToken);
     await prisma.authSession.update({
       where: { id: newSession.id },
-      data: { token: await hashToken(finalTokens.accessToken) },
+      data: { token: tokenHash },
     });
 
-    // 8. Log token refresh event
+    // 6. Log token refresh event
     await prisma.authEvent.create({
       data: {
         userId: user.id,
@@ -120,26 +97,16 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // 9. Return new token pair
-    return apiSuccess(
-      {
-        tokens: {
-          accessToken: finalTokens.accessToken,
-          refreshToken: finalTokens.refreshToken,
-        },
+    return {
+      tokens: {
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
       },
-      "Token refreshed successfully"
-    );
-  } catch (error) {
-    console.error("[REFRESH_ERROR]", error);
-    return apiServerError("Token refresh failed. Please login again.");
-  }
-}
+    };
+  },
+});
 
-/**
- * Hash a token for storage in AuthSession (SHA-256)
- */
-async function hashToken(token: string): Promise<string> {
+async function hashTokenSha256(token: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(token);
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);

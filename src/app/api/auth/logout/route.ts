@@ -4,26 +4,26 @@
  * Important Notes:
  *   - POST /api/auth/logout
  *   - Requires Authorization header: Bearer <accessToken>
- *   - Deletes AuthSession record so token can no longer be refreshed
- *   - Client should also delete stored tokens locally
- *   - Logs AuthEvent for audit trail
+ *   - Uses createApiHandler with schema: null (no body)
  */
 
-import { NextRequest } from "next/server";
+import { createApiHandler } from "@/lib/api-handler";
 import { prisma } from "@/lib/prisma";
 import { verifyAccessToken } from "@/lib/jwt";
+import { HTTP_MESSAGES } from "@/lib/http";
 import {
-  apiSuccess,
-  apiUnauthorized,
-  apiServerError,
-} from "@/lib/api-response";
+  AuthMissingTokenError,
+  AuthInvalidTokenError,
+} from "@/lib/errors";
 
-export async function POST(request: NextRequest) {
-  try {
+export const POST = createApiHandler({
+  schema: null, // No body — token from Authorization header
+  successMessage: HTTP_MESSAGES.AUTH_LOGOUT_SUCCESS.messageEn,
+  handler: async ({ request }) => {
     // 1. Extract token from Authorization header
     const authHeader = request.headers.get("authorization");
     if (!authHeader?.startsWith("Bearer ")) {
-      return apiUnauthorized("Missing or invalid authorization header");
+      throw new AuthMissingTokenError();
     }
 
     const token = authHeader.split(" ")[1];
@@ -31,10 +31,10 @@ export async function POST(request: NextRequest) {
     // 2. Verify access token
     const payload = await verifyAccessToken(token);
     if (!payload) {
-      return apiUnauthorized("Invalid or expired token");
+      throw new AuthInvalidTokenError();
     }
 
-    // 3. Delete auth session record — invalidates the session
+    // 3. Delete auth session record
     const deletedSession = await prisma.authSession.deleteMany({
       where: {
         id: payload.sessionId,
@@ -57,15 +57,8 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // 5. Return success — client should also clear local tokens
-    return apiSuccess(
-      {
-        sessionId: payload.sessionId,
-      },
-      "Logged out successfully"
-    );
-  } catch (error) {
-    console.error("[LOGOUT_ERROR]", error);
-    return apiServerError("Logout failed. Please try again.");
-  }
-}
+    return {
+      sessionId: payload.sessionId,
+    };
+  },
+});

@@ -3,40 +3,31 @@
  * Responsibility: Validate OTP, login existing user or register new user, issue JWT tokens
  * Important Notes:
  *   - POST /api/auth/verify-otp
- *   - Body: { mobile: "9876543210", otp: "123456" }
- *   - Max 3 verification attempts per OTP
- *   - Auto-registers new users (isNewUser flag in response)
- *   - Creates AuthSession record for logout/invalidation
- *   - Returns access token (15 min) + refresh token (7 days)
- *   - Logs AuthEvent for audit trail (LOGIN_SUCCESS or LOGIN_FAILED)
+ *   - Uses createApiHandler for standardized error handling
+ *   - All error classes centralized in errors.ts
+ *   - Auto-registers new users (isNewUser flag)
+ *   - Session rotation on token generation
  */
 
-import { NextRequest } from "next/server";
+import { createApiHandler } from "@/lib/api-handler";
 import { prisma } from "@/lib/prisma";
-import { verifyOtp, isOtpExpired, getMaxAttempts } from "@/lib/otp";
+import { verifyOtp, getMaxAttempts } from "@/lib/otp";
 import { generateTokenPair } from "@/lib/jwt";
 import { verifyOtpSchema } from "@/lib/validations/auth";
+import { HTTP_MESSAGES } from "@/lib/http";
 import {
-  apiSuccess,
-  apiBadRequest,
-  apiUnauthorized,
-  apiServerError,
-} from "@/lib/api-response";
+  AuthNoValidOtpError,
+  AuthOtpMaxAttemptsError,
+  AuthOtpInvalidError,
+  AuthAccountSuspendedError,
+} from "@/lib/errors";
 
-export async function POST(request: NextRequest) {
-  try {
-    // 1. Parse and validate request body
-    const body = await request.json();
-    const parsed = verifyOtpSchema.safeParse(body);
+export const POST = createApiHandler({
+  schema: verifyOtpSchema,
+  handler: async ({ parsedBody, request }) => {
+    const { mobile, otp } = parsedBody;
 
-    if (!parsed.success) {
-      const firstError = parsed.error.issues[0];
-      return apiBadRequest(firstError.message);
-    }
-
-    const { mobile, otp } = parsed.data;
-
-    // 2. Find the latest valid (unused, not expired) OTP for this mobile
+    // 1. Find the latest valid (unused, not expired) OTP
     const otpRecord = await prisma.authOtp.findFirst({
       where: {
         mobile,
@@ -47,90 +38,48 @@ export async function POST(request: NextRequest) {
     });
 
     if (!otpRecord) {
-      // No valid OTP found — either expired or never sent
-      await prisma.authEvent.create({
-        data: {
-          mobile,
-          event: "LOGIN_FAILED",
-          ip: request.headers.get("x-forwarded-for") || null,
-          device: request.headers.get("user-agent") || null,
-          metadata: { reason: "NO_VALID_OTP" },
-        },
-      });
-
-      return apiUnauthorized(
-        "No valid OTP found. Please request a new OTP."
-      );
+      await logAuthEvent(prisma, mobile, "LOGIN_FAILED", request, { reason: "NO_VALID_OTP" });
+      throw new AuthNoValidOtpError();
     }
 
-    // 3. Check if max attempts exceeded
+    // 2. Check if max attempts exceeded
     if (otpRecord.attempts >= getMaxAttempts()) {
       await prisma.authOtp.update({
         where: { id: otpRecord.id },
-        data: { isUsed: true }, // Invalidate OTP after max attempts
+        data: { isUsed: true },
       });
-
-      await prisma.authEvent.create({
-        data: {
-          mobile,
-          event: "LOGIN_FAILED",
-          ip: request.headers.get("x-forwarded-for") || null,
-          device: request.headers.get("user-agent") || null,
-          metadata: { reason: "MAX_ATTEMPTS_EXCEEDED" },
-        },
-      });
-
-      return apiUnauthorized(
-        "Maximum verification attempts exceeded. Please request a new OTP."
-      );
+      await logAuthEvent(prisma, mobile, "LOGIN_FAILED", request, { reason: "MAX_ATTEMPTS_EXCEEDED" });
+      throw new AuthOtpMaxAttemptsError();
     }
 
-    // 4. Increment attempt counter
+    // 3. Increment attempt counter
     await prisma.authOtp.update({
       where: { id: otpRecord.id },
       data: { attempts: { increment: 1 } },
     });
 
-    // 5. Verify OTP (bcrypt compare — plain vs hashed)
+    // 4. Verify OTP (bcrypt compare)
     const isValidOtp = await verifyOtp(otp, otpRecord.otp);
-
     if (!isValidOtp) {
-      await prisma.authEvent.create({
-        data: {
-          mobile,
-          event: "LOGIN_FAILED",
-          ip: request.headers.get("x-forwarded-for") || null,
-          device: request.headers.get("user-agent") || null,
-          metadata: {
-            reason: "INVALID_OTP",
-            attemptsRemaining: getMaxAttempts() - otpRecord.attempts - 1,
-          },
-        },
-      });
-
       const attemptsRemaining = getMaxAttempts() - otpRecord.attempts - 1;
-      return apiUnauthorized(
-        attemptsRemaining > 0
-          ? `Invalid OTP. ${attemptsRemaining} attempt${attemptsRemaining === 1 ? "" : "s"} remaining.`
-          : "Invalid OTP. Maximum attempts exceeded. Please request a new OTP."
-      );
+      await logAuthEvent(prisma, mobile, "LOGIN_FAILED", request, {
+        reason: "INVALID_OTP",
+        attemptsRemaining,
+      });
+      throw new AuthOtpInvalidError(attemptsRemaining);
     }
 
-    // 6. Mark OTP as used
+    // 5. Mark OTP as used
     await prisma.authOtp.update({
       where: { id: otpRecord.id },
       data: { isUsed: true },
     });
 
-    // 7. Find or create user (auto-registration)
-    let user = await prisma.user.findUnique({
-      where: { mobile },
-    });
-
+    // 6. Find or create user (auto-registration)
+    let user = await prisma.user.findUnique({ where: { mobile } });
     let isNewUser = false;
 
     if (!user) {
-      // Auto-register new user with USER role
       user = await prisma.user.create({
         data: {
           mobile,
@@ -142,107 +91,90 @@ export async function POST(request: NextRequest) {
       isNewUser = true;
     }
 
-    // 8. Check if user account is active
+    // 7. Check if user account is active
     if (!user.isActive) {
-      await prisma.authEvent.create({
-        data: {
-          userId: user.id,
-          mobile,
-          event: "LOGIN_FAILED",
-          ip: request.headers.get("x-forwarded-for") || null,
-          device: request.headers.get("user-agent") || null,
-          metadata: { reason: "ACCOUNT_SUSPENDED" },
-        },
-      });
-
-      return apiUnauthorized(
-        "Your account has been suspended. Please contact support."
-      );
+      await logAuthEvent(prisma, mobile, "LOGIN_FAILED", request, { reason: "ACCOUNT_SUSPENDED" }, user.id);
+      throw new AuthAccountSuspendedError();
     }
 
-    // 9. Create auth session
-    const { accessToken, refreshToken } = await generateTokenPair({
-      userId: user.id,
-      mobile: user.mobile,
-      role: user.role,
-      sessionId: "", // Will set after creating session record
-    });
-
-    // We need sessionId in the token, so we create session first with a placeholder,
-    // then regenerate tokens with the actual sessionId
+    // 8. Create auth session + generate JWT tokens
     const session = await prisma.authSession.create({
       data: {
         userId: user.id,
-        token: await hashToken(accessToken), // Store hash of access token
+        token: "placeholder", // Will update after token generation
         device: request.headers.get("user-agent") || null,
         ip: request.headers.get("x-forwarded-for") || null,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       },
     });
 
-    // 10. Regenerate tokens with proper sessionId
-    const finalTokens = await generateTokenPair({
+    const tokens = await generateTokenPair({
       userId: user.id,
       mobile: user.mobile,
       role: user.role,
       sessionId: session.id,
     });
 
-    // Update session with proper token hash
+    // Update session with token hash
+    const tokenHash = await hashTokenSha256(tokens.accessToken);
     await prisma.authSession.update({
       where: { id: session.id },
-      data: { token: await hashToken(finalTokens.accessToken) },
+      data: { token: tokenHash },
     });
 
-    // 11. Update user's lastLoginAt
+    // 9. Update user's lastLoginAt
     await prisma.user.update({
       where: { id: user.id },
       data: { lastLoginAt: new Date() },
     });
 
-    // 12. Log successful login
-    await prisma.authEvent.create({
-      data: {
-        userId: user.id,
-        mobile,
-        event: "LOGIN_SUCCESS",
-        ip: request.headers.get("x-forwarded-for") || null,
-        device: request.headers.get("user-agent") || null,
-        metadata: { isNewUser, sessionId: session.id },
-      },
-    });
+    // 10. Log successful login
+    await logAuthEvent(prisma, mobile, "LOGIN_SUCCESS", request, { isNewUser, sessionId: session.id }, user.id);
 
-    // 13. Return tokens and user data
-    return apiSuccess(
-      {
-        user: {
-          id: user.id,
-          mobile: user.mobile,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          avatarUrl: user.avatarUrl,
-          loyaltyPoints: user.loyaltyPoints,
-        },
-        tokens: {
-          accessToken: finalTokens.accessToken,
-          refreshToken: finalTokens.refreshToken,
-        },
-        isNewUser,
+    // 11. Return tokens and user data
+    return {
+      user: {
+        id: user.id,
+        mobile: user.mobile,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatarUrl: user.avatarUrl,
+        loyaltyPoints: user.loyaltyPoints,
       },
-      isNewUser ? "Registration successful! Welcome to Nikharta Roop." : "Login successful!"
-    );
-  } catch (error) {
-    console.error("[VERIFY_OTP_ERROR]", error);
-    return apiServerError("Authentication failed. Please try again.");
-  }
+      tokens: {
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+      },
+      isNewUser,
+    };
+  },
+  successMessage: undefined, // Set dynamically based on isNewUser — handler returns data directly
+});
+
+// ==================== HELPERS ====================
+
+async function logAuthEvent(
+  prisma: import("@prisma/client").PrismaClient,
+  mobile: string,
+  event: string,
+  request: import("next/server").NextRequest,
+  metadata: Record<string, unknown>,
+  userId?: string
+) {
+  await prisma.authEvent.create({
+    data: {
+      userId: userId || null,
+      mobile,
+      event: event as "LOGIN_SUCCESS" | "LOGIN_FAILED",
+      ip: request.headers.get("x-forwarded-for") || null,
+      device: request.headers.get("user-agent") || null,
+      metadata: metadata as import("@prisma/client").Prisma.InputJsonValue,
+    },
+  });
 }
 
-/**
- * Hash a token for storage in AuthSession
- * Uses SHA-256 for fast hashing (not bcrypt — tokens need fast comparison)
- */
-async function hashToken(token: string): Promise<string> {
+async function hashTokenSha256(token: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(token);
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);

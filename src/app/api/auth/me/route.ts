@@ -4,27 +4,27 @@
  * Important Notes:
  *   - GET /api/auth/me
  *   - Requires Authorization header: Bearer <accessToken>
- *   - Returns full user profile (without sensitive data)
- *   - Used by frontend to check auth state on page load
- *   - If token invalid/expired → 401 (frontend should redirect to login)
+ *   - Uses createApiHandler with schema: null (no body)
  */
 
-import { NextRequest } from "next/server";
+import { createApiHandler } from "@/lib/api-handler";
 import { prisma } from "@/lib/prisma";
 import { verifyAccessToken } from "@/lib/jwt";
 import {
-  apiSuccess,
-  apiUnauthorized,
-  apiNotFound,
-  apiServerError,
-} from "@/lib/api-response";
+  AuthMissingTokenError,
+  AuthInvalidTokenError,
+  AuthSessionInvalidError,
+  AuthAccountSuspendedError,
+  NotFoundError,
+} from "@/lib/errors";
 
-export async function GET(request: NextRequest) {
-  try {
+export const GET = createApiHandler({
+  schema: null, // No body — token from Authorization header
+  handler: async ({ request }) => {
     // 1. Extract token from Authorization header
     const authHeader = request.headers.get("authorization");
     if (!authHeader?.startsWith("Bearer ")) {
-      return apiUnauthorized("Missing or invalid authorization header");
+      throw new AuthMissingTokenError();
     }
 
     const token = authHeader.split(" ")[1];
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     // 2. Verify access token
     const payload = await verifyAccessToken(token);
     if (!payload) {
-      return apiUnauthorized("Invalid or expired token");
+      throw new AuthInvalidTokenError();
     }
 
     // 3. Verify session still exists (not logged out)
@@ -41,10 +41,10 @@ export async function GET(request: NextRequest) {
     });
 
     if (!session) {
-      return apiUnauthorized("Session has been invalidated. Please login again.");
+      throw new AuthSessionInvalidError();
     }
 
-    // 4. Fetch user from database (ensure data is fresh)
+    // 4. Fetch user from database
     const user = await prisma.user.findUnique({
       where: { id: payload.userId },
       select: {
@@ -59,25 +59,18 @@ export async function GET(request: NextRequest) {
         isActive: true,
         lastLoginAt: true,
         createdAt: true,
-        // Never return: updatedAt (internal), password fields (none currently)
       },
     });
 
     if (!user) {
-      return apiNotFound("User not found");
+      throw new NotFoundError("User not found");
     }
 
     // 5. Check if user is still active
     if (!user.isActive) {
-      return apiUnauthorized("Your account has been suspended.");
+      throw new AuthAccountSuspendedError();
     }
 
-    // 6. Return user profile
-    return apiSuccess({
-      user,
-    });
-  } catch (error) {
-    console.error("[ME_ERROR]", error);
-    return apiServerError("Failed to fetch user profile.");
-  }
-}
+    return { user };
+  },
+});
