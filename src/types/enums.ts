@@ -10,6 +10,8 @@
 
 export type UserRole = "GUEST" | "USER" | "STAFF" | "ADMIN";
 
+export type AuthProvider = "MOBILE" | "EMAIL" | "GOOGLE";
+
 export type AuthOtpPurpose = "LOGIN" | "REGISTER" | "RESET";
 
 export type AuthEventType =
@@ -18,7 +20,11 @@ export type AuthEventType =
   | "OTP_SENT"
   | "OTP_VERIFIED"
   | "LOGOUT"
-  | "TOKEN_REFRESHED";
+  | "TOKEN_REFRESHED"
+  | "REGISTER_EMAIL"
+  | "REGISTER_GOOGLE"
+  | "LOGIN_EMAIL"
+  | "LOGIN_GOOGLE";
 
 // ==================== Booking Enums ====================
 

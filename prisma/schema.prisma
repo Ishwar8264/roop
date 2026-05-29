@@ -33,6 +33,13 @@ enum UserRole {
   ADMIN
 }
 
+/// Auth provider — how did the user register/login
+enum AuthProvider {
+  MOBILE  // OTP-based mobile login
+  EMAIL   // Email + password login
+  GOOGLE  // Google OAuth login
+}
+
 /// Auth OTP purpose — why was OTP sent
 enum AuthOtpPurpose {
   LOGIN
@@ -48,6 +55,10 @@ enum AuthEventType {
   OTP_VERIFIED
   LOGOUT
   TOKEN_REFRESHED
+  REGISTER_EMAIL    // New user registered via email
+  REGISTER_GOOGLE   // New user registered via Google
+  LOGIN_EMAIL       // Login via email + password
+  LOGIN_GOOGLE      // Login via Google OAuth
 }
 
 /// Booking lifecycle statuses
@@ -232,18 +243,22 @@ model BranchHoliday {
 
 /// All platform users — customers, staff, and admins
 model User {
-  id            String    @id @default(cuid())
-  mobile        String    @unique // Indian 10-digit mobile number — primary login lookup
+  id            String       @id @default(cuid())
+  mobile        String?      @unique // Indian 10-digit mobile — nullable for Google/email-only users. Unique when present.
   name          String? // Full name (optional at registration)
-  email         String? // Optional email for receipts
-  role          UserRole  @default(USER) // GUEST | USER | STAFF | ADMIN — enum enforced
+  email         String?      @unique // Email for email login + Google — unique when present
+  emailVerified Boolean      @default(false) // Whether email has been verified
+  password      String? // Hashed password (bcrypt) — for email login only
+  googleId      String?      @unique // Google OAuth sub ID — unique when present
+  authProvider  AuthProvider @default(MOBILE) // Primary auth method: MOBILE | EMAIL | GOOGLE
+  role          UserRole     @default(USER) // GUEST | USER | STAFF | ADMIN — enum enforced
   branchId      String? // For STAFF/ADMIN — which branch they belong to
   avatarUrl     String? // Profile photo URL (Cloudinary/S3)
-  loyaltyPoints Int       @default(0) // Accumulated loyalty points
-  isActive      Boolean   @default(true) // false = account suspended by admin
-  createdAt     DateTime  @default(now()) // Account creation timestamp
-  lastLoginAt   DateTime? // Last OTP login timestamp
-  updatedAt     DateTime  @updatedAt
+  loyaltyPoints Int          @default(0) // Accumulated loyalty points
+  isActive      Boolean      @default(true) // false = account suspended by admin
+  createdAt     DateTime     @default(now()) // Account creation timestamp
+  lastLoginAt   DateTime? // Last login timestamp (any method)
+  updatedAt     DateTime     @updatedAt
 
   // Relations
   authSessions        AuthSession[]
@@ -258,10 +273,13 @@ model User {
   consultations       Consultation[]
   productSales        ProductSale[]
 
-  // Indexes — from document: mobile (unique), role, isActive
+  // Indexes
   @@index([mobile])
+  @@index([email])
+  @@index([googleId])
   @@index([role])
   @@index([isActive])
+  @@index([authProvider])
   @@index([branchId])
   @@map("users")
 }
@@ -288,8 +306,9 @@ model AuthSession {
 /// OTP storage and verification tracking — replaces Redis for PostgreSQL
 model AuthOtp {
   id        String         @id @default(cuid())
-  mobile    String // Mobile number OTP was sent to
-  otp       String // 6-digit OTP
+  userId    String? // Link to user — nullable because OTP can be sent before user exists (registration)
+  mobile    String // Mobile number OTP was sent to (always present for mobile auth)
+  otp       String // 6-digit OTP (bcrypt hashed)
   purpose   AuthOtpPurpose @default(LOGIN) // LOGIN | REGISTER | RESET
   attempts  Int            @default(0) // Wrong attempt counter (max 3)
   isUsed    Boolean        @default(false) // Whether OTP was successfully used
@@ -297,10 +316,11 @@ model AuthOtp {
   createdAt DateTime       @default(now())
 
   // Relations
-  user User @relation(fields: [mobile], references: [mobile], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Indexes — fast lookup by mobile, cleanup by expiry
   @@index([mobile])
+  @@index([userId])
   @@index([expiresAt])
   @@index([purpose])
   @@map("auth_otps")
@@ -310,11 +330,11 @@ model AuthOtp {
 model AuthEvent {
   id        String        @id @default(cuid())
   userId    String? // null if event happened before user was found
-  mobile    String // Mobile number involved
-  event     AuthEventType // LOGIN_SUCCESS | LOGIN_FAILED | etc.
+  mobile    String? // Mobile number involved (nullable for email/Google logins)
+  event     AuthEventType // LOGIN_SUCCESS | LOGIN_FAILED | REGISTER_EMAIL | etc.
   ip        String? // IP address
   device    String? // Device/browser info
-  metadata  Json? // Extra event data (error reason, etc.)
+  metadata  Json? // Extra event data (error reason, auth provider, etc.)
   createdAt DateTime      @default(now())
 
   // Relations

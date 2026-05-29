@@ -38,6 +38,9 @@ const PUBLIC_API_ROUTES = [
   "/api/auth/send-otp",
   "/api/auth/verify-otp",
   "/api/auth/refresh",
+  "/api/auth/register-email",
+  "/api/auth/login-email",
+  "/api/auth/google",
   "/api/api-spec",        // OpenAPI spec JSON
 ];
 

@@ -22,8 +22,7 @@
 import { createApiHandler } from "@/lib/api-handler";
 import { prisma } from "@/lib/prisma";
 import { verifyOtp, getMaxAttempts } from "@/lib/otp";
-import { generateTokenPair } from "@/lib/jwt";
-import { hashTokenSha256 } from "@/lib/crypto";
+import { createAuthSessionAndTokens } from "@/lib/create-auth-session";
 import { logAuthEvent } from "@/lib/auth-helpers";
 import { verifyOtpSchema } from "@/lib/validations/auth";
 import {
@@ -86,7 +85,7 @@ export const POST = createApiHandler({
       data: { isUsed: true },
     });
 
-    // 6. Find or create user (auto-registration)
+    // 6. Find or create user (auto-registration via mobile)
     let user = await prisma.user.findUnique({ where: { mobile } });
     let isNewUser = false;
 
@@ -95,11 +94,24 @@ export const POST = createApiHandler({
         data: {
           mobile,
           role: "USER",
+          authProvider: "MOBILE",
           isActive: true,
           loyaltyPoints: 0,
         },
       });
       isNewUser = true;
+
+      // Link OTP to user
+      await prisma.authOtp.update({
+        where: { id: otpRecord.id },
+        data: { userId: user.id },
+      });
+    } else if (!otpRecord.userId) {
+      // Link OTP to existing user
+      await prisma.authOtp.update({
+        where: { id: otpRecord.id },
+        data: { userId: user.id },
+      });
     }
 
     // 7. Check if user account is active
@@ -108,61 +120,21 @@ export const POST = createApiHandler({
       throw new AuthAccountSuspendedError();
     }
 
-    // 8. Create auth session + generate JWT tokens
-    const session = await prisma.authSession.create({
-      data: {
-        userId: user.id,
-        token: "placeholder", // Will update after token generation
-        device: request.headers.get("user-agent") || null,
-        ip: request.headers.get("x-forwarded-for") || null,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      },
-    });
+    // 8. Create auth session + generate tokens (using shared helper)
+    const authResult = await createAuthSessionAndTokens(user, request);
 
-    const tokens = await generateTokenPair({
-      userId: user.id,
-      mobile: user.mobile,
-      role: user.role,
-      sessionId: session.id,
-    });
-
-    // Update session with token hash (using centralized crypto utility)
-    const tokenHash = await hashTokenSha256(tokens.accessToken);
-    await prisma.authSession.update({
-      where: { id: session.id },
-      data: { token: tokenHash },
-    });
-
-    // 9. Update user's lastLoginAt
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { lastLoginAt: new Date() },
-    });
-
-    // 10. Log successful login
+    // 9. Log successful login
     await logAuthEvent(
       mobile,
       "LOGIN_SUCCESS",
       request,
-      { isNewUser, sessionId: session.id },
+      { isNewUser, authProvider: "MOBILE" },
       user.id
     );
 
-    // 11. Return tokens and user data
+    // 10. Return tokens and user data
     return {
-      user: {
-        id: user.id,
-        mobile: user.mobile,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        avatarUrl: user.avatarUrl,
-        loyaltyPoints: user.loyaltyPoints,
-      },
-      tokens: {
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
-      },
+      ...authResult,
       isNewUser,
     };
   },

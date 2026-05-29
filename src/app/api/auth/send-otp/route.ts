@@ -69,8 +69,12 @@ export const POST = createApiHandler({
     const expiresAt = getOtpExpiry();
 
     // 4. Store hashed OTP in database
+    // Check if user exists to link userId
+    const existingUser = await prisma.user.findUnique({ where: { mobile } });
+
     await prisma.authOtp.create({
       data: {
+        userId: existingUser?.id || null,
         mobile,
         otp: hashedOtp,
         purpose: "LOGIN",

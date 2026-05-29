@@ -26,7 +26,8 @@ const REFRESH_TOKEN_EXPIRY = "7d"; // Long-lived — 7 days
 
 export interface TokenPayload {
   userId: string;
-  mobile: string;
+  mobile: string | null;
+  email: string | null;
   role: UserRole;
   sessionId: string;
 }
@@ -51,6 +52,7 @@ export async function signAccessToken(payload: TokenPayload): Promise<string> {
   return new SignJWT({
     userId: payload.userId,
     mobile: payload.mobile,
+    email: payload.email,
     role: payload.role,
     sessionId: payload.sessionId,
   })
@@ -71,6 +73,7 @@ export async function signRefreshToken(payload: TokenPayload): Promise<string> {
   return new SignJWT({
     userId: payload.userId,
     mobile: payload.mobile,
+    email: payload.email,
     role: payload.role,
     sessionId: payload.sessionId,
   })
@@ -98,7 +101,8 @@ export async function verifyAccessToken(
 
     return {
       userId: payload.userId as string,
-      mobile: payload.mobile as string,
+      mobile: (payload.mobile as string) || null,
+      email: (payload.email as string) || null,
       role: payload.role as UserRole,
       sessionId: payload.sessionId as string,
     };
@@ -123,7 +127,8 @@ export async function verifyRefreshToken(
 
     return {
       userId: payload.userId as string,
-      mobile: payload.mobile as string,
+      mobile: (payload.mobile as string) || null,
+      email: (payload.email as string) || null,
       role: payload.role as UserRole,
       sessionId: payload.sessionId as string,
     };

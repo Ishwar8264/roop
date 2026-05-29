@@ -52,11 +52,11 @@ export function extractUserAgent(request: NextRequest): string | null {
 
 /**
  * Log an auth event for audit trail
- * Used in: send-otp, verify-otp, logout, refresh routes
+ * Used in: send-otp, verify-otp, logout, refresh, register-email, login-email, google routes
  */
 export async function logAuthEvent(
-  mobile: string,
-  event: "LOGIN_SUCCESS" | "LOGIN_FAILED" | "OTP_SENT" | "OTP_VERIFIED" | "LOGOUT" | "TOKEN_REFRESHED",
+  mobile: string | null,
+  event: "LOGIN_SUCCESS" | "LOGIN_FAILED" | "OTP_SENT" | "OTP_VERIFIED" | "LOGOUT" | "TOKEN_REFRESHED" | "REGISTER_EMAIL" | "REGISTER_GOOGLE" | "LOGIN_EMAIL" | "LOGIN_GOOGLE",
   request: NextRequest,
   metadata?: Record<string, unknown>,
   userId?: string
@@ -64,7 +64,7 @@ export async function logAuthEvent(
   await prisma.authEvent.create({
     data: {
       userId: userId || null,
-      mobile,
+      mobile: mobile || null,
       event,
       ip: extractClientIp(request),
       device: extractUserAgent(request),

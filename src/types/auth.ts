@@ -4,15 +4,19 @@
  *                + Auth state and response types for frontend
  */
 
-import type { UserRole, AuthOtpPurpose, AuthEventType } from "./enums";
+import type { UserRole, AuthOtpPurpose, AuthEventType, AuthProvider } from "./enums";
 
 // ==================== Database Models ====================
 
 export interface User {
   id: string;
-  mobile: string;
+  mobile: string | null;
   name: string | null;
   email: string | null;
+  emailVerified: boolean;
+  password: string | null;
+  googleId: string | null;
+  authProvider: AuthProvider;
   role: UserRole;
   branchId: string | null;
   avatarUrl: string | null;
@@ -35,6 +39,7 @@ export interface AuthSession {
 
 export interface AuthOtp {
   id: string;
+  userId: string | null;
   mobile: string;
   otp: string;
   purpose: AuthOtpPurpose;
@@ -47,7 +52,7 @@ export interface AuthOtp {
 export interface AuthEvent {
   id: string;
   userId: string | null;
-  mobile: string;
+  mobile: string | null;
   event: AuthEventType;
   ip: string | null;
   device: string | null;
@@ -69,12 +74,13 @@ export interface AuthState {
 /** User profile returned in auth responses (no sensitive fields) */
 export interface UserProfile {
   id: string;
-  mobile: string;
+  mobile: string | null;
   name: string | null;
   email: string | null;
   role: UserRole;
   avatarUrl: string | null;
   loyaltyPoints: number;
+  authProvider: AuthProvider;
 }
 
 /** JWT token pair returned after login/refresh */
@@ -97,6 +103,25 @@ export interface SendOtpResponse {
   messageId: string | null;
 }
 
+/** Response from register-email endpoint */
+export interface RegisterEmailResponse {
+  user: UserProfile;
+  tokens: TokenPair;
+}
+
+/** Response from login-email endpoint */
+export interface LoginEmailResponse {
+  user: UserProfile;
+  tokens: TokenPair;
+}
+
+/** Response from google auth endpoint */
+export interface GoogleAuthResponse {
+  user: UserProfile;
+  tokens: TokenPair;
+  isNewUser: boolean;
+}
+
 /** Response from refresh endpoint */
 export interface RefreshTokenResponse {
   tokens: TokenPair;
@@ -110,7 +135,8 @@ export interface LogoutResponse {
 /** JWT payload structure */
 export interface JwtPayload {
   userId: string;
-  mobile: string;
+  mobile: string | null;
+  email: string | null;
   role: string;
   sessionId: string;
   iat: number;

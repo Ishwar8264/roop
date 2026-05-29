@@ -8,7 +8,7 @@
  */
 
 import { z } from "zod";
-import { indianMobile, otp6Digit } from "../common";
+import { indianMobile, otp6Digit, email, password, fullName, googleIdToken } from "../common";
 
 // ==================== SEND OTP ====================
 
@@ -44,3 +44,34 @@ export type RefreshTokenInput = z.infer<typeof refreshTokenSchema>;
 export const logoutSchema = z.object({});
 
 export type LogoutInput = z.infer<typeof logoutSchema>;
+
+// ==================== REGISTER EMAIL ====================
+
+/** POST /api/auth/register-email */
+export const registerEmailSchema = z.object({
+  name: fullName,
+  email: email,
+  password: password,
+  mobile: indianMobile.optional(), // Optional — user can add later
+});
+
+export type RegisterEmailInput = z.infer<typeof registerEmailSchema>;
+
+// ==================== LOGIN EMAIL ====================
+
+/** POST /api/auth/login-email */
+export const loginEmailSchema = z.object({
+  email: email,
+  password: z.string().min(1, "Password is required"),
+});
+
+export type LoginEmailInput = z.infer<typeof loginEmailSchema>;
+
+// ==================== GOOGLE AUTH ====================
+
+/** POST /api/auth/google */
+export const googleAuthSchema = z.object({
+  idToken: googleIdToken,
+});
+
+export type GoogleAuthInput = z.infer<typeof googleAuthSchema>;

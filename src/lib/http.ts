@@ -41,6 +41,11 @@ export const ERROR_CODES = {
   AUTH_OTP_ALREADY_SENT: "AUTH_OTP_ALREADY_SENT",
   AUTH_RATE_LIMITED: "AUTH_RATE_LIMITED",
   AUTH_HOURLY_LIMIT: "AUTH_HOURLY_LIMIT",
+  AUTH_EMAIL_EXISTS: "AUTH_EMAIL_EXISTS",
+  AUTH_MOBILE_EXISTS: "AUTH_MOBILE_EXISTS",
+  AUTH_INVALID_CREDENTIALS: "AUTH_INVALID_CREDENTIALS",
+  AUTH_GOOGLE_TOKEN_INVALID: "AUTH_GOOGLE_TOKEN_INVALID",
+  AUTH_EMAIL_NOT_VERIFIED: "AUTH_EMAIL_NOT_VERIFIED",
 
   // Validation errors (VAL_*)
   VAL_INVALID_INPUT: "VAL_INVALID_INPUT",
@@ -143,6 +148,26 @@ export const HTTP_MESSAGES = {
   AUTH_HOURLY_LIMIT: {
     messageHi: "Ghante ki sima paar. Kripya kuch der baad prayas karein.",
     messageEn: "Hourly limit exceeded. Please try again after some time.",
+  },
+  AUTH_EMAIL_EXISTS: {
+    messageHi: "Yeh email pehle se registered hai. Kripya login karein.",
+    messageEn: "This email is already registered. Please login instead.",
+  },
+  AUTH_MOBILE_EXISTS: {
+    messageHi: "Yeh mobile number pehle se registered hai. Kripya login karein.",
+    messageEn: "This mobile number is already registered. Please login instead.",
+  },
+  AUTH_INVALID_CREDENTIALS: {
+    messageHi: "Email ya password galat hai. Kripya dobara prayas karein.",
+    messageEn: "Invalid email or password. Please try again.",
+  },
+  AUTH_GOOGLE_TOKEN_INVALID: {
+    messageHi: "Google token invalid hai. Kripya dobara try karein.",
+    messageEn: "Invalid Google token. Please try again.",
+  },
+  AUTH_EMAIL_NOT_VERIFIED: {
+    messageHi: "Email verify nahi hua hai. Kripya apna email check karein.",
+    messageEn: "Email not verified. Please check your email.",
   },
   AUTH_OTP_ATTEMPTS_REMAINING: {
     messageHi: "Galat OTP. {count} prayas baaki.",

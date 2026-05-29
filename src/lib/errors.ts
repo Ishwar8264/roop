@@ -161,6 +161,56 @@ export class AuthSmsFailedError extends AppError {
   }
 }
 
+export class AuthEmailExistsError extends AppError {
+  constructor() {
+    super(
+      ERROR_CODES.AUTH_EMAIL_EXISTS,
+      HTTP_STATUS.CONFLICT,
+      HTTP_MESSAGES.AUTH_EMAIL_EXISTS.messageEn
+    );
+  }
+}
+
+export class AuthMobileExistsError extends AppError {
+  constructor() {
+    super(
+      ERROR_CODES.AUTH_MOBILE_EXISTS,
+      HTTP_STATUS.CONFLICT,
+      HTTP_MESSAGES.AUTH_MOBILE_EXISTS.messageEn
+    );
+  }
+}
+
+export class AuthInvalidCredentialsError extends AppError {
+  constructor() {
+    super(
+      ERROR_CODES.AUTH_INVALID_CREDENTIALS,
+      HTTP_STATUS.UNAUTHORIZED,
+      HTTP_MESSAGES.AUTH_INVALID_CREDENTIALS.messageEn
+    );
+  }
+}
+
+export class AuthGoogleTokenInvalidError extends AppError {
+  constructor() {
+    super(
+      ERROR_CODES.AUTH_GOOGLE_TOKEN_INVALID,
+      HTTP_STATUS.UNAUTHORIZED,
+      HTTP_MESSAGES.AUTH_GOOGLE_TOKEN_INVALID.messageEn
+    );
+  }
+}
+
+export class AuthEmailNotVerifiedError extends AppError {
+  constructor() {
+    super(
+      ERROR_CODES.AUTH_EMAIL_NOT_VERIFIED,
+      HTTP_STATUS.UNAUTHORIZED,
+      HTTP_MESSAGES.AUTH_EMAIL_NOT_VERIFIED.messageEn
+    );
+  }
+}
+
 // ==================== VALIDATION ERRORS ====================
 
 export class ValidationError extends AppError {
