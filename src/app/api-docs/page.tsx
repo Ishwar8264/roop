@@ -1,130 +1,156 @@
 "use client";
 
 /**
- * Nikharta Roop — Swagger UI Page
+ * Nikharta Roop — API Documentation Page (Scalar)
  * Purpose: Interactive API documentation at /api-docs
  * Route: GET /api-docs
  *
- * Uses CDN-loaded Swagger UI via useEffect — no SSR issues.
+ * Uses @scalar/api-reference web component via dynamic import
+ * Avoids React SSR / Next.js 16 proxy adapter issues
  */
 
-import { useEffect, useRef } from "react";
-
-// Declare global for SwaggerUIBundle
-declare global {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  var SwaggerUIBundle: any;
-}
+import { useEffect, useRef, useState } from "react";
 
 export default function ApiDocsPage() {
+  const containerRef = useRef<HTMLDivElement>(null);
   const initialized = useRef(false);
+  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
 
-    // Helper to load a script and return a promise
-    const loadScript = (src: string): Promise<void> =>
-      new Promise((resolve, reject) => {
-        // Check if already loaded
-        const existing = document.querySelector(`script[src="${src}"]`);
-        if (existing) {
-          resolve();
-          return;
-        }
-        const script = document.createElement("script");
-        script.src = src;
-        script.onload = () => resolve();
-        script.onerror = () => reject(new Error(`Failed to load ${src}`));
-        document.head.appendChild(script);
-      });
-
-    // Helper to load a stylesheet
-    const loadStyle = (href: string) => {
-      const existing = document.querySelector(`link[href="${href}"]`);
-      if (existing) return;
-      const link = document.createElement("link");
-      link.rel = "stylesheet";
-      link.href = href;
-      document.head.appendChild(link);
-    };
-
-    const initSwagger = async () => {
+    const init = async () => {
       try {
-        // 1. Load CSS
-        loadStyle(
-          "https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui.css"
-        );
+        // 1. Fetch the OpenAPI spec from our own endpoint
+        const res = await fetch("/api/api-spec");
+        if (!res.ok) throw new Error(`API spec fetch failed: HTTP ${res.status}`);
+        const spec = await res.json();
 
-        // 2. Load Swagger UI Bundle JS
-        await loadScript(
-          "https://unpkg.com/swagger-ui-dist@5.11.0/swagger-ui-bundle.js"
-        );
+        // 2. Dynamically import Scalar web component
+        //    @scalar/api-reference exports a custom element <api-reference>
+        await import("@scalar/api-reference-react");
 
-        // 3. Initialize Swagger UI
-        if (window.SwaggerUIBundle) {
-          window.SwaggerUIBundle({
-            url: "/api/api-spec",
-            dom_id: "#swagger-ui",
-            presets: [
-              window.SwaggerUIBundle.presets.apis,
-              window.SwaggerUIBundle.SwaggerUIStandalonePreset,
-            ],
-            layout: "BaseLayout",
-            docExpansion: "list",
-            defaultModelsExpandDepth: 1,
-            defaultModelExpandDepth: 1,
-            tryItOutEnabled: true,
-            requestInterceptor: (request: RequestInit) => {
-              const headers = new Headers(request.headers);
-              headers.set("X-Requested-With", "NikhartaRoop-SwaggerUI");
-              return { ...request, headers };
-            },
-          });
+        // 3. Create the web component and attach spec
+        if (containerRef.current) {
+          // Clear loading placeholder
+          containerRef.current.innerHTML = "";
+
+          const el = document.createElement("api-reference");
+          el.setAttribute("data-spec", JSON.stringify(spec));
+          el.setAttribute("data-theme", "default");
+          el.setAttribute("data-layout", "modern");
+
+          containerRef.current.appendChild(el);
+          setStatus("ready");
         }
       } catch (err) {
-        console.error("Failed to initialize Swagger UI:", err);
-        const container = document.getElementById("swagger-ui");
-        if (container) {
-          container.innerHTML = `
-            <div style="padding: 40px; text-align: center; color: #C2185B;">
-              <h2>Swagger UI Load Failed</h2>
-              <p>CDN से Swagger UI load नहीं हो पाया। Internet connection check करें।</p>
-              <p style="color: #666; font-size: 14px;">
-                API Spec directly देखें: <a href="/api/api-spec" style="color: #C2185B;">/api/api-spec</a>
-              </p>
-            </div>
-          `;
-        }
+        console.error("Failed to initialize API docs:", err);
+        setStatus("error");
+        setErrorMsg(err instanceof Error ? err.message : "Unknown error");
       }
     };
 
-    initSwagger();
+    init();
   }, []);
 
+  if (status === "error") {
+    return (
+      <div style={errorStyle}>
+        <h2 style={{ color: "#C2185B", marginBottom: "12px" }}>
+          API Docs Load Failed
+        </h2>
+        <p style={{ marginBottom: "8px" }}>
+          API documentation load नहीं हो पाई। कृपया page refresh करें।
+        </p>
+        <p style={{ color: "#666", fontSize: "14px", marginBottom: "16px" }}>
+          Error: {errorMsg}
+        </p>
+        <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
+          <a
+            href="/api/api-spec"
+            target="_blank"
+            rel="noreferrer"
+            style={{
+              color: "#C2185B",
+              textDecoration: "underline",
+              padding: "8px 16px",
+              border: "1px solid #C2185B",
+              borderRadius: "8px",
+            }}
+          >
+            API Spec JSON देखें
+          </a>
+          <button
+            onClick={() => window.location.reload()}
+            style={{
+              background: "#C2185B",
+              color: "white",
+              border: "none",
+              padding: "8px 16px",
+              borderRadius: "8px",
+              cursor: "pointer",
+            }}
+          >
+            Refresh करें
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div style={{ margin: 0, padding: 0 }}>
+    <div style={{ height: "100vh", position: "relative" }}>
       <style>{`
-        /* Hide default Swagger topbar */
-        .swagger-ui .topbar { display: none; }
-        /* Title styling */
-        .swagger-ui .info .title { font-size: 28px; }
-        /* Loading state */
-        #swagger-ui-loading {
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          min-height: 200px;
-          font-family: 'Noto Sans Devanagari', sans-serif;
-          color: #C2185B;
-          font-size: 18px;
+        /* Scalar overrides for Nikharta Roop branding */
+        api-reference {
+          --scalar-font: 'Noto Sans Devanagari', 'Inter', sans-serif;
         }
       `}</style>
-      <div id="swagger-ui">
-        <div id="swagger-ui-loading">
-          <p>Loading API Documentation...</p>
-        </div>
+      <div
+        ref={containerRef}
+        style={{ height: "100%" }}
+      >
+        {status === "loading" && (
+          <div style={loadingStyle}>
+            <div style={spinnerStyle} />
+            <p style={{ color: "#C2185B", fontFamily: "'Noto Sans Devanagari', sans-serif", fontSize: "16px" }}>
+              API Documentation load हो रही है...
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
 }
+
+// ===== Styles =====
+const loadingStyle: React.CSSProperties = {
+  display: "flex",
+  flexDirection: "column",
+  justifyContent: "center",
+  alignItems: "center",
+  height: "100vh",
+  gap: "16px",
+};
+
+const spinnerStyle: React.CSSProperties = {
+  width: "40px",
+  height: "40px",
+  border: "4px solid #f3f3f3",
+  borderTop: "4px solid #C2185B",
+  borderRadius: "50%",
+  animation: "spin 1s linear infinite",
+};
+
+const errorStyle: React.CSSProperties = {
+  padding: "40px",
+  textAlign: "center",
+  fontFamily: "'Noto Sans Devanagari', sans-serif",
+  height: "100vh",
+  display: "flex",
+  flexDirection: "column",
+  justifyContent: "center",
+  alignItems: "center",
+};
