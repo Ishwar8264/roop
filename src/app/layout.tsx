@@ -1,6 +1,21 @@
 import type { Metadata } from "next";
+import { Noto_Sans_Devanagari, Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
+
+const notoSansDevanagari = Noto_Sans_Devanagari({
+  subsets: ["devanagari"],
+  variable: "--font-hindi",
+  weight: ["300", "400", "500", "600", "700"],
+  display: "swap",
+});
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-sans",
+  weight: ["300", "400", "500", "600", "700"],
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "निखरता रूप — Nikharta Roop | Beauty Parlour",
@@ -26,7 +41,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="hi" suppressHydrationWarning>
-      <body className="antialiased bg-background text-foreground min-h-screen flex flex-col">
+      <body
+        className={`${notoSansDevanagari.variable} ${inter.variable} antialiased bg-background text-foreground min-h-screen flex flex-col`}
+      >
         {children}
         <Toaster />
       </body>
