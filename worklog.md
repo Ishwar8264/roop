@@ -72,3 +72,53 @@ Stage Summary:
 - Schema: prisma/schema.prisma — 10 models with full relationships
 - Seed: prisma/seed.ts — Demo data for development
 - Admin: पूजा शर्मा (9999999999)
+
+---
+Task ID: 5
+Agent: Main
+Task: Complete Schema Rewrite — PostgreSQL + 42 Models + 19 Enums + Improved Table Names
+
+Work Log:
+- Replaced incomplete 10-model SQLite schema with production-grade PostgreSQL schema
+- 42 models covering all platform domains:
+  - Auth: User, AuthSession, AuthOtp, AuthEvent
+  - Branch: Branch, BranchHoliday
+  - Service Catalog: ServiceCategory, Service, ServiceVariant, ServiceAddOn, Package, PackageService
+  - Staff: Staff, StaffService, StaffLeave
+  - Bookings: Booking, BookingAddOn, BookingStatusHistory, BookingOffer
+  - Payments: Payment, Refund
+  - Consultation: Consultation
+  - Reviews: Review
+  - Customer: CustomerAddress
+  - Offers: Offer, OfferService, OfferRedemption
+  - Notifications: Notification
+  - Loyalty: LoyaltyTransaction
+  - Analytics: RevenueSnapshot
+  - Products: ProductCategory, Product, ProductSale, ProductSaleItem
+  - Inventory: InventoryItem, InventoryTransaction
+  - Expenses: Expense
+  - Commissions: StaffCommission
+  - Media: MediaAsset (polymorphic via ownerId + ownerType)
+  - Portfolio: PortfolioItem
+  - Blog: BlogCategory, BlogPost
+- 19 enums with proper naming (AuthOtpPurpose, AuthEventType, NotificationTrigger, etc.)
+- All monetary values: Decimal(@db.Decimal(10,2)) — never Float
+- All time fields: @db.Time(0) for scheduling
+- All date fields: @db.Date for booking/holiday
+- i18n pattern: nameHi, nameEn, descriptionHi, descriptionEn, descriptionHtml
+- Proper cascade/restrict/setNull delete strategies
+- Every query path indexed
+- Fixed: Time defaults removed (Prisma needs RFC3339 for DateTime defaults)
+- Fixed: MediaAsset uses polymorphic ownerId+ownerType (no direct FK — application-level joins)
+- Fixed: Removed variant FK from BookingAddOn (variants belong to main booking)
+- Updated .env: PostgreSQL connection string
+- Updated seed.ts: Complete seed for all 42 models
+- Updated types/index.ts: All TypeScript types matching Prisma schema 1:1
+- prisma generate ✅ passed, prisma format ✅ passed
+
+Stage Summary:
+- Database: PostgreSQL only (no more SQLite)
+- Schema: 42 models, 19 enums — complete platform coverage
+- Table names improved: service_categories, branch_holidays, auth_sessions, auth_otps, auth_events, etc.
+- Seed: 2 branches, 3 holidays, 8 categories, 16 services, 6 variants, 4 add-ons, 2 packages, 14 staff-service links, 3 offers, 4 bookings, 6 status history, 2 reviews, 3 notifications, 2 loyalty txns, 4 product categories, 4 products, 2 blog categories, 2 blog posts
+- Types: Full TypeScript types with Decimal→string pattern
