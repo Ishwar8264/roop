@@ -1,10 +1,10 @@
 /**
  * Purpose: Seed initial data for Nikharta Roop database
  * Responsibility: Create default branches, categories, services, staff, and admin user
- * Important Notes: Run with `bun run db:seed` — idempotent (safe to re-run)
+ * Important Notes: Run with `bun run db:seed` — uses Prisma enums for type safety
  */
 
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, UserRole, BookingStatus, DiscountType, NotificationChannel, NotificationStatus } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -47,7 +47,7 @@ async function main() {
     },
   });
 
-  console.log(`  ✅ ${2} branches created\n`);
+  console.log(`  ✅ 2 branches created\n`);
 
   // ==================== 2. CATEGORIES ====================
   console.log("📂 Creating categories...");
@@ -84,23 +84,23 @@ async function main() {
       mobile: "9999999999",
       name: "पूजा शर्मा",
       email: "admin@nikhartaroop.in",
-      role: "ADMIN",
+      role: UserRole.ADMIN,
       branchId: branchDelhi.id,
       isActive: true,
       loyaltyPoints: 0,
     },
   });
 
-  console.log(`  ✅ Admin created: ${adminUser.name} (${adminUser.mobile})\n`);
+  console.log(`  ✅ Admin: ${adminUser.name} (${adminUser.mobile})\n`);
 
   // ==================== 4. DEMO CUSTOMERS ====================
   console.log("👥 Creating demo customers...");
 
   const customers = [
-    { id: "user_priya", mobile: "9123456789", name: "प्रिया गुप्ता", role: "USER" },
-    { id: "user_sunita", mobile: "9234567890", name: "सुनीता वर्मा", role: "USER" },
-    { id: "user_kavita", mobile: "9345678901", name: "कविता सिंह", role: "USER" },
-    { id: "user_rekha", mobile: "9456789012", name: "रेखा देवी", role: "USER" },
+    { id: "user_priya", mobile: "9123456789", name: "प्रिया गुप्ता", role: UserRole.USER },
+    { id: "user_sunita", mobile: "9234567890", name: "सुनीता वर्मा", role: UserRole.USER },
+    { id: "user_kavita", mobile: "9345678901", name: "कविता सिंह", role: UserRole.USER },
+    { id: "user_rekha", mobile: "9456789012", name: "रेखा देवी", role: UserRole.USER },
   ];
 
   for (const cust of customers) {
@@ -131,6 +131,7 @@ async function main() {
       specialization: JSON.stringify(["facial", "bridal_makeup", "hair_color"]),
       experienceYears: 8,
       bioHi: "8 साल का अनुभव — ब्राइडल मेकअप में विशेषज्ञ",
+      bioEn: "8 years experience — Bridal Makeup specialist",
       rating: 4.9,
       isAvailable: true,
       workDays: JSON.stringify({ mon: true, tue: true, wed: true, thu: true, fri: true, sat: true, sun: false }),
@@ -144,6 +145,7 @@ async function main() {
       specialization: JSON.stringify(["hair_cutting", "hair_styling", "threading"]),
       experienceYears: 5,
       bioHi: "हेयर स्टाइलिंग और थ्रेडिंग में माहिर",
+      bioEn: "Expert in Hair Styling and Threading",
       rating: 4.7,
       isAvailable: true,
       workDays: JSON.stringify({ mon: true, tue: true, wed: false, thu: true, fri: true, sat: true, sun: true }),
@@ -157,6 +159,7 @@ async function main() {
       specialization: JSON.stringify(["mehendi", "nail_art", "facial"]),
       experienceYears: 6,
       bioHi: "मेहंदी और नेल आर्ट की विशेषज्ञ",
+      bioEn: "Mehendi and Nail Art specialist",
       rating: 4.8,
       isAvailable: true,
       workDays: JSON.stringify({ mon: true, tue: true, wed: true, thu: true, fri: true, sat: true, sun: false }),
@@ -224,7 +227,7 @@ async function main() {
       code: "NR20FIRST",
       titleHi: "पहली बुकिंग पर 20% छूट",
       titleEn: "20% off on first booking",
-      discountType: "PERCENTAGE",
+      discountType: DiscountType.PERCENTAGE,
       discountValue: 20,
       minOrder: 200,
       maxDiscount: 500,
@@ -238,7 +241,7 @@ async function main() {
       code: "DIWALI20",
       titleHi: "दिवाली स्पेशल — 20% छूट",
       titleEn: "Diwali Special — 20% off",
-      discountType: "PERCENTAGE",
+      discountType: DiscountType.PERCENTAGE,
       discountValue: 20,
       minOrder: 500,
       maxDiscount: 1000,
@@ -252,7 +255,7 @@ async function main() {
       code: "FLAT200",
       titleHi: "ब्राइडल पैकेज पर ₹200 की छूट",
       titleEn: "₹200 off on Bridal packages",
-      discountType: "FLAT_AMOUNT",
+      discountType: DiscountType.FLAT_AMOUNT,
       discountValue: 200,
       minOrder: 2000,
       validFrom: new Date("2026-01-01"),
@@ -289,7 +292,7 @@ async function main() {
       bookingDate: tomorrow,
       slotStart: "10:00",
       slotEnd: "13:00",
-      status: "CONFIRMED",
+      status: BookingStatus.CONFIRMED,
       totalAmount: 8000,
       advanceAmount: 1600,
     },
@@ -303,7 +306,7 @@ async function main() {
       bookingDate: tomorrow,
       slotStart: "14:00",
       slotEnd: "15:00",
-      status: "CONFIRMED",
+      status: BookingStatus.CONFIRMED,
       totalAmount: 500,
       advanceAmount: 50,
     },
@@ -317,7 +320,7 @@ async function main() {
       bookingDate: today,
       slotStart: "11:00",
       slotEnd: "11:30",
-      status: "COMPLETED",
+      status: BookingStatus.COMPLETED,
       totalAmount: 200,
     },
     {
@@ -330,7 +333,7 @@ async function main() {
       bookingDate: tomorrow,
       slotStart: "15:00",
       slotEnd: "15:45",
-      status: "PENDING",
+      status: BookingStatus.PENDING,
       totalAmount: 500,
     },
   ];
@@ -381,20 +384,71 @@ async function main() {
 
   console.log(`  ✅ ${reviews.length} demo reviews created\n`);
 
+  // ==================== 10. DEMO NOTIFICATIONS ====================
+  console.log("🔔 Creating demo notifications...");
+
+  const notifications = [
+    {
+      id: "notif_demo_001",
+      userId: "user_kavita",
+      channel: NotificationChannel.WHATSAPP,
+      title: "बुकिंग पुष्टि",
+      message: "नमस्ते कविता! आपकी ब्राइडल मेकअप बुकिंग confirmed है।",
+      status: NotificationStatus.SENT,
+      sentAt: new Date(),
+    },
+    {
+      id: "notif_demo_002",
+      userId: "user_sunita",
+      channel: NotificationChannel.WHATSAPP,
+      title: "बुकिंग पुष्टि",
+      message: "नमस्ते सुनीता! आपकी फेशियल बुकिंग confirmed है।",
+      status: NotificationStatus.SENT,
+      sentAt: new Date(),
+    },
+    {
+      id: "notif_demo_003",
+      userId: "user_priya",
+      channel: NotificationChannel.SMS,
+      title: "OTP",
+      message: "123456 — यह आपका Nikharta Roop verification code है।",
+      status: NotificationStatus.SENT,
+      sentAt: new Date(),
+    },
+  ];
+
+  for (const n of notifications) {
+    await prisma.notification.upsert({
+      where: { id: n.id },
+      update: {},
+      create: n,
+    });
+  }
+
+  console.log(`  ✅ ${notifications.length} demo notifications created\n`);
+
   // ==================== SUMMARY ====================
-  console.log("═══════════════════════════════════════════");
-  console.log("🎉 Nikharta Roop — Database Seeded!");
-  console.log("═══════════════════════════════════════════");
-  console.log("📍 Branches:     2 (Delhi, Lucknow)");
-  console.log("📂 Categories:   8");
-  console.log("💅 Services:    16");
-  console.log("👤 Admin:        पूजा शर्मा (9999999999)");
-  console.log("👥 Customers:    4 (demo)");
-  console.log("💇 Staff:        3");
-  console.log("📅 Bookings:     4 (demo)");
-  console.log("⭐ Reviews:      2 (demo)");
-  console.log("🏷️ Offers:       3");
-  console.log("═══════════════════════════════════════════\n");
+  console.log("═══════════════════════════════════════════════");
+  console.log("🎉 Nikharta Roop — Database Seeded Successfully!");
+  console.log("═══════════════════════════════════════════════");
+  console.log("📍 Branches:      2 (Delhi, Lucknow)");
+  console.log("📂 Categories:    8");
+  console.log("💅 Services:     16");
+  console.log("👤 Admin:         पूजा शर्मा (9999999999)");
+  console.log("👥 Customers:     4 (demo)");
+  console.log("💇 Staff:         3");
+  console.log("📅 Bookings:      4 (demo)");
+  console.log("⭐ Reviews:       2 (demo)");
+  console.log("🏷️ Offers:        3");
+  console.log("🔔 Notifications: 3 (demo)");
+  console.log("═══════════════════════════════════════════════");
+  console.log("\n📋 ENUMS Active:");
+  console.log("  UserRole:    GUEST | USER | STAFF | ADMIN");
+  console.log("  BookingStatus: PENDING | CONFIRMED | IN_PROGRESS | COMPLETED | CANCELLED | NO_SHOW");
+  console.log("  DiscountType:  PERCENTAGE | FLAT_AMOUNT");
+  console.log("  NotificationChannel: WHATSAPP | SMS | EMAIL | PUSH");
+  console.log("  NotificationStatus:  PENDING | SENT | FAILED");
+  console.log("═══════════════════════════════════════════════\n");
 }
 
 main()

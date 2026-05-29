@@ -2,12 +2,14 @@
  * Nikharta Roop — Prisma Database Schema
  * 
  * Purpose: Complete database schema for beauty parlour booking platform
- * Responsibility: Define all models, relationships, indexes, and constraints
+ * Responsibility: Define all models, relationships, indexes, enums, and constraints
  * Important Notes: 
  *   - Using SQLite for development, PostgreSQL for production
  *   - All monetary values stored as Float (use Decimal in PostgreSQL)
  *   - All timestamps in IST
  *   - branch_id on every major table for multi-branch future
+ *   - Enums defined as Prisma enums for type safety
+ *   - BookingOffer.bookingId now has proper @relation to Booking
  */
 
 generator client {
@@ -17,6 +19,47 @@ generator client {
 datasource db {
   provider = "sqlite"
   url      = env("DATABASE_URL")
+}
+
+// ==================== ENUMS ====================
+
+/// User roles — GUEST (browsing only), USER (customer), STAFF (beautician), ADMIN (owner)
+enum UserRole {
+  GUEST
+  USER
+  STAFF
+  ADMIN
+}
+
+/// Booking lifecycle statuses
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+/// Discount type for offers
+enum DiscountType {
+  PERCENTAGE
+  FLAT_AMOUNT
+}
+
+/// Notification delivery channels
+enum NotificationChannel {
+  WHATSAPP
+  SMS
+  EMAIL
+  PUSH
+}
+
+/// Notification delivery status
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
 }
 
 // ==================== BRANCHES ====================
@@ -30,8 +73,8 @@ model Branch {
   address       String                    // Full address
   googleMapsUrl String?                   // Direct Google Maps link
   phone         String                    // Branch contact number (10 digits)
-  openTime      String                    // "09:00"
-  closeTime     String                    // "20:00"
+  openTime      String                    // "09:00" — TIME type in PostgreSQL
+  closeTime     String                    // "20:00" — TIME type in PostgreSQL
   isActive      Boolean  @default(true)   // Inactive branch hidden from users
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -49,6 +92,7 @@ model Branch {
 // ==================== CATEGORIES ====================
 
 /// Service categories — Hair Care, Skin Care, Bridal, etc.
+/// Document references category_id FK → Categories (implicit table, materialized here)
 model Category {
   id        String   @id @default(cuid())
   nameHi    String                    // "हेयर केयर"
@@ -72,24 +116,26 @@ model Category {
 /// All platform users — customers, staff, and admins
 model User {
   id            String   @id @default(cuid())
-  mobile        String   @unique           // Indian 10-digit mobile number
+  mobile        String   @unique           // Indian 10-digit mobile number — primary login lookup
   name          String?                    // Full name (optional at registration)
   email         String?                    // Optional email for receipts
-  role          String   @default("USER")  // GUEST | USER | STAFF | ADMIN
-  branchId      String?                    // For STAFF/ADMIN — which branch
-  avatarUrl     String?                    // Profile photo URL
+  role          UserRole @default(USER)    // GUEST | USER | STAFF | ADMIN — enum enforced
+  branchId      String?                    // For STAFF/ADMIN — which branch they belong to
+  avatarUrl     String?                    // Profile photo URL (Cloudinary/S3)
   loyaltyPoints Int      @default(0)       // Accumulated loyalty points
-  isActive      Boolean  @default(true)    // false = account suspended
-  createdAt     DateTime @default(now())
+  isActive      Boolean  @default(true)    // false = account suspended by admin
+  createdAt     DateTime @default(now())   // Account creation timestamp
   lastLoginAt   DateTime?                  // Last OTP login timestamp
   updatedAt     DateTime @updatedAt
 
   // Relations
-  bookings     Booking[]
-  reviews      Review[]
-  staffProfile Staff?
+  bookings        Booking[]
+  reviews         Review[]
+  staffProfile    Staff?
+  notifications   Notification[]
+  otpVerifications OtpVerification[]
 
-  // Indexes
+  // Indexes — from document: mobile (unique), role, isActive
   @@index([mobile])
   @@index([role])
   @@index([isActive])
@@ -101,14 +147,14 @@ model User {
 /// Beauty services offered by the parlour
 model Service {
   id              String   @id @default(cuid())
-  nameHi          String                    // "फेशियल"
-  nameEn          String                    // "Facial"
+  nameHi          String                    // "फेशियल" — Service name in Hindi
+  nameEn          String                    // "Facial" — Service name in English
   descriptionHi   String                    // Full description in Hindi
   descriptionEn   String?                   // Full description in English (optional)
-  price           Float                     // Base price in INR
-  durationMinutes Int                       // How long the service takes (e.g., 45)
-  imageUrl        String?                   // Service photo URL
-  isActive        Boolean  @default(true)   // false = hidden from users
+  price           Float                     // Base price in INR — DECIMAL(10,2) in PostgreSQL
+  durationMinutes Int                       // How long the service takes (e.g., 45 min)
+  imageUrl        String?                   // Service photo URL (Cloudinary/S3)
+  isActive        Boolean  @default(true)   // false = hidden from users (soft delete)
   branchId        String                    // Which branch offers this service
   categoryId      String                    // Hair Care, Skin Care, Bridal, etc.
   createdAt       DateTime @default(now())
@@ -120,7 +166,7 @@ model Service {
   bookings Booking[]
   reviews  Review[]
 
-  // Indexes
+  // Indexes — from document: category_id, is_active
   @@index([categoryId])
   @@index([branchId])
   @@index([isActive])
@@ -130,20 +176,21 @@ model Service {
 
 // ==================== STAFF ====================
 
-/// Beauticians / technicians at parlour — linked to Users table
+/// Beauticians / technicians at parlour — linked to Users table (same login system)
 model Staff {
   id              String   @id @default(cuid())
   userId          String   @unique           // Linked to Users table (same login)
   branchId        String                     // Their assigned branch
-  specialization  String                     // JSON string: ["facial","bridal_makeup","hair_color"]
+  specialization  String                     // JSON array: ["facial","bridal_makeup","hair_color"] — TEXT[] in PostgreSQL
   experienceYears Int?                       // Years of experience
   bioHi           String?                    // Short bio in Hindi
+  bioEn           String?                    // Short bio in English (optional)
   photoUrl        String?                    // Staff photo URL
-  rating          Float    @default(0)       // Average rating — updated after each review
+  rating          Float    @default(0)       // Average rating from reviews — computed, DECIMAL(3,2) in PostgreSQL
   isAvailable     Boolean  @default(true)    // Temporarily unavailable (sick leave etc.)
-  workDays        String   @default("{}")    // JSON: {"mon":true,"tue":true,"wed":false,...}
-  workStart       String   @default("09:00") // Shift start time
-  workEnd         String   @default("19:00") // Shift end time
+  workDays        String   @default("{}")    // JSON: {"mon":true,"tue":true,"wed":false,...} — JSONB in PostgreSQL
+  workStart       String   @default("09:00") // Shift start — TIME type in PostgreSQL
+  workEnd         String   @default("19:00") // Shift end — TIME type in PostgreSQL
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -164,32 +211,36 @@ model Staff {
 
 /// Most critical table — every appointment ever made with full history
 model Booking {
-  id                String   @id @default(cuid())
-  bookingDisplayId  String   @unique            // Human-readable: "BK-2024-00123"
-  userId            String                      // Who made the booking
-  serviceId         String                      // Which service was booked
-  staffId           String?                     // Assigned beautician (null = any available)
-  branchId          String                      // Which branch the booking is at
-  bookingDate       String                      // Date of appointment: "2024-12-15"
-  slotStart         String                      // Start time: "11:00"
-  slotEnd           String                      // End time: calculated: slot_start + duration
-  status            String   @default("PENDING") // PENDING | CONFIRMED | IN_PROGRESS | COMPLETED | CANCELLED | NO_SHOW
-  advanceAmount     Float?                      // Amount paid in advance
-  totalAmount       Float                       // Full service price
-  paymentId         String?                     // Razorpay payment reference ID
-  cancellationReason String?                    // Why cancelled — if applicable
-  notes             String?                     // Special instructions from user or admin
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id                String        @id @default(cuid())
+  bookingDisplayId  String        @unique            // Human-readable: "BK-2024-00123"
+  userId            String                           // Who made the booking
+  serviceId         String                           // Which service was booked
+  staffId           String?                          // Assigned beautician (null = any available)
+  branchId          String                           // Which branch the booking is at
+  bookingDate       String                           // Date of appointment: "2024-12-15" — DATE type in PostgreSQL
+  slotStart         String                           // Start time: "11:00" — TIME type in PostgreSQL
+  slotEnd           String                           // End time: calculated: slot_start + duration — TIME in PostgreSQL
+  status            BookingStatus @default(PENDING)  // PENDING | CONFIRMED | IN_PROGRESS | COMPLETED | CANCELLED | NO_SHOW
+  advanceAmount     Float?                           // Amount paid in advance — DECIMAL(10,2) in PostgreSQL
+  totalAmount       Float                            // Full service price — DECIMAL(10,2) in PostgreSQL
+  paymentId         String?                          // Razorpay payment reference ID
+  cancellationReason String?                         // Why cancelled — if applicable
+  notes             String?                          // Special instructions from user or admin
+  createdAt         DateTime      @default(now())    // When booking was made
+  updatedAt         DateTime      @updatedAt         // Last status change time
 
   // Relations
-  user    User    @relation(fields: [userId], references: [id])
-  service Service @relation(fields: [serviceId], references: [id])
-  staff   Staff?  @relation(fields: [staffId], references: [id])
-  branch  Branch  @relation(fields: [branchId], references: [id])
-  review  Review?
+  user          User          @relation(fields: [userId], references: [id])
+  service       Service       @relation(fields: [serviceId], references: [id])
+  staff         Staff?        @relation(fields: [staffId], references: [id])
+  branch        Branch        @relation(fields: [branchId], references: [id])
+  review        Review?
+  bookingOffers BookingOffer[]
 
-  // Indexes — critical for performance
+  // Indexes — from document: critical for performance
+  // user_id, booking_date, status — Filter user's bookings by date and status
+  // staff_id + booking_date + slot_start — Conflict detection — check staff double-booking
+  // branch_id + booking_date — Daily schedule view for admin
   @@index([userId, bookingDate, status])
   @@index([staffId, bookingDate, slotStart])
   @@index([branchId, bookingDate])
@@ -208,11 +259,11 @@ model Review {
   bookingId  String   @unique            // One review per booking only
   staffId    String?                     // Staff being reviewed
   serviceId  String                      // Service being reviewed
-  rating     Int                         // Star rating 1–5
+  rating     Int                         // Star rating 1–5 (app validates range)
   commentHi  String?                     // Review text — Hindi preferred
   commentEn  String?                     // Review text — English (optional)
   isApproved Boolean  @default(true)     // Admin can hide inappropriate reviews
-  createdAt  DateTime @default(now())
+  createdAt  DateTime @default(now())    // When review was submitted
   updatedAt  DateTime @updatedAt
 
   // Relations
@@ -221,7 +272,7 @@ model Review {
   staff   Staff?  @relation(fields: [staffId], references: [id])
   service Service @relation(fields: [serviceId], references: [id])
 
-  // Indexes
+  // Indexes — from document: service_id, rating (avg rating computation)
   @@index([serviceId, rating])
   @@index([staffId])
   @@index([isApproved])
@@ -233,27 +284,27 @@ model Review {
 
 /// Promo codes and seasonal discounts
 model Offer {
-  id                 String   @id @default(cuid())
-  code               String   @unique            // Promo code: "DIWALI20"
-  titleHi            String                      // Offer name in Hindi
-  titleEn            String?                     // Offer name in English (optional)
-  discountType       String                      // PERCENTAGE | FLAT_AMOUNT
-  discountValue      Float                       // 20 (for 20%) or 200 (for ₹200 off)
-  minOrder           Float?                      // Minimum booking amount to apply
-  maxDiscount        Float?                      // Cap on discount: max ₹500 even if 20%
-  validFrom          DateTime                    // Offer start date-time
-  validUntil         DateTime                    // Offer end date-time
-  usageLimit         Int?                        // Total times this offer can be used
-  usageCount         Int      @default(0)        // How many times used so far
-  applicableServices String?                     // JSON: service IDs or null = all services
-  isActive           Boolean  @default(true)     // Admin can deactivate without deleting
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  id                 String       @id @default(cuid())
+  code               String       @unique            // Promo code: "DIWALI20"
+  titleHi            String                          // Offer name in Hindi
+  titleEn            String?                         // Offer name in English (optional)
+  discountType       DiscountType                    // PERCENTAGE | FLAT_AMOUNT — enum enforced
+  discountValue      Float                           // 20 (for 20%) or 200 (for ₹200 off) — DECIMAL in PostgreSQL
+  minOrder           Float?                          // Minimum booking amount to apply — DECIMAL in PostgreSQL
+  maxDiscount        Float?                          // Cap on discount: max ₹500 even if 20% — DECIMAL in PostgreSQL
+  validFrom          DateTime                        // Offer start date-time
+  validUntil         DateTime                        // Offer end date-time
+  usageLimit         Int?                            // Total times this offer can be used
+  usageCount         Int          @default(0)        // How many times used so far
+  applicableServices String?                         // JSON: service IDs or null = all services — UUID[] in PostgreSQL
+  isActive           Boolean      @default(true)     // Admin can deactivate without deleting
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
 
   // Relations
   bookingOffers BookingOffer[]
 
-  // Indexes
+  // Indexes — from document: code (unique), valid_until (fast promo code lookup and expiry check)
   @@index([code])
   @@index([validUntil])
   @@index([isActive])
@@ -265,12 +316,13 @@ model Offer {
 /// Many-to-Many: An offer can be applied to many bookings
 model BookingOffer {
   id        String   @id @default(cuid())
-  bookingId String
-  offerId   String
+  bookingId String                      // FK → Bookings
+  offerId   String                      // FK → Offers
   createdAt DateTime @default(now())
 
-  // Relations
-  offer Offer @relation(fields: [offerId], references: [id])
+  // Relations — both sides properly connected
+  booking Booking @relation(fields: [bookingId], references: [id])
+  offer   Offer   @relation(fields: [offerId], references: [id])
 
   @@unique([bookingId, offerId])
   @@index([bookingId])
@@ -281,15 +333,19 @@ model BookingOffer {
 // ==================== NOTIFICATIONS ====================
 
 /// Notification log — audit trail for all messages sent
+/// Document Section 10.3: "All notifications are logged in a Notifications table with status (SENT / FAILED) for audit"
 model Notification {
-  id        String   @id @default(cuid())
-  userId    String                      // Recipient user
-  channel   String                      // WHATSAPP | SMS | EMAIL | PUSH
-  title     String                      // Notification title
-  message   String                      // Full message body
-  status    String   @default("PENDING") // PENDING | SENT | FAILED
-  sentAt    DateTime?                   // When actually sent
-  createdAt DateTime @default(now())
+  id        String             @id @default(cuid())
+  userId    String                               // Recipient user
+  channel   NotificationChannel                  // WHATSAPP | SMS | EMAIL | PUSH
+  title     String                               // Notification title
+  message   String                               // Full message body
+  status    NotificationStatus @default(PENDING)  // PENDING | SENT | FAILED
+  sentAt    DateTime?                            // When actually sent
+  createdAt DateTime         @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id])
 
   // Indexes
   @@index([userId])
@@ -301,17 +357,22 @@ model Notification {
 
 // ==================== OTP VERIFICATIONS ====================
 
-/// OTP storage and verification tracking — replaces Redis for dev
+/// OTP storage and verification tracking
+/// Document says Redis — this model replaces Redis for SQLite development
+/// In production with PostgreSQL, use Redis for OTP (5-min TTL, auto-expiry)
 model OtpVerification {
-  id           String   @id @default(cuid())
-  mobile       String                      // Mobile number
-  otp          String                      // 6-digit OTP
-  attempts     Int      @default(0)        // Wrong attempt counter
-  isVerified   Boolean  @default(false)    // Whether OTP was verified
-  expiresAt    DateTime                    // OTP expiry time (5 minutes)
-  createdAt    DateTime @default(now())
+  id         String   @id @default(cuid())
+  mobile     String                      // Mobile number
+  otp        String                      // 6-digit OTP
+  attempts   Int      @default(0)        // Wrong attempt counter (max 3)
+  isVerified Boolean  @default(false)    // Whether OTP was successfully verified
+  expiresAt  DateTime                    // OTP expiry time (5 minutes from creation)
+  createdAt  DateTime @default(now())
 
-  // Indexes
+  // Relations
+  user User @relation(fields: [mobile], references: [mobile])
+
+  // Indexes — fast lookup by mobile, cleanup by expiry
   @@index([mobile])
   @@index([expiresAt])
   @@map("otp_verifications")
