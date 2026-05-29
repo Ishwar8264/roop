@@ -1,15 +1,28 @@
 /**
  * Purpose: Refresh JWT token API endpoint for Nikharta Roop auth
  * Responsibility: Issue new access token using refresh token (without re-login)
- * Important Notes:
- *   - POST /api/auth/refresh
- *   - Session rotation: old session deleted, new session created
- *   - Uses createApiHandler for standardized handling
+ *
+ * Endpoint: POST /api/auth/refresh
+ *
+ * OpenAPI Summary: Refresh JWT tokens
+ * OpenAPI Description: Exchange a valid refresh token for new access + refresh tokens.
+ *   Session rotation: old session is deleted and a new one is created.
+ *   If user is suspended, all sessions are invalidated.
+ *
+ * Request Body:
+ *   refreshToken: string — required
+ *
+ * Responses:
+ *   200: { success: true, data: { tokens }, message }
+ *   400: { success: false, error: "VAL_INVALID_INPUT", message, statusCode: 400 }
+ *   401: { success: false, error: "AUTH_INVALID_TOKEN"|"AUTH_SESSION_INVALID"|"AUTH_ACCOUNT_SUSPENDED", message, statusCode: 401 }
  */
 
 import { createApiHandler } from "@/lib/api-handler";
 import { prisma } from "@/lib/prisma";
 import { verifyRefreshToken, generateTokenPair } from "@/lib/jwt";
+import { hashTokenSha256 } from "@/lib/crypto";
+import { logAuthEvent, extractClientIp, extractUserAgent } from "@/lib/auth-helpers";
 import { refreshTokenSchema } from "@/lib/validations/auth";
 import { HTTP_MESSAGES } from "@/lib/http";
 import {
@@ -63,7 +76,7 @@ export const POST = createApiHandler({
         userId: user.id,
         token: "placeholder",
         device: session.device,
-        ip: request.headers.get("x-forwarded-for") || null,
+        ip: extractClientIp(request),
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       },
     });
@@ -75,27 +88,24 @@ export const POST = createApiHandler({
       sessionId: newSession.id,
     });
 
-    // Update session with token hash
+    // Update session with token hash (using centralized crypto utility)
     const tokenHash = await hashTokenSha256(tokens.accessToken);
     await prisma.authSession.update({
       where: { id: newSession.id },
       data: { token: tokenHash },
     });
 
-    // 6. Log token refresh event
-    await prisma.authEvent.create({
-      data: {
-        userId: user.id,
-        mobile: user.mobile,
-        event: "TOKEN_REFRESHED",
-        ip: request.headers.get("x-forwarded-for") || null,
-        device: request.headers.get("user-agent") || null,
-        metadata: {
-          oldSessionId: payload.sessionId,
-          newSessionId: newSession.id,
-        },
+    // 6. Log token refresh event (using centralized logAuthEvent)
+    await logAuthEvent(
+      user.mobile,
+      "TOKEN_REFRESHED",
+      request,
+      {
+        oldSessionId: payload.sessionId,
+        newSessionId: newSession.id,
       },
-    });
+      user.id
+    );
 
     return {
       tokens: {
@@ -105,11 +115,3 @@ export const POST = createApiHandler({
     };
   },
 });
-
-async function hashTokenSha256(token: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(token);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
-}

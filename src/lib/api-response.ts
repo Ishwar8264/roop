@@ -1,11 +1,16 @@
 /**
- * Purpose: Standardized API response helpers for Nikharta Roop
- * Responsibility: Consistent response format across all API routes
+ * Purpose: Standalone API response helpers for Nikharta Roop
+ * Responsibility: Consistent response format for manual use cases
  * Important Notes:
- *   - Every API route MUST use these helpers — never return raw Response
+ *   - MOST routes should use `createApiHandler()` from api-handler.ts instead
+ *   - This file is for edge cases where you need manual response construction
  *   - Success: { success: true, data: T, message?: string }
  *   - Error: { success: false, error: string, message: string, statusCode: number }
  *   - All responses include proper HTTP status codes
+ *
+ * When to use this vs createApiHandler:
+ *   - Use createApiHandler: For standard CRUD routes with Zod validation
+ *   - Use these helpers: For middleware (proxy.ts), custom SSE, file uploads, etc.
  */
 
 import { NextResponse } from "next/server";
@@ -59,7 +64,7 @@ export function apiBadRequest(
   return NextResponse.json(
     {
       success: false,
-      error: error || "BAD_REQUEST",
+      error: error || "VAL_INVALID_INPUT",
       message,
       statusCode: 400,
     },
@@ -76,7 +81,7 @@ export function apiUnauthorized(
   return NextResponse.json(
     {
       success: false,
-      error: "UNAUTHORIZED",
+      error: "AUTH_MISSING_TOKEN",
       message,
       statusCode: 401,
     },
@@ -93,7 +98,7 @@ export function apiForbidden(
   return NextResponse.json(
     {
       success: false,
-      error: "FORBIDDEN",
+      error: "PERM_DENIED",
       message,
       statusCode: 403,
     },
@@ -110,7 +115,7 @@ export function apiNotFound(
   return NextResponse.json(
     {
       success: false,
-      error: "NOT_FOUND",
+      error: "RES_NOT_FOUND",
       message,
       statusCode: 404,
     },
@@ -128,7 +133,7 @@ export function apiConflict(
   return NextResponse.json(
     {
       success: false,
-      error: error || "CONFLICT",
+      error: error || "RES_CONFLICT",
       message,
       statusCode: 409,
     },
@@ -146,7 +151,7 @@ export function apiValidationError(
   return NextResponse.json(
     {
       success: false,
-      error: "VALIDATION_ERROR",
+      error: "VAL_INVALID_INPUT",
       message,
       statusCode: 422,
       ...(errors && { errors }),
@@ -165,7 +170,7 @@ export function apiRateLimited(
   return NextResponse.json(
     {
       success: false,
-      error: "RATE_LIMITED",
+      error: "AUTH_RATE_LIMITED",
       message,
       statusCode: 429,
       ...(retryAfterSeconds && { retryAfterSeconds }),
@@ -188,7 +193,7 @@ export function apiServerError(
   return NextResponse.json(
     {
       success: false,
-      error: "INTERNAL_ERROR",
+      error: "SYS_INTERNAL",
       message,
       statusCode: 500,
     },

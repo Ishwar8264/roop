@@ -1,11 +1,22 @@
 /**
  * Purpose: Send OTP API endpoint for Nikharta Roop auth
  * Responsibility: Validate mobile, rate limit, generate OTP, hash and store, send via SMS
- * Important Notes:
- *   - POST /api/auth/send-otp
- *   - Uses createApiHandler for standardized error handling and validation
- *   - All error messages come from centralized HTTP_MESSAGES
- *   - All error classes come from centralized errors.ts
+ *
+ * Endpoint: POST /api/auth/send-otp
+ *
+ * OpenAPI Summary: Send OTP to mobile number
+ * OpenAPI Description: Generate and send a 6-digit OTP to the given mobile number via SMS.
+ *   Rate limited: 1 request per 30 seconds, 5 per hour per mobile.
+ *   Previous unused OTPs are automatically invalidated.
+ *
+ * Request Body:
+ *   mobile: string (Indian 10-digit, starts with 6-9) — required
+ *
+ * Responses:
+ *   200: { success: true, data: { mobile, expiresIn, messageId }, message }
+ *   400: { success: false, error: "VAL_INVALID_INPUT", message, statusCode: 400 }
+ *   429: { success: false, error: "AUTH_OTP_ALREADY_SENT"|"AUTH_HOURLY_LIMIT", message, statusCode: 429, retryAfterSeconds }
+ *   500: { success: false, error: "SYS_SMS_FAILED", message, statusCode: 500 }
  */
 
 import { createApiHandler } from "@/lib/api-handler";
@@ -18,6 +29,7 @@ import {
   getOtpExpiry,
   sendOtpSms,
 } from "@/lib/otp";
+import { logAuthEvent } from "@/lib/auth-helpers";
 import { sendOtpSchema } from "@/lib/validations/auth";
 import { HTTP_MESSAGES } from "@/lib/http";
 import {
@@ -78,15 +90,7 @@ export const POST = createApiHandler({
     recordOtpSent(mobile);
 
     // 7. Log auth event for audit trail
-    await prisma.authEvent.create({
-      data: {
-        mobile,
-        event: "OTP_SENT",
-        ip: request.headers.get("x-forwarded-for") || null,
-        device: request.headers.get("user-agent") || null,
-        metadata: { purpose: "LOGIN" },
-      },
-    });
+    await logAuthEvent(mobile, "OTP_SENT", request, { purpose: "LOGIN" });
 
     // 8. Return data — NEVER include OTP in response
     return {

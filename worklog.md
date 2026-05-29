@@ -80,47 +80,18 @@ Task: Complete Schema Rewrite — PostgreSQL + 42 Models + 19 Enums + Improved T
 
 Work Log:
 - Replaced incomplete 10-model SQLite schema with production-grade PostgreSQL schema
-- 42 models covering all platform domains:
-  - Auth: User, AuthSession, AuthOtp, AuthEvent
-  - Branch: Branch, BranchHoliday
-  - Service Catalog: ServiceCategory, Service, ServiceVariant, ServiceAddOn, Package, PackageService
-  - Staff: Staff, StaffService, StaffLeave
-  - Bookings: Booking, BookingAddOn, BookingStatusHistory, BookingOffer
-  - Payments: Payment, Refund
-  - Consultation: Consultation
-  - Reviews: Review
-  - Customer: CustomerAddress
-  - Offers: Offer, OfferService, OfferRedemption
-  - Notifications: Notification
-  - Loyalty: LoyaltyTransaction
-  - Analytics: RevenueSnapshot
-  - Products: ProductCategory, Product, ProductSale, ProductSaleItem
-  - Inventory: InventoryItem, InventoryTransaction
-  - Expenses: Expense
-  - Commissions: StaffCommission
-  - Media: MediaAsset (polymorphic via ownerId + ownerType)
-  - Portfolio: PortfolioItem
-  - Blog: BlogCategory, BlogPost
-- 19 enums with proper naming (AuthOtpPurpose, AuthEventType, NotificationTrigger, etc.)
-- All monetary values: Decimal(@db.Decimal(10,2)) — never Float
+- 42 models covering all platform domains
+- 19 enums with proper naming
+- All monetary values: Decimal — never Float
 - All time fields: @db.Time(0) for scheduling
 - All date fields: @db.Date for booking/holiday
 - i18n pattern: nameHi, nameEn, descriptionHi, descriptionEn, descriptionHtml
 - Proper cascade/restrict/setNull delete strategies
 - Every query path indexed
-- Fixed: Time defaults removed (Prisma needs RFC3339 for DateTime defaults)
-- Fixed: MediaAsset uses polymorphic ownerId+ownerType (no direct FK — application-level joins)
-- Fixed: Removed variant FK from BookingAddOn (variants belong to main booking)
-- Updated .env: PostgreSQL connection string
-- Updated seed.ts: Complete seed for all 42 models
-- Updated types/index.ts: All TypeScript types matching Prisma schema 1:1
-- prisma generate ✅ passed, prisma format ✅ passed
 
 Stage Summary:
-- Database: PostgreSQL only (no more SQLite)
+- Database: PostgreSQL only
 - Schema: 42 models, 19 enums — complete platform coverage
-- Table names improved: service_categories, branch_holidays, auth_sessions, auth_otps, auth_events, etc.
-- Seed: 2 branches, 3 holidays, 8 categories, 16 services, 6 variants, 4 add-ons, 2 packages, 14 staff-service links, 3 offers, 4 bookings, 6 status history, 2 reviews, 3 notifications, 2 loyalty txns, 4 product categories, 4 products, 2 blog categories, 2 blog posts
 - Types: Full TypeScript types with Decimal→string pattern
 
 ---
@@ -131,52 +102,21 @@ Task: Complete Auth API System — JWT + OTP + Middleware (API only, no UI)
 Work Log:
 - Installed jose (JWT edge-compatible) + bcryptjs (OTP hashing)
 - Created src/lib/jwt.ts — JWT sign/verify/refresh with jose (HS256)
-  - Access token: 15 min expiry
-  - Refresh token: 7 days expiry
-  - generateTokenPair helper
 - Created src/lib/otp.ts — OTP lifecycle management
-  - generateOtp: 6-digit random OTP
-  - hashOtp/verifyOtp: bcrypt hash/compare (never store plain OTP)
-  - checkRateLimit: 1 OTP/min, 5 OTPs/hour per mobile (in-memory, replace with Redis)
-  - sendOtpSms: Stub function (replace with MSG91/Twilio/WhatsApp)
-  - getOtpExpiry: 5 min expiry
-- Created src/lib/prisma.ts — Prisma singleton (prevents hot reload connection pool exhaustion)
+- Created src/lib/prisma.ts — Prisma singleton
 - Created src/lib/api-response.ts — Standardized API response helpers
-  - apiSuccess, apiCreated, apiBadRequest, apiUnauthorized, apiForbidden
-  - apiNotFound, apiConflict, apiValidationError, apiRateLimited, apiServerError
 - Created src/lib/validations/auth.ts — Zod schemas for all auth inputs
-  - Indian mobile validation (10 digits, starts with 6-9)
-  - OTP validation (6 digits)
-  - sendOtpSchema, verifyOtpSchema, refreshTokenSchema, logoutSchema
 - Created POST /api/auth/send-otp
-  - Rate limit check → invalidate old OTPs → generate + hash → store → send SMS stub → log AuthEvent
 - Created POST /api/auth/verify-otp
-  - Find valid OTP → check attempts → verify bcrypt → mark used → find/create user (auto-register) →
-    create AuthSession → generate JWT pair → log AuthEvent → return tokens + user + isNewUser
 - Created POST /api/auth/logout
-  - Verify access token → delete AuthSession → log AuthEvent
 - Created GET /api/auth/me
-  - Verify access token → check session exists → fetch user → return profile
 - Created POST /api/auth/refresh
-  - Verify refresh token → check session → session rotation (delete old, create new) →
-    regenerate JWT pair → log AuthEvent
 - Created src/middleware.ts — Route protection middleware
-  - Public routes: /, /services, /about, /contact, /blog, /offers
-  - Public API: /api/auth/send-otp, /api/auth/verify-otp, /api/auth/refresh
-  - Admin routes: require role=ADMIN
-  - Staff routes: require role=STAFF or ADMIN
-  - Reads token from Authorization header or cookie
-  - Passes user info via x-user-id, x-user-role, x-session-id headers
-- Fixed Zod v4 compatibility: parsed.error.errors → parsed.error.issues
-- All auth files pass TypeScript check (zero errors)
 
 Stage Summary:
-- Auth API: 5 endpoints fully complete (send-otp, verify-otp, logout, me, refresh)
+- Auth API: 5 endpoints fully complete
 - Security: OTP hashed with bcrypt, JWT with jose, rate limiting, session rotation
-- Audit: All auth events logged to AuthEvent model
 - Middleware: Route protection with role-based access control
-- Auto-registration: New users auto-registered on first OTP verify (isNewUser flag)
-- No UI built — API only as requested
 
 ---
 Task ID: 7
@@ -185,49 +125,39 @@ Task: Centralize API Architecture — HTTP messages, error classes, handler patt
 
 Work Log:
 - Created src/lib/http.ts — Centralized HTTP codes, error codes, and messages
-  - HTTP_STATUS: All HTTP status codes as constants
-  - ERROR_CODES: Machine-readable error codes (AUTH_*, VAL_*, RES_*, PERM_*, SYS_*)
-  - HTTP_MESSAGES: Hindi-first messages with i18n pattern (messageHi + messageEn)
-  - getMessage() and replaceVars() helpers for template messages
 - Created src/lib/errors.ts — Custom error classes
-  - Base AppError class with code, statusCode, isOperational
-  - Auth errors: AuthMissingTokenError, AuthInvalidTokenError, AuthSessionInvalidError,
-    AuthAccountSuspendedError, AuthOtpInvalidError, AuthOtpExpiredError,
-    AuthOtpMaxAttemptsError, AuthOtpAlreadySentError, AuthRateLimitedError,
-    AuthHourlyLimitError, AuthNoValidOtpError, AuthSmsFailedError
-  - Validation: ValidationError
-  - Resource: NotFoundError, ConflictError
-  - Permission: ForbiddenError, AdminRequiredError, StaffRequiredError
-  - System: InternalError, DatabaseError
-  - isAppError() and toAppError() helpers
 - Created src/lib/api-handler.ts — Standardized API route handler factory
-  - createApiHandler({ schema, handler, successMessage, successStatus })
-  - Automatic Zod validation with proper error responses
-  - Automatic try/catch — AppError subclasses return proper JSON
-  - Consistent response format: { success, data/error, message, statusCode }
-  - No need for try/catch in individual route handlers
-- Reorganized Zod schemas into feature-based structure:
-  - src/lib/validations/common.ts — Reusable primitives (indianMobile, otp6Digit, cuid, etc.)
-  - src/lib/validations/auth/index.ts — Auth-specific schemas
-  - src/lib/validations/booking/ — Placeholder for future
-  - src/lib/validations/service/ — Placeholder for future
-  - src/lib/validations/index.ts — Barrel export
-- Refactored ALL 5 auth API routes to use new pattern:
-  - send-otp: Uses createApiHandler, throws AuthOtpAlreadySentError/AuthHourlyLimitError/AuthSmsFailedError
-  - verify-otp: Uses createApiHandler, throws AuthNoValidOtpError/AuthOtpMaxAttemptsError/AuthOtpInvalidError/AuthAccountSuspendedError
-  - logout: Uses createApiHandler, throws AuthMissingTokenError/AuthInvalidTokenError
-  - me: Uses createApiHandler, throws AuthMissingTokenError/AuthInvalidTokenError/AuthSessionInvalidError/AuthAccountSuspendedError
-  - refresh: Uses createApiHandler, throws AuthInvalidTokenError/AuthSessionInvalidError/AuthAccountSuspendedError
-- Deleted old src/lib/validations/auth.ts (replaced by auth/index.ts)
-- Fixed import path: ./common → ../common in auth/index.ts
-- Fixed Prisma JSON type cast for metadata field
-- TypeScript check: Zero errors
-- Next.js build: Successful
+- Reorganized Zod schemas into feature-based structure
+- Refactored ALL 5 auth API routes to use new pattern
 
 Stage Summary:
 - Architecture: Fully centralized and standardized
-- Pattern: createApiHandler() wraps every route — no raw try/catch needed
+- Pattern: createApiHandler() wraps every route
 - Errors: All use AppError subclasses from errors.ts
 - Messages: All from HTTP_MESSAGES in http.ts (Hindi-first, i18n ready)
-- Validation: Feature-based Zod schemas with shared primitives
-- Future APIs: Just follow the same pattern — schema + handler + throw errors
+
+---
+Task ID: 8
+Agent: Main
+Task: Codebase Restructuring + Swagger API Documentation
+
+Work Log:
+- Restructured types into 8 domain-specific files + barrel export
+- Extracted shared utilities: lib/crypto.ts (hashTokenSha256), lib/auth-helpers.ts (requireAuth, logAuthEvent, etc.)
+- Removed duplicate files: lib/db.ts, updated api-response.ts error codes
+- Updated proxy.ts to use centralized ERROR_CODES and HTTP_MESSAGES
+- Installed swagger-ui-react + next-swagger-doc + @types/swagger-ui-react
+- Created lib/swagger.ts — Complete OpenAPI 3.0.3 spec for all 5 auth endpoints
+- Created app/api/api-spec/route.ts — GET /api/api-spec (serves OpenAPI JSON)
+- Created app/api-docs/page.tsx — Interactive Swagger UI at /api-docs
+- Refactored ALL 5 auth API routes to use centralized utilities
+- Added JSDoc OpenAPI annotations to all route files
+- Next.js build: ✅ Successful
+
+Stage Summary:
+- Types: 8 domain files + barrel (was 1 massive 669-line file)
+- Shared utilities: crypto.ts + auth-helpers.ts (was duplicated inline)
+- Swagger: OpenAPI 3.0.3 spec with full documentation for all 5 auth endpoints
+- API Docs: /api-docs (Swagger UI) + /api/api-spec (JSON spec)
+- proxy.ts: Now uses centralized ERROR_CODES + HTTP_MESSAGES
+- Build: Clean, zero errors

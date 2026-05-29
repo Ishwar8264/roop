@@ -1,40 +1,33 @@
 /**
  * Purpose: Logout API endpoint for Nikharta Roop auth
  * Responsibility: Invalidate JWT session by deleting AuthSession record
- * Important Notes:
- *   - POST /api/auth/logout
- *   - Requires Authorization header: Bearer <accessToken>
- *   - Uses createApiHandler with schema: null (no body)
+ *
+ * Endpoint: POST /api/auth/logout
+ *
+ * OpenAPI Summary: Logout and invalidate session
+ * OpenAPI Description: Invalidate the current JWT session by deleting the AuthSession record.
+ *   Requires Bearer token in Authorization header.
+ *
+ * Security: BearerAuth (JWT access token)
+ *
+ * Responses:
+ *   200: { success: true, data: { sessionId }, message }
+ *   401: { success: false, error: "AUTH_MISSING_TOKEN"|"AUTH_INVALID_TOKEN", message, statusCode: 401 }
  */
 
 import { createApiHandler } from "@/lib/api-handler";
 import { prisma } from "@/lib/prisma";
-import { verifyAccessToken } from "@/lib/jwt";
+import { requireAuth, logAuthEvent } from "@/lib/auth-helpers";
 import { HTTP_MESSAGES } from "@/lib/http";
-import {
-  AuthMissingTokenError,
-  AuthInvalidTokenError,
-} from "@/lib/errors";
 
 export const POST = createApiHandler({
   schema: null, // No body — token from Authorization header
   successMessage: HTTP_MESSAGES.AUTH_LOGOUT_SUCCESS.messageEn,
   handler: async ({ request }) => {
-    // 1. Extract token from Authorization header
-    const authHeader = request.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      throw new AuthMissingTokenError();
-    }
+    // 1. Extract and verify token (using centralized auth helper)
+    const payload = await requireAuth(request);
 
-    const token = authHeader.split(" ")[1];
-
-    // 2. Verify access token
-    const payload = await verifyAccessToken(token);
-    if (!payload) {
-      throw new AuthInvalidTokenError();
-    }
-
-    // 3. Delete auth session record
+    // 2. Delete auth session record
     const deletedSession = await prisma.authSession.deleteMany({
       where: {
         id: payload.sessionId,
@@ -42,20 +35,17 @@ export const POST = createApiHandler({
       },
     });
 
-    // 4. Log logout event
-    await prisma.authEvent.create({
-      data: {
-        userId: payload.userId,
-        mobile: payload.mobile,
-        event: "LOGOUT",
-        ip: request.headers.get("x-forwarded-for") || null,
-        device: request.headers.get("user-agent") || null,
-        metadata: {
-          sessionId: payload.sessionId,
-          sessionDeleted: deletedSession.count > 0,
-        },
+    // 3. Log logout event (using centralized logAuthEvent)
+    await logAuthEvent(
+      payload.mobile,
+      "LOGOUT",
+      request,
+      {
+        sessionId: payload.sessionId,
+        sessionDeleted: deletedSession.count > 0,
       },
-    });
+      payload.userId
+    );
 
     return {
       sessionId: payload.sessionId,

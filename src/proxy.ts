@@ -3,16 +3,18 @@
  * Responsibility: Intercept requests to protected routes and verify JWT tokens
  * Important Notes:
  *   - Runs on Edge Runtime — must use jose (not jsonwebtoken) for JWT verify
- *   - Public routes: /, /api/auth/*, /services, /about
+ *   - Public routes: /, /api/auth/*, /services, /about, /api-docs
  *   - Protected routes: /bookings/*, /profile/*, /admin/*
  *   - Admin routes: require role=ADMIN in JWT
  *   - Staff routes: require role=STAFF or ADMIN
  *   - Proxy runs BEFORE page renders and BEFORE API route handlers
  *   - Token read from Authorization header (API) or cookie (future: web pages)
+ *   - Uses centralized error codes from @/lib/http and @/lib/api-response
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
+import { HTTP_STATUS, ERROR_CODES, HTTP_MESSAGES } from "@/lib/http";
 
 // ==================== CONFIG ====================
 
@@ -28,6 +30,7 @@ const PUBLIC_ROUTES = [
   "/contact",             // Contact page (public)
   "/blog",                // Blog listing (public)
   "/offers",              // Public offers page
+  "/api-docs",            // Swagger UI documentation
 ];
 
 // API routes that DON'T require authentication
@@ -35,6 +38,7 @@ const PUBLIC_API_ROUTES = [
   "/api/auth/send-otp",
   "/api/auth/verify-otp",
   "/api/auth/refresh",
+  "/api/api-spec",        // OpenAPI spec JSON
 ];
 
 // Routes that require specific roles
@@ -126,16 +130,16 @@ export async function proxy(request: NextRequest) {
   const payload = await getTokenPayload(request);
 
   if (!payload) {
-    // API routes → return 401 JSON
+    // API routes → return 401 JSON (using centralized error codes)
     if (pathname.startsWith("/api/")) {
       return NextResponse.json(
         {
           success: false,
-          error: "UNAUTHORIZED",
-          message: "Authentication required. Please login.",
-          statusCode: 401,
+          error: ERROR_CODES.AUTH_MISSING_TOKEN,
+          message: HTTP_MESSAGES.AUTH_MISSING_TOKEN.messageEn,
+          statusCode: HTTP_STATUS.UNAUTHORIZED,
         },
-        { status: 401 }
+        { status: HTTP_STATUS.UNAUTHORIZED }
       );
     }
 
@@ -152,11 +156,11 @@ export async function proxy(request: NextRequest) {
         return NextResponse.json(
           {
             success: false,
-            error: "FORBIDDEN",
-            message: "Admin access required.",
-            statusCode: 403,
+            error: ERROR_CODES.PERM_ADMIN_REQUIRED,
+            message: HTTP_MESSAGES.PERM_ADMIN_REQUIRED.messageEn,
+            statusCode: HTTP_STATUS.FORBIDDEN,
           },
-          { status: 403 }
+          { status: HTTP_STATUS.FORBIDDEN }
         );
       }
       // Non-admin trying to access admin pages → redirect home
@@ -171,11 +175,11 @@ export async function proxy(request: NextRequest) {
         return NextResponse.json(
           {
             success: false,
-            error: "FORBIDDEN",
-            message: "Staff or Admin access required.",
-            statusCode: 403,
+            error: ERROR_CODES.PERM_STAFF_REQUIRED,
+            message: HTTP_MESSAGES.PERM_STAFF_REQUIRED.messageEn,
+            statusCode: HTTP_STATUS.FORBIDDEN,
           },
-          { status: 403 }
+          { status: HTTP_STATUS.FORBIDDEN }
         );
       }
       return NextResponse.redirect(new URL("/", request.url));
