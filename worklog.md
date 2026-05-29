@@ -122,3 +122,58 @@ Stage Summary:
 - Table names improved: service_categories, branch_holidays, auth_sessions, auth_otps, auth_events, etc.
 - Seed: 2 branches, 3 holidays, 8 categories, 16 services, 6 variants, 4 add-ons, 2 packages, 14 staff-service links, 3 offers, 4 bookings, 6 status history, 2 reviews, 3 notifications, 2 loyalty txns, 4 product categories, 4 products, 2 blog categories, 2 blog posts
 - Types: Full TypeScript types with Decimal→string pattern
+
+---
+Task ID: 6
+Agent: Main
+Task: Complete Auth API System — JWT + OTP + Middleware (API only, no UI)
+
+Work Log:
+- Installed jose (JWT edge-compatible) + bcryptjs (OTP hashing)
+- Created src/lib/jwt.ts — JWT sign/verify/refresh with jose (HS256)
+  - Access token: 15 min expiry
+  - Refresh token: 7 days expiry
+  - generateTokenPair helper
+- Created src/lib/otp.ts — OTP lifecycle management
+  - generateOtp: 6-digit random OTP
+  - hashOtp/verifyOtp: bcrypt hash/compare (never store plain OTP)
+  - checkRateLimit: 1 OTP/min, 5 OTPs/hour per mobile (in-memory, replace with Redis)
+  - sendOtpSms: Stub function (replace with MSG91/Twilio/WhatsApp)
+  - getOtpExpiry: 5 min expiry
+- Created src/lib/prisma.ts — Prisma singleton (prevents hot reload connection pool exhaustion)
+- Created src/lib/api-response.ts — Standardized API response helpers
+  - apiSuccess, apiCreated, apiBadRequest, apiUnauthorized, apiForbidden
+  - apiNotFound, apiConflict, apiValidationError, apiRateLimited, apiServerError
+- Created src/lib/validations/auth.ts — Zod schemas for all auth inputs
+  - Indian mobile validation (10 digits, starts with 6-9)
+  - OTP validation (6 digits)
+  - sendOtpSchema, verifyOtpSchema, refreshTokenSchema, logoutSchema
+- Created POST /api/auth/send-otp
+  - Rate limit check → invalidate old OTPs → generate + hash → store → send SMS stub → log AuthEvent
+- Created POST /api/auth/verify-otp
+  - Find valid OTP → check attempts → verify bcrypt → mark used → find/create user (auto-register) →
+    create AuthSession → generate JWT pair → log AuthEvent → return tokens + user + isNewUser
+- Created POST /api/auth/logout
+  - Verify access token → delete AuthSession → log AuthEvent
+- Created GET /api/auth/me
+  - Verify access token → check session exists → fetch user → return profile
+- Created POST /api/auth/refresh
+  - Verify refresh token → check session → session rotation (delete old, create new) →
+    regenerate JWT pair → log AuthEvent
+- Created src/middleware.ts — Route protection middleware
+  - Public routes: /, /services, /about, /contact, /blog, /offers
+  - Public API: /api/auth/send-otp, /api/auth/verify-otp, /api/auth/refresh
+  - Admin routes: require role=ADMIN
+  - Staff routes: require role=STAFF or ADMIN
+  - Reads token from Authorization header or cookie
+  - Passes user info via x-user-id, x-user-role, x-session-id headers
+- Fixed Zod v4 compatibility: parsed.error.errors → parsed.error.issues
+- All auth files pass TypeScript check (zero errors)
+
+Stage Summary:
+- Auth API: 5 endpoints fully complete (send-otp, verify-otp, logout, me, refresh)
+- Security: OTP hashed with bcrypt, JWT with jose, rate limiting, session rotation
+- Audit: All auth events logged to AuthEvent model
+- Middleware: Route protection with role-based access control
+- Auto-registration: New users auto-registered on first OTP verify (isNewUser flag)
+- No UI built — API only as requested
