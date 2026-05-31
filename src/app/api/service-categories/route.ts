@@ -1,0 +1,157 @@
+/**
+ * Purpose: Service Categories list and create API endpoints
+ * Responsibility: List service categories (public) and create new categories (admin)
+ *
+ * Endpoints:
+ *   GET  /api/service-categories        — List service categories with pagination (public)
+ *   POST /api/service-categories        — Create a new service category (admin only)
+ *
+ * GET Query Params:
+ *   isActive  (optional) — Filter by active status (defaults to true for public)
+ *   page      (default 1) — Page number
+ *   pageSize  (default 20, max 100) — Items per page
+ *
+ * POST Request Body:
+ *   nameHi, nameEn, slug, icon (optional), sortOrder (optional)
+ *
+ * Responses:
+ *   200: { success: true, data: { items, pagination } }
+ *   201: { success: true, data: category, message }
+ *   400: { success: false, error, message }
+ *   403: { success: false, error: "PERM_ADMIN_REQUIRED", message }
+ *   409: { success: false, error: "RES_CONFLICT", message }
+ */
+
+import { createApiHandler } from "@/lib/api-handler";
+import { prisma } from "@/lib/prisma";
+import { requireActiveUser } from "@/lib/auth-helpers";
+import { ConflictError, AdminRequiredError } from "@/lib/errors";
+import { HTTP_STATUS } from "@/lib/http";
+import {
+  createCategorySchema,
+  listCategoriesQuerySchema,
+} from "@/lib/validations/service-categories";
+
+// ==================== GET — List Service Categories (Public) ====================
+
+export const GET = createApiHandler({
+  schema: null, // No body — query params parsed manually
+  handler: async ({ request }) => {
+    // 1. Parse and validate query params
+    const url = new URL(request.url);
+    const queryResult = listCategoriesQuerySchema.safeParse({
+      isActive: url.searchParams.get("isActive") || undefined,
+      page: url.searchParams.get("page") || undefined,
+      pageSize: url.searchParams.get("pageSize") || undefined,
+    });
+
+    if (!queryResult.success) {
+      const firstIssue = queryResult.error.issues[0];
+      const fieldPath = firstIssue.path.join(".");
+      const message = fieldPath
+        ? `${fieldPath}: ${firstIssue.message}`
+        : firstIssue.message;
+
+      return Response.json(
+        {
+          success: false,
+          error: "VAL_INVALID_INPUT",
+          message,
+          statusCode: HTTP_STATUS.BAD_REQUEST,
+        },
+        { status: HTTP_STATUS.BAD_REQUEST }
+      );
+    }
+
+    const { isActive, page, pageSize } = queryResult.data;
+
+    // 2. Build where clause — public only sees active categories by default
+    const where: Record<string, unknown> = {};
+
+    // If isActive is explicitly provided, use it; otherwise default to true for public
+    if (isActive !== undefined) {
+      where.isActive = isActive;
+    } else {
+      where.isActive = true;
+    }
+
+    // 3. Count total matching categories
+    const total = await prisma.serviceCategory.count({ where });
+
+    // 4. Fetch paginated categories
+    const items = await prisma.serviceCategory.findMany({
+      where,
+      select: {
+        id: true,
+        nameHi: true,
+        nameEn: true,
+        slug: true,
+        icon: true,
+        sortOrder: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+        _count: {
+          select: { services: true },
+        },
+      },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    });
+
+    // 5. Return with pagination
+    return {
+      items: items.map((cat) => ({
+        ...cat,
+        servicesCount: cat._count.services,
+        _count: undefined,
+      })),
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize),
+      },
+    };
+  },
+});
+
+// ==================== POST — Create Service Category (Admin) ====================
+
+export const POST = createApiHandler({
+  schema: createCategorySchema,
+  successMessage: "Service category created successfully",
+  successStatus: HTTP_STATUS.CREATED,
+  handler: async ({ parsedBody, request }) => {
+    const { nameHi, nameEn, slug, icon, sortOrder } = parsedBody;
+
+    // 1. Verify admin access
+    const { user } = await requireActiveUser(request);
+    if (user.role !== "ADMIN") {
+      throw new AdminRequiredError();
+    }
+
+    // 2. Check slug uniqueness
+    const existingSlug = await prisma.serviceCategory.findUnique({
+      where: { slug },
+    });
+    if (existingSlug) {
+      throw new ConflictError("A service category with this slug already exists");
+    }
+
+    // 3. Create category
+    const newCategory = await prisma.serviceCategory.create({
+      data: {
+        nameHi,
+        nameEn,
+        slug,
+        icon: icon || null,
+        sortOrder: sortOrder ?? 0,
+      },
+    });
+
+    // 4. Return created category
+    return newCategory;
+  },
+});

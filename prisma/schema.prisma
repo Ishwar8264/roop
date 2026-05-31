@@ -272,6 +272,7 @@ model User {
   customerAddresses   CustomerAddress[]
   consultations       Consultation[]
   productSales        ProductSale[]
+  posts               BlogPost[]
 
   // Indexes
   @@index([mobile])
@@ -1219,6 +1220,7 @@ model BlogPost {
 
   // Relations
   category BlogCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  author   User?        @relation(fields: [authorId], references: [id], onDelete: SetNull)
 
   @@index([categoryId])
   @@index([status])
