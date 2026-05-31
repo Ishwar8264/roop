@@ -68,7 +68,7 @@ export async function logAuthEvent(
       event,
       ip: extractClientIp(request),
       device: extractUserAgent(request),
-      metadata: metadata || undefined,
+      metadata: metadata ? JSON.stringify(metadata) : undefined,
     },
   });
 }

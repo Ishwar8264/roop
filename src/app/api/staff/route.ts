@@ -201,7 +201,7 @@ export const POST = createApiHandler({
       data: {
         userId,
         branchId,
-        specialization,
+        specialization: Array.isArray(specialization) ? specialization.join(",") : specialization,
         experienceYears: experienceYears ?? null,
         bioHi: bioHi ?? null,
         bioEn: bioEn ?? null,

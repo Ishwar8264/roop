@@ -18,13 +18,17 @@ import { cuid, nonEmptyString, decimalString, timeString, pageParam, pageSizePar
 export const createStaffSchema = z.object({
   userId: cuid,
   branchId: cuid,
-  specialization: z.array(nonEmptyString).min(1, "At least one specialization required"),
+  specialization: z.union([
+    z.array(nonEmptyString).min(1, "At least one specialization required"),
+    nonEmptyString.transform((val) => val.split(",").map(s => s.trim()).filter(Boolean))
+  ]),
   experienceYears: z.number().int().nonnegative("Experience years must be non-negative").optional(),
   bioHi: nonEmptyString.optional(),
   bioEn: nonEmptyString.optional(),
   workStart: timeString,
   workEnd: timeString,
   commissionRate: decimalString.optional(),
+  photoUrl: z.string().url("Must be a valid URL").optional(),
 });
 
 export type CreateStaffInput = z.infer<typeof createStaffSchema>;

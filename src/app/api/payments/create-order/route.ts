@@ -81,10 +81,10 @@ export const POST = createApiHandler({
           provider: "RAZORPAY",
           status: "PENDING",
           providerOrderId,
-          metadata: {
+          metadata: JSON.stringify({
             simulatedOrder: true,
             createdAt: new Date().toISOString(),
-          },
+          }),
         },
       });
 
@@ -107,10 +107,10 @@ export const POST = createApiHandler({
           amount: paymentAmount,
           provider,
           status: "PENDING",
-          metadata: {
+          metadata: JSON.stringify({
             provider,
             createdAt: new Date().toISOString(),
-          },
+          }),
         },
       });
 

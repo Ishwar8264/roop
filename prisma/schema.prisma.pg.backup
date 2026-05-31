@@ -3,10 +3,10 @@
  * Purpose: Complete production-grade database schema for beauty parlour booking platform
  * Responsibility: Define all models, relationships, indexes, enums, and constraints
  * Important Notes:
- * - SQLite compatible — enums stored as String, Json stored as String, arrays stored as String
- * - All monetary values use Decimal — never Float
- * - All time fields use DateTime (SQLite stores as text) for slot scheduling
- * - All date fields use DateTime (SQLite stores as text) for booking/holiday dates
+ * - PostgreSQL only (no SQLite) — uses Decimal, Time, Date, Json, Text[] native types
+ * - All monetary values use Decimal (@db.Decimal(10,2)) — never Float
+ * - All time fields use @db.Time(0) for slot scheduling
+ * - All date fields use @db.Date for booking/holiday dates
  * - i18n pattern: descriptionHi, descriptionJson, descriptionHtml for multilingual content
  * - branch_id on every major table for multi-branch scalability
  * - Proper cascade/restrict/setNull delete strategies on every relation
@@ -19,11 +19,176 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-// ==================== ENUMS (stored as String in SQLite) ====================
+// ==================== ENUMS ====================
+
+/// User roles — GUEST (browsing only), USER (customer), STAFF (beautician), ADMIN (owner)
+enum UserRole {
+  GUEST
+  USER
+  STAFF
+  ADMIN
+}
+
+/// Auth provider — how did the user register/login
+enum AuthProvider {
+  MOBILE  // OTP-based mobile login
+  EMAIL   // Email + password login
+  GOOGLE  // Google OAuth login
+}
+
+/// Auth OTP purpose — why was OTP sent
+enum AuthOtpPurpose {
+  LOGIN
+  REGISTER
+  RESET
+}
+
+/// Auth event types — audit trail for all auth actions
+enum AuthEventType {
+  LOGIN_SUCCESS
+  LOGIN_FAILED
+  OTP_SENT
+  OTP_VERIFIED
+  LOGOUT
+  TOKEN_REFRESHED
+  REGISTER_EMAIL    // New user registered via email
+  REGISTER_GOOGLE   // New user registered via Google
+  LOGIN_EMAIL       // Login via email + password
+  LOGIN_GOOGLE      // Login via Google OAuth
+}
+
+/// Booking lifecycle statuses
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+/// Payment processing statuses
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+/// Payment providers supported by the platform
+enum PaymentProvider {
+  RAZORPAY
+  CASH
+  UPI
+}
+
+/// Notification delivery channels
+enum NotificationChannel {
+  WHATSAPP
+  SMS
+  EMAIL
+  PUSH
+}
+
+/// Notification delivery status
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+/// What triggered this notification — for audit and automation
+enum NotificationTrigger {
+  BOOKING_CONFIRMED
+  BOOKING_REMINDER
+  BOOKING_CANCELLED
+  PAYMENT_RECEIVED
+  OFFER_APPLIED
+  LOYALTY_EARNED
+  LOYALTY_REDEEMED
+}
+
+/// Discount type for offers
+enum DiscountType {
+  PERCENTAGE
+  FLAT_AMOUNT
+}
+
+/// Loyalty point transaction types
+enum LoyaltyTransactionType {
+  EARN
+  REDEEM
+  EXPIRE
+}
+
+/// Blog post publication status
+enum BlogPostStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+/// Product sale (retail) statuses
+enum ProductSaleStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+/// Consultation booking statuses
+enum ConsultationStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+/// Refund processing statuses
+enum RefundStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PROCESSED
+}
+
+/// Inventory transaction types — stock in/out tracking
+enum InventoryTransactionType {
+  PURCHASE
+  SALE
+  ADJUSTMENT
+  DAMAGE
+}
+
+/// Expense categories for accounting
+enum ExpenseCategory {
+  RENT
+  SALARY
+  SUPPLIES
+  UTILITIES
+  MARKETING
+  MAINTENANCE
+  OTHER
+}
+
+/// Staff commission payment statuses
+enum StaffCommissionStatus {
+  PENDING
+  PAID
+}
+
+/// Media asset ownership — which entity does this image/video belong to
+enum MediaOwnerType {
+  SERVICE
+  STAFF
+  PORTFOLIO
+  BRANCH
+  BLOG
+  PRODUCT
+  OFFER
+}
 
 // ==================== BRANCH & LOCATION ====================
 
@@ -36,8 +201,8 @@ model Branch {
   address       String // Full address
   googleMapsUrl String? // Direct Google Maps link
   phone         String // Branch contact number (10 digits)
-  openTime      DateTime // "09:00" — shift start
-  closeTime     DateTime // "20:00" — shift end
+  openTime      DateTime @db.Time(0) // "09:00" — shift start
+  closeTime     DateTime @db.Time(0) // "20:00" — shift end
   isActive      Boolean  @default(true) // Inactive branch hidden from users
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -60,7 +225,7 @@ model Branch {
 model BranchHoliday {
   id        String   @id @default(cuid())
   branchId  String // Which branch is closed
-  date      DateTime // The holiday date
+  date      DateTime @db.Date // The holiday date
   reasonHi  String // "होली" — reason in Hindi
   reasonEn  String? // "Holi" — reason in English
   createdAt DateTime @default(now())
@@ -78,22 +243,22 @@ model BranchHoliday {
 
 /// All platform users — customers, staff, and admins
 model User {
-  id            String   @id @default(cuid())
-  mobile        String?  @unique // Indian 10-digit mobile — nullable for Google/email-only users. Unique when present.
+  id            String       @id @default(cuid())
+  mobile        String?      @unique // Indian 10-digit mobile — nullable for Google/email-only users. Unique when present.
   name          String? // Full name (optional at registration)
-  email         String?  @unique // Email for email login + Google — unique when present
-  emailVerified Boolean  @default(false) // Whether email has been verified
+  email         String?      @unique // Email for email login + Google — unique when present
+  emailVerified Boolean      @default(false) // Whether email has been verified
   password      String? // Hashed password (bcrypt) — for email login only
-  googleId      String?  @unique // Google OAuth sub ID — unique when present
-  authProvider  String   @default("MOBILE") // Primary auth method: MOBILE | EMAIL | GOOGLE
-  role          String   @default("USER") // GUEST | USER | STAFF | ADMIN — enum enforced
+  googleId      String?      @unique // Google OAuth sub ID — unique when present
+  authProvider  AuthProvider @default(MOBILE) // Primary auth method: MOBILE | EMAIL | GOOGLE
+  role          UserRole     @default(USER) // GUEST | USER | STAFF | ADMIN — enum enforced
   branchId      String? // For STAFF/ADMIN — which branch they belong to
   avatarUrl     String? // Profile photo URL (Cloudinary/S3)
-  loyaltyPoints Int      @default(0) // Accumulated loyalty points
-  isActive      Boolean  @default(true) // false = account suspended by admin
-  createdAt     DateTime @default(now()) // Account creation timestamp
+  loyaltyPoints Int          @default(0) // Accumulated loyalty points
+  isActive      Boolean      @default(true) // false = account suspended by admin
+  createdAt     DateTime     @default(now()) // Account creation timestamp
   lastLoginAt   DateTime? // Last login timestamp (any method)
-  updatedAt     DateTime @updatedAt
+  updatedAt     DateTime     @updatedAt
 
   // Relations
   authSessions        AuthSession[]
@@ -141,15 +306,15 @@ model AuthSession {
 
 /// OTP storage and verification tracking — replaces Redis for PostgreSQL
 model AuthOtp {
-  id        String   @id @default(cuid())
+  id        String         @id @default(cuid())
   userId    String? // Link to user — nullable because OTP can be sent before user exists (registration)
   mobile    String // Mobile number OTP was sent to (always present for mobile auth)
   otp       String // 6-digit OTP (bcrypt hashed)
-  purpose   String   @default("LOGIN") // LOGIN | REGISTER | RESET
-  attempts  Int      @default(0) // Wrong attempt counter (max 3)
-  isUsed    Boolean  @default(false) // Whether OTP was successfully used
+  purpose   AuthOtpPurpose @default(LOGIN) // LOGIN | REGISTER | RESET
+  attempts  Int            @default(0) // Wrong attempt counter (max 3)
+  isUsed    Boolean        @default(false) // Whether OTP was successfully used
   expiresAt DateTime // OTP expiry time (5 minutes from creation)
-  createdAt DateTime @default(now())
+  createdAt DateTime       @default(now())
 
   // Relations
   user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -164,14 +329,14 @@ model AuthOtp {
 
 /// Auth event audit trail — every login, OTP, logout event logged
 model AuthEvent {
-  id        String   @id @default(cuid())
+  id        String        @id @default(cuid())
   userId    String? // null if event happened before user was found
   mobile    String? // Mobile number involved (nullable for email/Google logins)
-  event     String // LOGIN_SUCCESS | LOGIN_FAILED | REGISTER_EMAIL | etc.
+  event     AuthEventType // LOGIN_SUCCESS | LOGIN_FAILED | REGISTER_EMAIL | etc.
   ip        String? // IP address
   device    String? // Device/browser info
-  metadata  String? // Extra event data (error reason, auth provider, etc.)
-  createdAt DateTime @default(now())
+  metadata  Json? // Extra event data (error reason, auth provider, etc.)
+  createdAt DateTime      @default(now())
 
   // Relations
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
@@ -213,8 +378,8 @@ model Service {
   slug            String   @unique // "facial" — URL-safe identifier
   descriptionHi   String // Full description in Hindi
   descriptionEn   String? // Full description in English (optional)
-  descriptionHtml String? // Rich HTML description (for website)
-  price           Decimal // Base price in INR
+  descriptionHtml String?  @db.Text // Rich HTML description (for website)
+  price           Decimal  @db.Decimal(10, 2) // Base price in INR
   durationMinutes Int // How long the service takes (e.g., 45 min)
   imageUrl        String? // Service photo URL (Cloudinary/S3)
   isActive        Boolean  @default(true) // false = hidden from users (soft delete)
@@ -250,7 +415,7 @@ model ServiceVariant {
   serviceId       String // Parent service
   nameHi          String // "गोल्ड फेशियल"
   nameEn          String // "Gold Facial"
-  price           Decimal // Variant-specific price
+  price           Decimal  @db.Decimal(10, 2) // Variant-specific price
   durationMinutes Int // Variant-specific duration (may differ from base)
   isActive        Boolean  @default(true)
   sortOrder       Int      @default(0) // Display order within service
@@ -274,7 +439,7 @@ model ServiceAddOn {
   serviceId       String // Parent service
   nameHi          String // "आई मास्क"
   nameEn          String // "Eye Mask"
-  price           Decimal // Add-on price
+  price           Decimal  @db.Decimal(10, 2) // Add-on price
   durationMinutes Int // Extra time needed
   isActive        Boolean  @default(true)
   createdAt       DateTime @default(now())
@@ -298,8 +463,8 @@ model Package {
   slug            String    @unique // "bridal-package" — URL-safe
   descriptionHi   String // Package description in Hindi
   descriptionEn   String? // Package description in English
-  price           Decimal // Package price (discounted total)
-  originalPrice   Decimal // Sum of individual service prices (for showing savings)
+  price           Decimal   @db.Decimal(10, 2) // Package price (discounted total)
+  originalPrice   Decimal   @db.Decimal(10, 2) // Sum of individual service prices (for showing savings)
   durationMinutes Int // Total package duration
   imageUrl        String? // Package photo
   isActive        Boolean   @default(true)
@@ -343,17 +508,17 @@ model Staff {
   id              String   @id @default(cuid())
   userId          String   @unique // Linked to Users table (same login)
   branchId        String // Their assigned branch
-  specialization  String // ["facial","bridal_makeup","hair_color"] — stored as comma-separated string
+  specialization  String[] // ["facial","bridal_makeup","hair_color"] — native Text[]
   experienceYears Int? // Years of experience
   bioHi           String? // Short bio in Hindi
   bioEn           String? // Short bio in English (optional)
   photoUrl        String? // Staff photo URL
-  rating          Decimal  @default(0) // Average rating — computed from reviews
+  rating          Decimal  @default(0) @db.Decimal(3, 2) // Average rating — computed from reviews
   isAvailable     Boolean  @default(true) // Temporarily unavailable (sick leave etc.)
-  workDays        String   @default("{\"mon\":true,\"tue\":true,\"wed\":true,\"thu\":true,\"fri\":true,\"sat\":true,\"sun\":false}")
-  workStart       DateTime // Shift start — "09:00"
-  workEnd         DateTime // Shift end — "19:00"
-  commissionRate  Decimal? // Staff commission percentage (e.g., 15.00)
+  workDays        Json     @default("{\"mon\":true,\"tue\":true,\"wed\":true,\"thu\":true,\"fri\":true,\"sat\":true,\"sun\":false}")
+  workStart       DateTime @db.Time(0) // Shift start — "09:00"
+  workEnd         DateTime @db.Time(0) // Shift end — "19:00"
+  commissionRate  Decimal? @db.Decimal(5, 2) // Staff commission percentage (e.g., 15.00)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -395,7 +560,7 @@ model StaffService {
 model StaffLeave {
   id        String   @id @default(cuid())
   staffId   String // FK → Staff
-  date      DateTime // Leave date
+  date      DateTime @db.Date // Leave date
   reason    String? // "Personal" / "Medical" etc.
   createdAt DateTime @default(now())
 
@@ -412,23 +577,23 @@ model StaffLeave {
 
 /// Most critical table — every appointment ever made with full history
 model Booking {
-  id                 String   @id @default(cuid())
-  bookingDisplayId   String   @unique // Human-readable: "BK-2024-00123"
+  id                 String        @id @default(cuid())
+  bookingDisplayId   String        @unique // Human-readable: "BK-2024-00123"
   userId             String // Who made the booking
   serviceId          String // Which service was booked
   variantId          String? // Which variant (null = base service)
   staffId            String? // Assigned beautician (null = any available)
   branchId           String // Which branch the booking is at
-  bookingDate        DateTime // Date of appointment
-  slotStart          DateTime // Start time: "11:00"
-  slotEnd            DateTime // End time: calculated: slot_start + duration
-  status             String   @default("PENDING") // PENDING | CONFIRMED | IN_PROGRESS | COMPLETED | CANCELLED | NO_SHOW
-  advanceAmount      Decimal? // Amount paid in advance
-  totalAmount        Decimal // Full service price
+  bookingDate        DateTime      @db.Date // Date of appointment
+  slotStart          DateTime      @db.Time(0) // Start time: "11:00"
+  slotEnd            DateTime      @db.Time(0) // End time: calculated: slot_start + duration
+  status             BookingStatus @default(PENDING) // PENDING | CONFIRMED | IN_PROGRESS | COMPLETED | CANCELLED | NO_SHOW
+  advanceAmount      Decimal?      @db.Decimal(10, 2) // Amount paid in advance
+  totalAmount        Decimal       @db.Decimal(10, 2) // Full service price
   cancellationReason String? // Why cancelled — if applicable
   notes              String? // Special instructions from user or admin
-  createdAt          DateTime @default(now()) // When booking was made
-  updatedAt          DateTime @updatedAt // Last status change time
+  createdAt          DateTime      @default(now()) // When booking was made
+  updatedAt          DateTime      @updatedAt // Last status change time
 
   // Relations
   user          User                   @relation(fields: [userId], references: [id], onDelete: Restrict)
@@ -463,7 +628,7 @@ model BookingAddOn {
   bookingId String // FK → Bookings
   addOnId   String? // FK → ServiceAddOn (null if custom add-on)
   name      String // Name at time of booking (snapshot — addOn name may change)
-  price     Decimal // Price at time of booking (snapshot)
+  price     Decimal  @db.Decimal(10, 2) // Price at time of booking (snapshot)
   createdAt DateTime @default(now())
 
   // Relations
@@ -477,12 +642,12 @@ model BookingAddOn {
 
 /// Booking status change history — full audit trail of every status transition
 model BookingStatusHistory {
-  id        String   @id @default(cuid())
+  id        String        @id @default(cuid())
   bookingId String // FK → Bookings
-  status    String // New status
+  status    BookingStatus // New status
   changedBy String? // Who changed it (userId or "system")
   reason    String? // Why status was changed
-  createdAt DateTime @default(now())
+  createdAt DateTime      @default(now())
 
   // Relations
   booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
@@ -514,18 +679,18 @@ model BookingOffer {
 
 /// Payment records — tracks all payment transactions for bookings
 model Payment {
-  id              String    @id @default(cuid())
+  id              String          @id @default(cuid())
   bookingId       String // FK → Bookings
-  amount          Decimal // Payment amount
-  provider        String // RAZORPAY | CASH | UPI
-  status          String   @default("PENDING") // PENDING | SUCCESS | FAILED | REFUNDED
+  amount          Decimal         @db.Decimal(10, 2) // Payment amount
+  provider        PaymentProvider // RAZORPAY | CASH | UPI
+  status          PaymentStatus   @default(PENDING) // PENDING | SUCCESS | FAILED | REFUNDED
   providerRefId   String? // Razorpay payment_id / UPI ref
   providerOrderId String? // Razorpay order_id
   receiptUrl      String? // Payment receipt URL
-  metadata        String? // Full provider response (for audit)
+  metadata        Json? // Full provider response (for audit)
   paidAt          DateTime? // When payment was completed
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
 
   // Relations
   booking Booking  @relation(fields: [bookingId], references: [id], onDelete: Restrict)
@@ -541,17 +706,17 @@ model Payment {
 
 /// Refund records — tracks all refund requests and processing
 model Refund {
-  id            String    @id @default(cuid())
+  id            String       @id @default(cuid())
   paymentId     String // FK → Payments
-  amount        Decimal // Refund amount
+  amount        Decimal      @db.Decimal(10, 2) // Refund amount
   reason        String // Why refund was requested
-  status        String   @default("PENDING") // PENDING | APPROVED | REJECTED | PROCESSED
+  status        RefundStatus @default(PENDING) // PENDING | APPROVED | REJECTED | PROCESSED
   processedBy   String? // Admin userId who processed
   providerRefId String? // Razorpay refund_id
-  metadata      String? // Full provider response
+  metadata      Json? // Full provider response
   processedAt   DateTime? // When refund was completed
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 
   // Relations
   payment Payment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
@@ -566,17 +731,17 @@ model Refund {
 
 /// Pre-booking consultations — free consultations before actual service
 model Consultation {
-  id        String    @id @default(cuid())
+  id        String             @id @default(cuid())
   userId    String // FK → Users
-  bookingId String?   @unique // FK → Bookings (if consultation leads to booking)
+  bookingId String?            @unique // FK → Bookings (if consultation leads to booking)
   staffId   String? // Assigned staff for consultation
   branchId  String // Which branch
-  date      DateTime // Consultation date
-  time      DateTime // Consultation time
-  status    String    @default("PENDING") // PENDING | COMPLETED | CANCELLED
-  notes     String? // Consultation notes by staff
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  date      DateTime           @db.Date // Consultation date
+  time      DateTime           @db.Time(0) // Consultation time
+  status    ConsultationStatus @default(PENDING) // PENDING | COMPLETED | CANCELLED
+  notes     String?            @db.Text // Consultation notes by staff
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
 
   // Relations
   user    User     @relation(fields: [userId], references: [id], onDelete: Restrict)
@@ -600,8 +765,8 @@ model Review {
   staffId    String? // Staff being reviewed
   serviceId  String // Service being reviewed
   rating     Int // Star rating 1–5 (app validates range)
-  commentHi  String? // Review text — Hindi preferred
-  commentEn  String? // Review text — English (optional)
+  commentHi  String?  @db.Text // Review text — Hindi preferred
+  commentEn  String?  @db.Text // Review text — English (optional)
   isApproved Boolean  @default(true) // Admin can hide inappropriate reviews
   createdAt  DateTime @default(now()) // When review was submitted
   updatedAt  DateTime @updatedAt
@@ -627,7 +792,7 @@ model CustomerAddress {
   id        String   @id @default(cuid())
   userId    String // FK → Users
   label     String // "Home" / "Office" / "Other"
-  address   String // Full address
+  address   String   @db.Text // Full address
   city      String // City
   pincode   String // 6-digit PIN code
   landmark  String? // Nearby landmark
@@ -647,23 +812,23 @@ model CustomerAddress {
 
 /// Promo codes and seasonal discounts
 model Offer {
-  id            String   @id @default(cuid())
-  code          String   @unique // Promo code: "DIWALI20"
+  id            String       @id @default(cuid())
+  code          String       @unique // Promo code: "DIWALI20"
   titleHi       String // Offer name in Hindi
   titleEn       String? // Offer name in English (optional)
-  descriptionHi String? // Detailed offer description in Hindi
-  descriptionEn String? // Detailed offer description in English
-  discountType  String // PERCENTAGE | FLAT_AMOUNT — enum enforced
-  discountValue Decimal // 20.00 (for 20%) or 200.00 (for ₹200 off)
-  minOrder      Decimal? // Minimum booking amount to apply
-  maxDiscount   Decimal? // Cap on discount: max ₹500 even if 20%
+  descriptionHi String?      @db.Text // Detailed offer description in Hindi
+  descriptionEn String?      @db.Text // Detailed offer description in English
+  discountType  DiscountType // PERCENTAGE | FLAT_AMOUNT — enum enforced
+  discountValue Decimal      @db.Decimal(10, 2) // 20.00 (for 20%) or 200.00 (for ₹200 off)
+  minOrder      Decimal?     @db.Decimal(10, 2) // Minimum booking amount to apply
+  maxDiscount   Decimal?     @db.Decimal(10, 2) // Cap on discount: max ₹500 even if 20%
   validFrom     DateTime // Offer start date-time
   validUntil    DateTime // Offer end date-time
   usageLimit    Int? // Total times this offer can be used
-  usageCount    Int      @default(0) // How many times used so far
-  isActive      Boolean  @default(true) // Admin can deactivate without deleting
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  usageCount    Int          @default(0) // How many times used so far
+  isActive      Boolean      @default(true) // Admin can deactivate without deleting
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
 
   // Relations
   bookingOffers    BookingOffer[]
@@ -715,16 +880,16 @@ model OfferRedemption {
 
 /// Notification log — audit trail for all messages sent
 model Notification {
-  id        String   @id @default(cuid())
+  id        String               @id @default(cuid())
   userId    String // Recipient user
-  trigger   String? // What triggered this notification
-  channel   String // WHATSAPP | SMS | EMAIL | PUSH
+  trigger   NotificationTrigger? // What triggered this notification
+  channel   NotificationChannel // WHATSAPP | SMS | EMAIL | PUSH
   title     String // Notification title
-  message   String // Full message body
-  status    String   @default("PENDING") // PENDING | SENT | FAILED
+  message   String               @db.Text // Full message body
+  status    NotificationStatus   @default(PENDING) // PENDING | SENT | FAILED
   sentAt    DateTime? // When actually sent
-  metadata  String? // Extra delivery info (provider response, etc.)
-  createdAt DateTime @default(now())
+  metadata  Json? // Extra delivery info (provider response, etc.)
+  createdAt DateTime             @default(now())
 
   // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -742,13 +907,13 @@ model Notification {
 
 /// Loyalty point transactions — every earn, redeem, and expire event
 model LoyaltyTransaction {
-  id        String   @id @default(cuid())
+  id        String                 @id @default(cuid())
   userId    String // FK → Users
-  type      String // EARN | REDEEM | EXPIRE
+  type      LoyaltyTransactionType // EARN | REDEEM | EXPIRE
   points    Int // Points amount (positive for EARN, negative for REDEEM/EXPIRE)
   bookingId String? // FK → Bookings (if related to a booking)
   reason    String // "Booking completed" / "Redeemed for discount" / "Points expired"
-  createdAt DateTime @default(now())
+  createdAt DateTime               @default(now())
 
   // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Restrict)
@@ -766,13 +931,13 @@ model LoyaltyTransaction {
 model RevenueSnapshot {
   id              String   @id @default(cuid())
   branchId        String // FK → Branches
-  date            DateTime // Snapshot date
+  date            DateTime @db.Date // Snapshot date
   period          String // "daily" | "weekly" | "monthly"
-  totalRevenue    Decimal // Total revenue for period
+  totalRevenue    Decimal  @db.Decimal(12, 2) // Total revenue for period
   totalBookings   Int // Total bookings for period
-  avgBookingValue Decimal // Average booking value
-  totalExpenses   Decimal // Total expenses for period
-  netProfit       Decimal // Revenue - Expenses
+  avgBookingValue Decimal  @db.Decimal(10, 2) // Average booking value
+  totalExpenses   Decimal  @db.Decimal(12, 2) // Total expenses for period
+  netProfit       Decimal  @db.Decimal(12, 2) // Revenue - Expenses
   createdAt       DateTime @default(now())
 
   // Relations
@@ -813,10 +978,10 @@ model Product {
   nameHi        String // "लोरियल शैम्पू"
   nameEn        String // "L'Oreal Shampoo"
   slug          String   @unique // "loreal-shampoo" — URL-safe
-  descriptionHi String? // Product description in Hindi
-  descriptionEn String? // Product description in English
-  price         Decimal // Selling price
-  costPrice     Decimal? // Purchase price (for profit calc)
+  descriptionHi String?  @db.Text // Product description in Hindi
+  descriptionEn String?  @db.Text // Product description in English
+  price         Decimal  @db.Decimal(10, 2) // Selling price
+  costPrice     Decimal? @db.Decimal(10, 2) // Purchase price (for profit calc)
   imageUrl      String? // Product photo
   categoryId    String // FK → ProductCategories
   isActive      Boolean  @default(true)
@@ -837,15 +1002,15 @@ model Product {
 
 /// Product sale — a retail sale transaction (like an order)
 model ProductSale {
-  id            String    @id @default(cuid())
+  id            String            @id @default(cuid())
   customerId    String // FK → Users (customer who bought)
   branchId      String // Which branch sold
-  totalAmount   Decimal // Total sale amount
-  status        String    @default("PENDING") // PENDING | COMPLETED | CANCELLED
-  paymentMethod String? // How they paid
+  totalAmount   Decimal           @db.Decimal(10, 2) // Total sale amount
+  status        ProductSaleStatus @default(PENDING) // PENDING | COMPLETED | CANCELLED
+  paymentMethod PaymentProvider? // How they paid
   notes         String? // Any notes
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
 
   // Relations
   customer User              @relation(fields: [customerId], references: [id], onDelete: Restrict)
@@ -864,8 +1029,8 @@ model ProductSaleItem {
   saleId     String // FK → ProductSales
   productId  String // FK → Products
   quantity   Int // How many units
-  unitPrice  Decimal // Price per unit at time of sale (snapshot)
-  totalPrice Decimal // quantity × unitPrice
+  unitPrice  Decimal @db.Decimal(10, 2) // Price per unit at time of sale (snapshot)
+  totalPrice Decimal @db.Decimal(10, 2) // quantity × unitPrice
 
   // Relations
   sale    ProductSale @relation(fields: [saleId], references: [id], onDelete: Cascade)
@@ -901,13 +1066,13 @@ model InventoryItem {
 
 /// Inventory transactions — every stock in/out movement for audit trail
 model InventoryTransaction {
-  id              String   @id @default(cuid())
+  id              String                   @id @default(cuid())
   inventoryItemId String // FK → InventoryItems
-  type            String // PURCHASE | SALE | ADJUSTMENT | DAMAGE
+  type            InventoryTransactionType // PURCHASE | SALE | ADJUSTMENT | DAMAGE
   quantity        Int // Positive for in, negative for out
   reason          String? // "Monthly restock" / "Sold in booking #123"
   performedBy     String? // Staff userId who did it
-  createdAt       DateTime @default(now())
+  createdAt       DateTime                 @default(now())
 
   // Relations
   inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
@@ -922,16 +1087,16 @@ model InventoryTransaction {
 
 /// Business expenses — rent, salary, supplies, etc.
 model Expense {
-  id          String   @id @default(cuid())
+  id          String          @id @default(cuid())
   branchId    String // FK → Branches
-  category    String // RENT | SALARY | SUPPLIES | etc.
-  amount      Decimal // Expense amount
+  category    ExpenseCategory // RENT | SALARY | SUPPLIES | etc.
+  amount      Decimal         @db.Decimal(10, 2) // Expense amount
   description String // "January Rent" / "Shampoo supplies"
-  date        DateTime // Expense date
+  date        DateTime        @db.Date // Expense date
   receiptUrl  String? // Receipt photo/document URL
   recordedBy  String? // Admin userId who recorded
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
 
   // Relations
   branch Branch @relation(fields: [branchId], references: [id], onDelete: Restrict)
@@ -947,15 +1112,15 @@ model Expense {
 
 /// Staff commission records — earnings from completed bookings
 model StaffCommission {
-  id        String    @id @default(cuid())
+  id        String                @id @default(cuid())
   staffId   String // FK → Staff
   bookingId String // FK → Bookings
-  amount    Decimal // Commission amount
-  rate      Decimal // Commission rate at time of booking
-  status    String    @default("PENDING") // PENDING | PAID
+  amount    Decimal               @db.Decimal(10, 2) // Commission amount
+  rate      Decimal               @db.Decimal(5, 2) // Commission rate at time of booking
+  status    StaffCommissionStatus @default(PENDING) // PENDING | PAID
   paidAt    DateTime? // When commission was paid out
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
 
   // Relations
   staff Staff @relation(fields: [staffId], references: [id], onDelete: Restrict)
@@ -971,17 +1136,17 @@ model StaffCommission {
 
 /// Media assets — images, videos for services, staff, branches, blog, etc.
 model MediaAsset {
-  id        String   @id @default(cuid())
+  id        String         @id @default(cuid())
   ownerId   String // ID of the owner entity
-  ownerType String // SERVICE | STAFF | PORTFOLIO | BRANCH | BLOG | PRODUCT | OFFER
+  ownerType MediaOwnerType // SERVICE | STAFF | PORTFOLIO | BRANCH | BLOG | PRODUCT | OFFER
   url       String // Cloudinary/S3 URL
   altHi     String? // Alt text in Hindi (accessibility)
   altEn     String? // Alt text in English
   mimeType  String? // "image/jpeg" | "video/mp4"
   fileSize  Int? // File size in bytes
-  sortOrder Int      @default(0) // Display order
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
+  sortOrder Int            @default(0) // Display order
+  isActive  Boolean        @default(true)
+  createdAt DateTime       @default(now())
 
   // Polymorphic relation — ownerId + ownerType determines the owner entity
   // No direct FK relations — polymorphic, resolved at application level
@@ -1037,21 +1202,21 @@ model BlogCategory {
 
 /// Blog posts — content marketing, beauty tips, tutorials
 model BlogPost {
-  id            String    @id @default(cuid())
+  id            String         @id @default(cuid())
   categoryId    String // FK → BlogCategories
   titleHi       String // "10 ब्यूटी टिप्स"
   titleEn       String // "10 Beauty Tips"
-  slug          String    @unique // "10-beauty-tips" — URL-safe
-  contentHi     String // Full article in Hindi (Markdown or HTML)
-  contentEn     String? // Full article in English
-  excerptHi     String? // Short preview in Hindi
-  excerptEn     String? // Short preview in English
+  slug          String         @unique // "10-beauty-tips" — URL-safe
+  contentHi     String         @db.Text // Full article in Hindi (Markdown or HTML)
+  contentEn     String?        @db.Text // Full article in English
+  excerptHi     String?        @db.Text // Short preview in Hindi
+  excerptEn     String?        @db.Text // Short preview in English
   coverImageUrl String? // Cover image URL
-  status        String    @default("DRAFT") // DRAFT | PUBLISHED | ARCHIVED
+  status        BlogPostStatus @default(DRAFT) // DRAFT | PUBLISHED | ARCHIVED
   authorId      String? // Staff/User who wrote it
   publishedAt   DateTime? // When published
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 
   // Relations
   category BlogCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)

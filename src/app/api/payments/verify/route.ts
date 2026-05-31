@@ -83,11 +83,11 @@ export const POST = createApiHandler({
         providerRefId,
         providerOrderId,
         paidAt: new Date(),
-        metadata: {
-          ...(typeof payment.metadata === "object" && payment.metadata !== null ? payment.metadata as Record<string, unknown> : {}),
+        metadata: JSON.stringify({
+          ...(typeof payment.metadata === "string" ? JSON.parse(payment.metadata) : typeof payment.metadata === "object" && payment.metadata !== null ? payment.metadata as Record<string, unknown> : {}),
           verifiedAt: new Date().toISOString(),
           providerRefId,
-        },
+        }),
       },
     });
 

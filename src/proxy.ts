@@ -33,15 +33,30 @@ const PUBLIC_ROUTES = [
   "/api-docs",            // Swagger UI documentation
 ];
 
-// API routes that DON'T require authentication
+// API routes that DON'T require authentication (exact match + prefix)
 const PUBLIC_API_ROUTES = [
+  // Auth
   "/api/auth/send-otp",
   "/api/auth/verify-otp",
   "/api/auth/refresh",
   "/api/auth/register-email",
   "/api/auth/login-email",
   "/api/auth/google",
-  "/api/api-spec",        // OpenAPI spec JSON
+  "/api/api-spec",            // OpenAPI spec JSON
+  // Public GET endpoints — listing & detail views
+  "/api/branches",            // Branch listing & detail (public)
+  "/api/services",            // Service listing & detail (public)
+  "/api/service-categories",  // Service category listing (public)
+  "/api/packages",            // Package listing & detail (public)
+  "/api/staff",               // Staff listing & detail (public)
+  "/api/reviews",             // Reviews listing & detail (public)
+  "/api/offers",              // Offers listing & detail (public)
+  "/api/offers/validate",     // Validate promo code (public)
+  "/api/product-categories",  // Product category listing (public)
+  "/api/products",            // Product listing & detail (public)
+  "/api/portfolio",           // Portfolio listing (public)
+  "/api/blog",                // Blog categories & posts (public)
+  "/api/slots",               // Slot availability (public)
 ];
 
 // Routes that require specific roles
@@ -124,9 +139,17 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 3. Allow public API routes without auth
+  // 3. Allow public API routes without auth (GET requests only for data endpoints)
   if (matchesAny(pathname, PUBLIC_API_ROUTES)) {
-    return NextResponse.next();
+    // Auth routes allow all methods (POST for login/register)
+    if (pathname.startsWith("/api/auth/") || pathname === "/api/api-spec") {
+      return NextResponse.next();
+    }
+    // Data endpoints: only GET is public, POST/PATCH/DELETE require auth
+    if (request.method === "GET") {
+      return NextResponse.next();
+    }
+    // Non-GET on public data endpoints falls through to auth check below
   }
 
   // 4. For protected routes — verify token
