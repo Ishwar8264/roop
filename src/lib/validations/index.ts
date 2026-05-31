@@ -11,3 +11,4 @@ export * from "./common";
 
 // Feature-specific schemas
 export * from "./auth";
+export * from "./packages";
