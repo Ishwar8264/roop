@@ -87,7 +87,7 @@ export const PATCH = createApiHandler({
     });
 
     // 5. Fetch staff info
-    let staffInfo = null;
+    let staffInfo: Record<string, unknown> | null = null;
     if (updatedConsultation.staffId) {
       const staff = await prisma.staff.findUnique({
         where: { id: updatedConsultation.staffId },

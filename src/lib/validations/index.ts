@@ -13,3 +13,4 @@ export * from "./common";
 export * from "./auth";
 export * from "./packages";
 export * from "./consultations";
+export * from "./notifications";

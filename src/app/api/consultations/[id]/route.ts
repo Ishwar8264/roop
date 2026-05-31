@@ -88,7 +88,7 @@ export const GET = createApiHandler({
     }
 
     // 4. Fetch staff info (manual lookup since no Prisma relation)
-    let staffInfo = null;
+    let staffInfo: Record<string, unknown> | null = null;
     if (consultation.staffId) {
       const staff = await prisma.staff.findUnique({
         where: { id: consultation.staffId },

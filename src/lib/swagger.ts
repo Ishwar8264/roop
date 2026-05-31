@@ -68,6 +68,14 @@ export const openApiSpec = {
         "Staff/Admin consultation complete कर सकते हैं और notes जोड़ सकते हैं।\n" +
         "User या Admin किसी भी consultation को cancel कर सकते हैं।",
     },
+    {
+      name: "Notifications — सूचनाएं",
+      description:
+        "सूचना प्रबंधन — बुकिंग, भुगतान, ऑफर आदि की सूचनाएं।\n\n" +
+        "ग्राहक अपनी सूचनाएं देख सकते हैं, पढ़ी हुई मार्क कर सकते हैं।\n" +
+        "Admin नई सूचनाएं भेज सकता है (WhatsApp, SMS, Email, Push)।\n" +
+        "PENDING = अनपढ़, SENT = पढ़ी हुई, FAILED = भेजने में त्रुटि।",
+    },
   ],
   paths: {
     // ========== MOBILE OTP ==========
@@ -834,6 +842,211 @@ export const openApiSpec = {
       },
     },
 
+    // ========== NOTIFICATIONS ==========
+    "/api/notifications": {
+      get: {
+        tags: ["Notifications — सूचनाएं"],
+        summary: "सूचनाओं की सूची देखें",
+        description:
+          "अपनी सूचनाएं देखें। Pagination और फ़िल्टर सपोर्ट।\n\n" +
+          "- Auth required — अपनी सूचनाएं ही दिखती हैं\n" +
+          "- Unread count भी response में आता है\n" +
+          "- PENDING = अनपढ़, SENT = पढ़ी हुई",
+        operationId: "listNotifications",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "status",
+            in: "query",
+            required: false,
+            schema: { type: "string", enum: ["PENDING", "SENT", "FAILED"] },
+            description: "स्थिति से फ़िल्टर करें",
+          },
+          {
+            name: "channel",
+            in: "query",
+            required: false,
+            schema: { type: "string", enum: ["WHATSAPP", "SMS", "EMAIL", "PUSH"] },
+            description: "चैनल से फ़िल्टर करें",
+          },
+          {
+            name: "page",
+            in: "query",
+            required: false,
+            schema: { type: "integer", default: 1, minimum: 1 },
+            description: "पेज नंबर",
+          },
+          {
+            name: "pageSize",
+            in: "query",
+            required: false,
+            schema: { type: "integer", default: 20, minimum: 1, maximum: 100 },
+            description: "प्रति पेज आइटम",
+          },
+        ],
+        responses: {
+          "200": {
+            description: "सूचना सूची सफलतापूर्वक मिली",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/NotificationListResponse" },
+              },
+            },
+          },
+          "400": {
+            description: "Invalid query parameters",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+          },
+          "401": {
+            description: "Missing or invalid token",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+          },
+        },
+      },
+      post: {
+        tags: ["Notifications — सूचनाएं"],
+        summary: "सूचना भेजें",
+        description:
+          "नई सूचना बनाएं/भेजें (Admin only)।\n\n" +
+          "- userId valid होना चाहिए\n" +
+          "- channel: WHATSAPP | SMS | EMAIL | PUSH\n" +
+          "- सूचना PENDING status में बनती है",
+        operationId: "sendNotification",
+        security: [{ BearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/SendNotificationRequest" },
+              example: {
+                userId: "cm3user123",
+                channel: "WHATSAPP",
+                title: "बुकिंग कन्फर्म",
+                message: "आपकी ब्राइडल पैकेज बुकिंग कन्फर्म हो गई है!",
+                trigger: "BOOKING_CONFIRMED",
+              },
+            },
+          },
+        },
+        responses: {
+          "201": {
+            description: "सूचना सफलतापूर्वक बनाई गई",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/NotificationDetailResponse" },
+              },
+            },
+          },
+          "400": {
+            description: "Validation error",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+          },
+          "403": {
+            description: "Admin access required",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+          },
+          "404": {
+            description: "Target user not found",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+          },
+        },
+      },
+    },
+    "/api/notifications/{id}/read": {
+      patch: {
+        tags: ["Notifications — सूचनाएं"],
+        summary: "सूचना पढ़ी हुई मार्क करें",
+        description:
+          "एक सूचना को पढ़ी हुई मार्क करें।\n\n" +
+          "- सिर्फ अपनी सूचनाएं पढ़ी हुई मार्क कर सकते हैं\n" +
+          "- PENDING → SENT में बदलता है, sentAt सेट होता है\n" +
+          "- Idempotent — पहले से SENT पर कोई change नहीं",
+        operationId: "markNotificationRead",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            schema: { type: "string" },
+            description: "Notification ID (CUID)",
+          },
+        ],
+        responses: {
+          "200": {
+            description: "सूचना पढ़ी हुई मार्क हुई",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/NotificationDetailResponse" },
+              },
+            },
+          },
+          "401": {
+            description: "Missing or invalid token",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+          },
+          "403": {
+            description: "Cannot mark other user's notification",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+          },
+          "404": {
+            description: "Notification not found",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+          },
+        },
+      },
+    },
+    "/api/notifications/mark-all-read": {
+      post: {
+        tags: ["Notifications — सूचनाएं"],
+        summary: "सभी सूचनाएं पढ़ी हुई मार्क करें",
+        description:
+          "अपनी सभी अनपढ़ (PENDING) सूचनाएं पढ़ी हुई मार्क करें।\n\n" +
+          "- सभी PENDING सूचनाएं SENT में बदल जाएंगी",
+        operationId: "markAllNotificationsRead",
+        security: [{ BearerAuth: [] }],
+        responses: {
+          "200": {
+            description: "सभी सूचनाएं पढ़ी हुई मार्क हुईं",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/MarkAllReadResponse" },
+              },
+            },
+          },
+          "401": {
+            description: "Missing or invalid token",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+          },
+        },
+      },
+    },
+    "/api/notifications/unread-count": {
+      get: {
+        tags: ["Notifications — सूचनाएं"],
+        summary: "अनपढ़ सूचनाओं की संख्या",
+        description:
+          "अपनी अनपढ़ (PENDING) सूचनाओं की संख्या प्राप्त करें।\n\n" +
+          "- बैज दिखाने के लिए उपयोगी",
+        operationId: "getUnreadNotificationCount",
+        security: [{ BearerAuth: [] }],
+        responses: {
+          "200": {
+            description: "अनपढ़ संख्या",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/UnreadCountResponse" },
+              },
+            },
+          },
+          "401": {
+            description: "Missing or invalid token",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+          },
+        },
+      },
+    },
+
     "/api/packages/{id}/services": {
       get: {
         tags: ["Packages — पैकेज"],
@@ -1516,6 +1729,94 @@ export const openApiSpec = {
           success: { type: "boolean", example: true },
           data: { $ref: "#/components/schemas/ConsultationDetail" },
           message: { type: "string" },
+        },
+      },
+      // ========== NOTIFICATION SCHEMAS ==========
+      Notification: {
+        type: "object",
+        description: "सूचना — बुकिंग, भुगतान, ऑफर आदि की सूचना",
+        properties: {
+          id: { type: "string", description: "Notification ID (CUID)" },
+          userId: { type: "string", description: "प्राप्तकर्ता user ID" },
+          trigger: { type: "string", nullable: true, enum: ["BOOKING_CONFIRMED", "BOOKING_REMINDER", "BOOKING_CANCELLED", "PAYMENT_RECEIVED", "OFFER_APPLIED", "LOYALTY_EARNED", "LOYALTY_REDEEMED"], description: "क्या ट्रिगर कर रहा है" },
+          channel: { type: "string", enum: ["WHATSAPP", "SMS", "EMAIL", "PUSH"], description: "डिलीवरी चैनल" },
+          title: { type: "string", description: "सूचना शीर्षक" },
+          message: { type: "string", description: "पूरा संदेश" },
+          status: { type: "string", enum: ["PENDING", "SENT", "FAILED"], description: "PENDING = अनपढ़, SENT = पढ़ी हुई, FAILED = त्रुटि" },
+          sentAt: { type: "string", format: "date-time", nullable: true, description: "कब पढ़ा गया" },
+          metadata: { type: "object", nullable: true, description: "अतिरिक्त जानकारी" },
+          createdAt: { type: "string", format: "date-time", description: "बनाने का समय" },
+        },
+      },
+      SendNotificationRequest: {
+        type: "object",
+        description: "सूचना भेजने का अनुरोध (Admin only)",
+        required: ["userId", "channel", "title", "message"],
+        properties: {
+          userId: { type: "string", description: "प्राप्तकर्ता user ID" },
+          channel: { type: "string", enum: ["WHATSAPP", "SMS", "EMAIL", "PUSH"], description: "डिलीवरी चैनल" },
+          title: { type: "string", description: "सूचना शीर्षक (max 200 chars)" },
+          message: { type: "string", description: "पूरा संदेश (max 5000 chars)" },
+          trigger: { type: "string", enum: ["BOOKING_CONFIRMED", "BOOKING_REMINDER", "BOOKING_CANCELLED", "PAYMENT_RECEIVED", "OFFER_APPLIED", "LOYALTY_EARNED", "LOYALTY_REDEEMED"], description: "ट्रिगर (optional)" },
+        },
+      },
+      NotificationListResponse: {
+        type: "object",
+        description: "सूचनाओं की सूची — pagination, unreadCount सहित",
+        properties: {
+          success: { type: "boolean", example: true },
+          data: {
+            type: "object",
+            properties: {
+              notifications: { type: "array", items: { $ref: "#/components/schemas/Notification" } },
+              unreadCount: { type: "integer", description: "अनपढ़ सूचनाओं की संख्या" },
+              pagination: {
+                type: "object",
+                properties: {
+                  page: { type: "integer" },
+                  pageSize: { type: "integer" },
+                  total: { type: "integer" },
+                  totalPages: { type: "integer" },
+                },
+              },
+            },
+          },
+        },
+      },
+      NotificationDetailResponse: {
+        type: "object",
+        description: "एकल सूचना विवरण",
+        properties: {
+          success: { type: "boolean", example: true },
+          data: { $ref: "#/components/schemas/Notification" },
+          message: { type: "string" },
+        },
+      },
+      MarkAllReadResponse: {
+        type: "object",
+        description: "सभी अनपढ़ सूचनाएं पढ़ी हुई मार्क करने का response",
+        properties: {
+          success: { type: "boolean", example: true },
+          data: {
+            type: "object",
+            properties: {
+              updatedCount: { type: "integer", description: "कितनी सूचनाएं पढ़ी हुई मार्क हुईं" },
+            },
+          },
+          message: { type: "string" },
+        },
+      },
+      UnreadCountResponse: {
+        type: "object",
+        description: "अनपढ़ सूचनाओं की संख्या — बैज दिखाने के लिए",
+        properties: {
+          success: { type: "boolean", example: true },
+          data: {
+            type: "object",
+            properties: {
+              unreadCount: { type: "integer", description: "अनपढ़ (PENDING) सूचनाओं की संख्या" },
+            },
+          },
         },
       },
     },
