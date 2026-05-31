@@ -60,6 +60,14 @@ export const openApiSpec = {
         "ब्राइडल पैकेज, फेस्टिवल डील, वीकली स्पेशल आदि बनाएं और प्रबंधित करें।\n" +
         "सभी मौद्रिक मान Decimal स्ट्रिंग में (例: \"1500.00\")।",
     },
+    {
+      name: "Consultations — परामर्श",
+      description:
+        "प्री-बुकिंग परामर्श — सेवा से पहले मुफ्त consultation।\n\n" +
+        "ग्राहक शाखा और तारीख चुनकर consultation request कर सकते हैं।\n" +
+        "Staff/Admin consultation complete कर सकते हैं और notes जोड़ सकते हैं।\n" +
+        "User या Admin किसी भी consultation को cancel कर सकते हैं।",
+    },
   ],
   paths: {
     // ========== MOBILE OTP ==========
@@ -557,6 +565,275 @@ export const openApiSpec = {
         },
       },
     },
+    // ========== CONSULTATIONS ==========
+    "/api/consultations": {
+      get: {
+        tags: ["Consultations — परामर्श"],
+        summary: "परामर्शों की सूची देखें",
+        description:
+          "परामर्शों की सूची देखें। Pagination और फ़िल्टर सपोर्ट।\n\n" +
+          "- Auth required — सभी authenticated users\n" +
+          "- USER: सिर्फ अपने consultations दिखते हैं\n" +
+          "- ADMIN/STAFF: सभी consultations दिखते हैं (filters सपोर्ट)",
+        operationId: "listConsultations",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "branchId",
+            in: "query",
+            required: false,
+            schema: { type: "string" },
+            description: "शाखा ID से फ़िल्टर करें",
+          },
+          {
+            name: "staffId",
+            in: "query",
+            required: false,
+            schema: { type: "string" },
+            description: "Staff ID से फ़िल्टर करें",
+          },
+          {
+            name: "status",
+            in: "query",
+            required: false,
+            schema: { type: "string", enum: ["PENDING", "COMPLETED", "CANCELLED"] },
+            description: "स्थिति से फ़िल्टर करें",
+          },
+          {
+            name: "date",
+            in: "query",
+            required: false,
+            schema: { type: "string", format: "date" },
+            description: "तारीख से फ़िल्टर करें (YYYY-MM-DD)",
+          },
+          {
+            name: "page",
+            in: "query",
+            required: false,
+            schema: { type: "integer", default: 1, minimum: 1 },
+            description: "पेज नंबर",
+          },
+          {
+            name: "pageSize",
+            in: "query",
+            required: false,
+            schema: { type: "integer", default: 20, minimum: 1, maximum: 100 },
+            description: "प्रति पेज आइटम",
+          },
+        ],
+        responses: {
+          "200": {
+            description: "परामर्श सूची सफलतापूर्वक मिली",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ConsultationListResponse" },
+              },
+            },
+          },
+          "400": {
+            description: "Invalid query parameters",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+          },
+          "401": {
+            description: "Missing or invalid token",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+          },
+        },
+      },
+      post: {
+        tags: ["Consultations — परामर्श"],
+        summary: "नया परामर्श अनुरोध करें",
+        description:
+          "प्री-बुकिंग परामर्श का अनुरोध करें (कोई भी authenticated user)।\n\n" +
+          "- branchId valid होनी चाहिए\n" +
+          "- staffId optional है (अगर दिया, valid होना चाहिए)\n" +
+          "- Consultation PENDING status में बनता है",
+        operationId: "createConsultation",
+        security: [{ BearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/CreateConsultationRequest" },
+              example: {
+                branchId: "cm3xyz123",
+                date: "2025-03-15",
+                time: "11:00",
+                staffId: "cm3staff456",
+              },
+            },
+          },
+        },
+        responses: {
+          "201": {
+            description: "परामर्श सफलतापूर्वक अनुरोध किया गया",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ConsultationDetailResponse" },
+              },
+            },
+          },
+          "400": {
+            description: "Validation error",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+          },
+          "401": {
+            description: "Missing or invalid token",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+          },
+          "404": {
+            description: "Branch or staff not found",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+          },
+        },
+      },
+    },
+    "/api/consultations/{id}": {
+      get: {
+        tags: ["Consultations — परामर्श"],
+        summary: "परामर्श का विवरण देखें",
+        description:
+          "परामर्श की पूरी जानकारी — user, staff, booking info सहित।\n\n" +
+          "- USER: सिर्फ अपना consultation देख सकते हैं\n" +
+          "- ADMIN/STAFF: कोई भी consultation देख सकते हैं",
+        operationId: "getConsultation",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            schema: { type: "string" },
+            description: "Consultation ID (CUID)",
+          },
+        ],
+        responses: {
+          "200": {
+            description: "परामर्श विवरण",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ConsultationDetailResponse" },
+              },
+            },
+          },
+          "401": {
+            description: "Missing or invalid token",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+          },
+          "403": {
+            description: "Cannot view other user's consultation",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+          },
+          "404": {
+            description: "Consultation not found",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+          },
+        },
+      },
+    },
+    "/api/consultations/{id}/complete": {
+      patch: {
+        tags: ["Consultations — परामर्श"],
+        summary: "परामर्श पूर्ण करें",
+        description:
+          "परामर्श को COMPLETED मार्क करें (Admin/Staff only)।\n\n" +
+          "- Staff consultation notes जोड़ सकते हैं\n" +
+          "- सिर्फ PENDING consultations complete हो सकते हैं",
+        operationId: "completeConsultation",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            schema: { type: "string" },
+            description: "Consultation ID (CUID)",
+          },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/CompleteConsultationRequest" },
+              example: {
+                notes: "Customer wants bridal makeup consultation — recommended gold facial package",
+              },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "परामर्श सफलतापूर्वक पूर्ण हुआ",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ConsultationDetailResponse" },
+              },
+            },
+          },
+          "403": {
+            description: "Staff or Admin access required",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+          },
+          "404": {
+            description: "Consultation not found",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+          },
+          "409": {
+            description: "Consultation already completed or cancelled",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+          },
+        },
+      },
+    },
+    "/api/consultations/{id}/cancel": {
+      patch: {
+        tags: ["Consultations — परामर्श"],
+        summary: "परामर्श रद्द करें",
+        description:
+          "परामर्श को CANCELLED मार्क करें।\n\n" +
+          "- User अपना consultation cancel कर सकता है\n" +
+          "- Admin कोई भी consultation cancel कर सकता है\n" +
+          "- सिर्फ PENDING consultations cancel हो सकते हैं",
+        operationId: "cancelConsultation",
+        security: [{ BearerAuth: [] }],
+        parameters: [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            schema: { type: "string" },
+            description: "Consultation ID (CUID)",
+          },
+        ],
+        responses: {
+          "200": {
+            description: "परामर्श सफलतापूर्वक रद्द हुआ",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ConsultationDetailResponse" },
+              },
+            },
+          },
+          "401": {
+            description: "Missing or invalid token",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+          },
+          "403": {
+            description: "Cannot cancel other user's consultation",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+          },
+          "404": {
+            description: "Consultation not found",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+          },
+          "409": {
+            description: "Consultation already completed or cancelled",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } },
+          },
+        },
+      },
+    },
+
     "/api/packages/{id}/services": {
       get: {
         tags: ["Packages — पैकेज"],
@@ -1072,6 +1349,172 @@ export const openApiSpec = {
               skippedCount: { type: "integer", description: "पहले से लिंक की गई सेवाएं (skip की गईं)", example: 1 },
             },
           },
+          message: { type: "string" },
+        },
+      },
+
+      // ===== Consultation Request Schemas =====
+      CreateConsultationRequest: {
+        type: "object",
+        required: ["branchId", "date", "time"],
+        properties: {
+          branchId: { type: "string", description: "शाखा ID (CUID)", example: "cm3xyz123" },
+          date: { type: "string", format: "date", description: "परामर्श तारीख (YYYY-MM-DD)", example: "2025-03-15" },
+          time: { type: "string", pattern: "^\\d{2}:\\d{2}$", description: "परामर्श समय (HH:MM)", example: "11:00" },
+          staffId: { type: "string", description: "Staff ID (CUID, optional) — preferred beautician", example: "cm3staff456" },
+        },
+      },
+      CompleteConsultationRequest: {
+        type: "object",
+        properties: {
+          notes: { type: "string", maxLength: 5000, description: "Staff के consultation notes (optional)", example: "Customer wants bridal makeup — recommended gold facial package" },
+        },
+      },
+
+      // ===== Consultation Response Schemas =====
+      ConsultationBasic: {
+        type: "object",
+        properties: {
+          id: { type: "string", example: "cm3con123" },
+          userId: { type: "string", example: "cm3xyz123" },
+          bookingId: { type: "string", nullable: true, example: "cm3bk456" },
+          staffId: { type: "string", nullable: true, example: "cm3staff789" },
+          branchId: { type: "string", example: "cm3br001" },
+          date: { type: "string", format: "date", example: "2025-03-15" },
+          time: { type: "string", example: "11:00:00" },
+          status: { type: "string", enum: ["PENDING", "COMPLETED", "CANCELLED"], example: "PENDING" },
+          notes: { type: "string", nullable: true },
+          createdAt: { type: "string", format: "date-time" },
+          updatedAt: { type: "string", format: "date-time" },
+          user: {
+            type: "object",
+            properties: {
+              id: { type: "string" },
+              name: { type: "string", nullable: true, example: "राहुल शर्मा" },
+              mobile: { type: "string", nullable: true, example: "9876543210" },
+              email: { type: "string", nullable: true, example: "rahul@example.com" },
+              avatarUrl: { type: "string", nullable: true },
+            },
+          },
+          staff: {
+            type: "object",
+            nullable: true,
+            properties: {
+              id: { type: "string" },
+              specialization: { type: "array", items: { type: "string" }, example: ["facial", "bridal_makeup"] },
+              bioHi: { type: "string", nullable: true },
+              bioEn: { type: "string", nullable: true },
+              photoUrl: { type: "string", nullable: true },
+              rating: { type: "number", example: 4.5 },
+              user: {
+                type: "object",
+                properties: {
+                  id: { type: "string" },
+                  name: { type: "string", nullable: true },
+                  avatarUrl: { type: "string", nullable: true },
+                },
+              },
+            },
+          },
+        },
+      },
+      ConsultationDetail: {
+        type: "object",
+        properties: {
+          id: { type: "string", example: "cm3con123" },
+          userId: { type: "string", example: "cm3xyz123" },
+          bookingId: { type: "string", nullable: true, example: "cm3bk456" },
+          staffId: { type: "string", nullable: true, example: "cm3staff789" },
+          branchId: { type: "string", example: "cm3br001" },
+          date: { type: "string", format: "date", example: "2025-03-15" },
+          time: { type: "string", example: "11:00:00" },
+          status: { type: "string", enum: ["PENDING", "COMPLETED", "CANCELLED"], example: "PENDING" },
+          notes: { type: "string", nullable: true },
+          createdAt: { type: "string", format: "date-time" },
+          updatedAt: { type: "string", format: "date-time" },
+          user: {
+            type: "object",
+            properties: {
+              id: { type: "string" },
+              name: { type: "string", nullable: true, example: "राहुल शर्मा" },
+              mobile: { type: "string", nullable: true, example: "9876543210" },
+              email: { type: "string", nullable: true, example: "rahul@example.com" },
+              avatarUrl: { type: "string", nullable: true },
+            },
+          },
+          booking: {
+            type: "object",
+            nullable: true,
+            properties: {
+              id: { type: "string" },
+              bookingDisplayId: { type: "string", example: "BK-2025-00042" },
+              status: { type: "string", enum: ["PENDING", "CONFIRMED", "IN_PROGRESS", "COMPLETED", "CANCELLED", "NO_SHOW"] },
+              bookingDate: { type: "string", format: "date" },
+              slotStart: { type: "string" },
+              slotEnd: { type: "string" },
+              totalAmount: { type: "string", description: "Decimal string", example: "1500.00" },
+              service: {
+                type: "object",
+                properties: {
+                  id: { type: "string" },
+                  nameHi: { type: "string" },
+                  nameEn: { type: "string" },
+                },
+              },
+            },
+          },
+          staff: {
+            type: "object",
+            nullable: true,
+            properties: {
+              id: { type: "string" },
+              specialization: { type: "array", items: { type: "string" }, example: ["facial", "bridal_makeup"] },
+              bioHi: { type: "string", nullable: true },
+              bioEn: { type: "string", nullable: true },
+              photoUrl: { type: "string", nullable: true },
+              rating: { type: "number", example: 4.5 },
+              isAvailable: { type: "boolean", example: true },
+              user: {
+                type: "object",
+                properties: {
+                  id: { type: "string" },
+                  name: { type: "string", nullable: true },
+                  avatarUrl: { type: "string", nullable: true },
+                },
+              },
+            },
+          },
+        },
+      },
+      ConsultationListResponse: {
+        type: "object",
+        properties: {
+          success: { type: "boolean", example: true },
+          data: {
+            type: "object",
+            properties: {
+              consultations: {
+                type: "array",
+                items: { $ref: "#/components/schemas/ConsultationBasic" },
+              },
+              pagination: {
+                type: "object",
+                properties: {
+                  page: { type: "integer", example: 1 },
+                  pageSize: { type: "integer", example: 20 },
+                  total: { type: "integer", example: 15 },
+                  totalPages: { type: "integer", example: 1 },
+                },
+              },
+            },
+          },
+        },
+      },
+      ConsultationDetailResponse: {
+        type: "object",
+        properties: {
+          success: { type: "boolean", example: true },
+          data: { $ref: "#/components/schemas/ConsultationDetail" },
           message: { type: "string" },
         },
       },
