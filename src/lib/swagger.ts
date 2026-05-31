@@ -76,6 +76,13 @@ export const openApiSpec = {
         "Admin नई सूचनाएं भेज सकता है (WhatsApp, SMS, Email, Push)।\n" +
         "PENDING = अनपढ़, SENT = पढ़ी हुई, FAILED = भेजने में त्रुटि।",
     },
+    {
+      name: "Addresses — पते",
+      description:
+        "ग्राहक पते — होम विजिट बुकिंग के लिए सेव किए गए पते।\n\n" +
+        "प्रति यूज़र अधिकतम 5 पते सेव कर सकते हैं।\n" +
+        "Home, Office, Other लेबल सपोर्ट। एक पता डिफ़ॉल्ट रख सकते हैं।",
+    },
   ],
   paths: {
     // ========== MOBILE OTP ==========
@@ -1178,6 +1185,92 @@ export const openApiSpec = {
         },
       },
     },
+    "/api/addresses": {
+      get: {
+        tags: ["Addresses — पते"],
+        summary: "अपने पते देखें",
+        description: "अपने सेव किए गए सभी पते देखें। डिफ़ॉल्ट पता पहले आता है।",
+        operationId: "listAddresses",
+        security: [{ BearerAuth: [] }],
+        responses: {
+          "200": {
+            description: "पतों की सूची",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/AddressListResponse" } } },
+          },
+          "401": { description: "Unauthorized", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+      post: {
+        tags: ["Addresses — पते"],
+        summary: "नया पता जोड़ें",
+        description: "नया पता सेव करें। प्रति यूज़र अधिकतम 5 पते। पहला पता automatically डिफ़ॉल्ट बनता है।",
+        operationId: "createAddress",
+        security: [{ BearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/CreateAddressRequest" },
+              example: { label: "Home", address: "123, मॉडल टाउन", city: "Delhi", pincode: "110027", isDefault: true },
+            },
+          },
+        },
+        responses: {
+          "201": { description: "पता जोड़ा गया", content: { "application/json": { schema: { $ref: "#/components/schemas/AddressResponse" } } } },
+          "400": { description: "Validation error or max limit", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+    },
+    "/api/addresses/{id}": {
+      get: {
+        tags: ["Addresses — पते"],
+        summary: "पते का विवरण",
+        operationId: "getAddress",
+        security: [{ BearerAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" }, description: "Address ID" }],
+        responses: {
+          "200": { description: "पते का विवरण", content: { "application/json": { schema: { $ref: "#/components/schemas/AddressResponse" } } } },
+          "404": { description: "पता नहीं मिला", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+      patch: {
+        tags: ["Addresses — पते"],
+        summary: "पता अपडेट करें",
+        operationId: "updateAddress",
+        security: [{ BearerAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" }, description: "Address ID" }],
+        requestBody: { required: true, content: { "application/json": { schema: { $ref: "#/components/schemas/UpdateAddressRequest" } } } },
+        responses: {
+          "200": { description: "पता अपडेट हुआ", content: { "application/json": { schema: { $ref: "#/components/schemas/AddressResponse" } } } },
+          "404": { description: "पता नहीं मिला", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+      delete: {
+        tags: ["Addresses — पते"],
+        summary: "पता हटाएं",
+        description: "डिफ़ॉल्ट पता डिलीट करने पर सबसे नया पता डिफ़ॉल्ट बन जाता है।",
+        operationId: "deleteAddress",
+        security: [{ BearerAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" }, description: "Address ID" }],
+        responses: {
+          "200": { description: "पता डिलीट हुआ", content: { "application/json": { schema: { $ref: "#/components/schemas/AddressDeleteResponse" } } } },
+          "404": { description: "पता नहीं मिला", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+    },
+    "/api/addresses/{id}/default": {
+      patch: {
+        tags: ["Addresses — पते"],
+        summary: "डिफ़ॉल्ट पता सेट करें",
+        operationId: "setDefaultAddress",
+        security: [{ BearerAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" }, description: "Address ID" }],
+        responses: {
+          "200": { description: "डिफ़ॉल्ट पता बदला", content: { "application/json": { schema: { $ref: "#/components/schemas/AddressDefaultResponse" } } } },
+          "404": { description: "पता नहीं मिला", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+    },
   },
   components: {
     securitySchemes: {
@@ -1817,6 +1910,80 @@ export const openApiSpec = {
               unreadCount: { type: "integer", description: "अनपढ़ (PENDING) सूचनाओं की संख्या" },
             },
           },
+        },
+      },
+      // ===== Address Schemas =====
+      CreateAddressRequest: {
+        type: "object",
+        required: ["label", "address", "city", "pincode"],
+        properties: {
+          label: { type: "string", enum: ["Home", "Office", "Other"], example: "Home" },
+          address: { type: "string", example: "123, मॉडल टाउन, राजौरी गार्डन" },
+          city: { type: "string", example: "Delhi" },
+          pincode: { type: "string", pattern: "^\\d{6}$", example: "110027" },
+          landmark: { type: "string", example: "मेट्रो स्टेशन के पास" },
+          isDefault: { type: "boolean", default: false },
+        },
+      },
+      UpdateAddressRequest: {
+        type: "object",
+        properties: {
+          label: { type: "string", enum: ["Home", "Office", "Other"] },
+          address: { type: "string" },
+          city: { type: "string" },
+          pincode: { type: "string" },
+          landmark: { type: "string" },
+        },
+      },
+      AddressResponse: {
+        type: "object",
+        properties: {
+          success: { type: "boolean", example: true },
+          data: { $ref: "#/components/schemas/AddressData" },
+          message: { type: "string" },
+        },
+      },
+      AddressData: {
+        type: "object",
+        properties: {
+          id: { type: "string" },
+          userId: { type: "string" },
+          label: { type: "string", enum: ["Home", "Office", "Other"] },
+          address: { type: "string" },
+          city: { type: "string" },
+          pincode: { type: "string" },
+          landmark: { type: "string", nullable: true },
+          isDefault: { type: "boolean" },
+          createdAt: { type: "string", format: "date-time" },
+          updatedAt: { type: "string", format: "date-time" },
+        },
+      },
+      AddressListResponse: {
+        type: "object",
+        properties: {
+          success: { type: "boolean", example: true },
+          data: {
+            type: "object",
+            properties: {
+              addresses: { type: "array", items: { $ref: "#/components/schemas/AddressData" } },
+            },
+          },
+        },
+      },
+      AddressDeleteResponse: {
+        type: "object",
+        properties: {
+          success: { type: "boolean", example: true },
+          data: { type: "object", properties: { deleted: { type: "boolean", example: true } } },
+          message: { type: "string" },
+        },
+      },
+      AddressDefaultResponse: {
+        type: "object",
+        properties: {
+          success: { type: "boolean", example: true },
+          data: { type: "object", properties: { id: { type: "string" }, isDefault: { type: "boolean", example: true } } },
+          message: { type: "string" },
         },
       },
     },
