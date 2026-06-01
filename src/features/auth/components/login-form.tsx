@@ -1,0 +1,324 @@
+/**
+ * Purpose: Login form with OTP (mobile) and Email+Password tabs
+ * Responsibility: Handle user login via OTP or email/password
+ * Important Notes:
+ *   - Generic component — receives `onSuccess` callback, no router coupling
+ *   - Dev OTP shown in yellow banner during development
+ *   - OTP flow: send-otp → verify-otp
+ *   - Email flow: login-email
+ *   - No auth store import — parent handles post-login via onSuccess
+ */
+
+"use client";
+
+import { useState } from "react";
+import { Phone, Mail, ArrowRight, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { apiClient } from "@/services/api-client";
+import type { ApiResponse, SendOtpResponse, OTPVerifyResponse, LoginEmailResponse, UserProfile } from "@/types";
+
+// ==================== Types ====================
+
+interface LoginSuccessData {
+  user: UserProfile;
+  token: string;
+  isNewUser?: boolean;
+}
+
+interface LoginFormProps {
+  onSuccess?: (data: LoginSuccessData) => void;
+  onSwitchToRegister?: () => void;
+}
+
+// ==================== Component ====================
+
+export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
+  const [tab, setTab] = useState<"otp" | "email">("otp");
+
+  // OTP state
+  const [mobile, setMobile] = useState("");
+  const [otp, setOtp] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [devOtp, setDevOtp] = useState<string | null>(null);
+
+  // Email state
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  // Common state
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // ==================== OTP Handlers ====================
+
+  async function handleSendOtp() {
+    setError(null);
+    if (!mobile || mobile.length < 10) {
+      setError("कृपया सही मोबाइल नंबर डालें");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await apiClient.post<ApiResponse<SendOtpResponse>>(
+        "/auth/send-otp",
+        { mobile, purpose: "LOGIN" }
+      );
+
+      if (res.success) {
+        setOtpSent(true);
+        // Store dev OTP if in development
+        if (res.data?.devOtp) {
+          setDevOtp(res.data.devOtp);
+        }
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "OTP भेजने में त्रुटि";
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleVerifyOtp() {
+    setError(null);
+    if (!otp || otp.length < 4) {
+      setError("कृपया सही OTP डालें");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await apiClient.post<ApiResponse<OTPVerifyResponse>>(
+        "/auth/verify-otp",
+        { mobile, otp, purpose: "LOGIN" }
+      );
+
+      if (res.success && res.data) {
+        onSuccess?.({
+          user: res.data.user,
+          token: res.data.tokens.accessToken,
+          isNewUser: res.data.isNewUser,
+        });
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "OTP वेरिफाई में त्रुटि";
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ==================== Email Handlers ====================
+
+  async function handleEmailLogin() {
+    setError(null);
+    if (!email || !password) {
+      setError("कृपया ईमेल और पासवर्ड डालें");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await apiClient.post<ApiResponse<LoginEmailResponse>>(
+        "/auth/login-email",
+        { email, password }
+      );
+
+      if (res.success && res.data) {
+        onSuccess?.({
+          user: res.data.user,
+          token: res.data.tokens.accessToken,
+        });
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "लॉगिन में त्रुटि";
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ==================== Render ====================
+
+  return (
+    <Card className="w-full max-w-md mx-auto shadow-lg border-border/50">
+      <CardHeader className="text-center pb-2">
+        <CardTitle className="text-2xl font-bold">
+          लॉगिन करें
+        </CardTitle>
+        <CardDescription>
+          अपना अकाउंट एक्सेस करें
+        </CardDescription>
+      </CardHeader>
+
+      <CardContent className="space-y-4">
+        {/* Dev OTP Banner */}
+        {devOtp && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-center">
+            <p className="text-sm font-medium text-yellow-800">
+              🔧 डेवलपमेंट OTP: <span className="font-bold text-yellow-900">{devOtp}</span>
+            </p>
+          </div>
+        )}
+
+        {/* Error */}
+        {error && (
+          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 text-center">
+            <p className="text-sm text-destructive">{error}</p>
+          </div>
+        )}
+
+        {/* Tab Switcher */}
+        <div className="flex rounded-lg border overflow-hidden">
+          <button
+            type="button"
+            onClick={() => { setTab("otp"); setError(null); }}
+            className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium transition-colors ${
+              tab === "otp"
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted/50 text-muted-foreground hover:bg-muted"
+            }`}
+          >
+            <Phone className="h-4 w-4" />
+            मोबाइल OTP
+          </button>
+          <button
+            type="button"
+            onClick={() => { setTab("email"); setError(null); }}
+            className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium transition-colors ${
+              tab === "email"
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted/50 text-muted-foreground hover:bg-muted"
+            }`}
+          >
+            <Mail className="h-4 w-4" />
+            ईमेल
+          </button>
+        </div>
+
+        {/* ===== OTP Tab ===== */}
+        {tab === "otp" && (
+          <div className="space-y-3">
+            <div>
+              <label className="text-sm font-medium mb-1.5 block">मोबाइल नंबर</label>
+              <Input
+                type="tel"
+                placeholder="10 अंक का मोबाइल नंबर"
+                value={mobile}
+                onChange={(e) => setMobile(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                disabled={otpSent}
+                className="h-11"
+              />
+            </div>
+
+            {otpSent && (
+              <div>
+                <label className="text-sm font-medium mb-1.5 block">OTP</label>
+                <Input
+                  type="text"
+                  placeholder="4 अंक का OTP"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  maxLength={6}
+                  className="h-11 text-center text-lg tracking-widest"
+                  autoFocus
+                />
+              </div>
+            )}
+
+            {!otpSent ? (
+              <Button
+                className="w-full h-11"
+                onClick={handleSendOtp}
+                disabled={loading}
+              >
+                {loading ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <ArrowRight className="h-4 w-4 mr-2" />
+                )}
+                OTP भेजें
+              </Button>
+            ) : (
+              <div className="space-y-2">
+                <Button
+                  className="w-full h-11"
+                  onClick={handleVerifyOtp}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : null}
+                  वेरिफाई करें
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="w-full text-sm"
+                  onClick={() => { setOtpSent(false); setOtp(""); setDevOtp(null); }}
+                >
+                  नंबर बदलें
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ===== Email Tab ===== */}
+        {tab === "email" && (
+          <div className="space-y-3">
+            <div>
+              <label className="text-sm font-medium mb-1.5 block">ईमेल</label>
+              <Input
+                type="email"
+                placeholder="example@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="h-11"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1.5 block">पासवर्ड</label>
+              <Input
+                type="password"
+                placeholder="पासवर्ड डालें"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="h-11"
+                onKeyDown={(e) => e.key === "Enter" && handleEmailLogin()}
+              />
+            </div>
+            <Button
+              className="w-full h-11"
+              onClick={handleEmailLogin}
+              disabled={loading}
+            >
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <ArrowRight className="h-4 w-4 mr-2" />
+              )}
+              लॉगिन करें
+            </Button>
+          </div>
+        )}
+
+        {/* Switch to Register */}
+        <div className="text-center pt-2 border-t">
+          <p className="text-sm text-muted-foreground">
+            अकाउंट नहीं है?{" "}
+            <button
+              type="button"
+              className="text-primary font-medium hover:underline"
+              onClick={onSwitchToRegister}
+            >
+              रजिस्टर करें
+            </button>
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

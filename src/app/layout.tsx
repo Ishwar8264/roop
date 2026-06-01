@@ -1,7 +1,17 @@
+/**
+ * Purpose: Root layout for the entire application
+ * Responsibility: Provide fonts, metadata, AuthProvider, and Toaster
+ * Important Notes:
+ *   - Server component — only wraps children, no client logic
+ *   - AuthProvider handles: auth init, QueryClientProvider, loading state
+ *   - Toaster at root level for global toast notifications
+ */
+
 import type { Metadata } from "next";
 import { Noto_Sans_Devanagari, Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
+import { AuthProvider } from "@/features/auth/components/auth-provider";
 
 const notoSansDevanagari = Noto_Sans_Devanagari({
   subsets: ["devanagari"],
@@ -44,7 +54,9 @@ export default function RootLayout({
       <body
         className={`${notoSansDevanagari.variable} ${inter.variable} antialiased bg-background text-foreground min-h-screen flex flex-col`}
       >
-        {children}
+        <AuthProvider>
+          {children}
+        </AuthProvider>
         <Toaster />
       </body>
     </html>

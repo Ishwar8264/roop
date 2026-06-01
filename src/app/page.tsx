@@ -1,5 +1,16 @@
+/**
+ * Purpose: Landing page — welcome, services preview, CTA
+ * Responsibility: First impression — convert visitors to users
+ * Important Notes:
+ *   - Client component — uses framer-motion animations + auth state
+ *   - "अभी बुक करें" → /login if not authenticated, /dashboard if authenticated
+ *   - "लॉगिन करें" button visible only when not authenticated
+ *   - "सेवाएं देखें" → /services
+ */
+
 "use client";
 
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   Sparkles,
@@ -10,9 +21,11 @@ import {
   Phone,
   ArrowRight,
   Flower2,
+  LogIn,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { useAuthStore } from "@/stores/auth-store";
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 30 },
@@ -82,16 +95,21 @@ const features = [
 ];
 
 export default function WelcomePage() {
+  const router = useRouter();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+
+  const handleBookNow = () => {
+    router.push(isAuthenticated ? "/dashboard" : "/login");
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {/* ===== HERO SECTION ===== */}
       <section className="relative overflow-hidden">
-        {/* Decorative background */}
         <div className="absolute inset-0 bg-gradient-to-br from-rose-50 via-white to-pink-50" />
         <div className="absolute top-0 right-0 w-72 h-72 bg-primary/5 rounded-full blur-3xl" />
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-accent/10 rounded-full blur-3xl" />
 
-        {/* Floating decorative elements */}
         <motion.div
           className="absolute top-20 left-10 text-primary/20"
           animate={{ y: [-10, 10, -10], rotate: [0, 10, 0] }}
@@ -116,7 +134,6 @@ export default function WelcomePage() {
 
         <div className="relative max-w-6xl mx-auto px-4 pt-12 pb-16 sm:pt-20 sm:pb-24">
           <div className="text-center">
-            {/* Logo / Brand */}
             <motion.div
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -129,7 +146,6 @@ export default function WelcomePage() {
               </div>
             </motion.div>
 
-            {/* Hindi Title */}
             <motion.h1
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -141,7 +157,6 @@ export default function WelcomePage() {
               <span className="text-primary"> रूप</span>
             </motion.h1>
 
-            {/* English Subtitle */}
             <motion.p
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -151,7 +166,6 @@ export default function WelcomePage() {
               Nikharta Roop
             </motion.p>
 
-            {/* Tagline */}
             <motion.p
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -164,7 +178,6 @@ export default function WelcomePage() {
               फेशियल, ब्राइडल मेकअप, हेयर स्टाइलिंग और भी बहुत कुछ।
             </motion.p>
 
-            {/* CTA Buttons */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -174,6 +187,7 @@ export default function WelcomePage() {
               <Button
                 size="lg"
                 className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-6 text-lg rounded-xl shadow-lg shadow-primary/25"
+                onClick={handleBookNow}
               >
                 अभी बुक करें
                 <ArrowRight className="ml-2 h-5 w-5" />
@@ -182,12 +196,23 @@ export default function WelcomePage() {
                 variant="outline"
                 size="lg"
                 className="px-8 py-6 text-lg rounded-xl border-primary/30 text-primary hover:bg-primary/5"
+                onClick={() => router.push("/services")}
               >
                 सेवाएं देखें
               </Button>
+              {!isAuthenticated && (
+                <Button
+                  variant="ghost"
+                  size="lg"
+                  className="px-8 py-6 text-lg rounded-xl text-primary"
+                  onClick={() => router.push("/login")}
+                >
+                  <LogIn className="mr-2 h-5 w-5" />
+                  लॉगिन करें
+                </Button>
+              )}
             </motion.div>
 
-            {/* Trust badges */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -195,7 +220,7 @@ export default function WelcomePage() {
               className="flex flex-wrap items-center justify-center gap-6 mt-10 text-sm text-muted-foreground"
             >
               <div className="flex items-center gap-1.5">
-                <Star className="h-4 w-4 fill-warning text-warning" />
+                <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
                 <span>4.8 रेटिंग</span>
               </div>
               <div className="flex items-center gap-1.5">
@@ -203,7 +228,7 @@ export default function WelcomePage() {
                 <span>5,000+ खुश कस्टमर</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <CalendarCheck className="h-4 w-4 text-success" />
+                <CalendarCheck className="h-4 w-4 text-green-500" />
                 <span>10,000+ बुकिंग</span>
               </div>
             </motion.div>
@@ -259,9 +284,7 @@ export default function WelcomePage() {
                     </div>
                     <h3
                       className="text-lg font-semibold text-foreground mb-1"
-                      style={{
-                        fontFamily: "'Noto Sans Devanagari', sans-serif",
-                      }}
+                      style={{ fontFamily: "'Noto Sans Devanagari', sans-serif" }}
                     >
                       {service.title}
                     </h3>
@@ -270,9 +293,7 @@ export default function WelcomePage() {
                     </p>
                     <p
                       className="text-sm text-muted-foreground mb-3"
-                      style={{
-                        fontFamily: "'Noto Sans Devanagari', sans-serif",
-                      }}
+                      style={{ fontFamily: "'Noto Sans Devanagari', sans-serif" }}
                     >
                       {service.desc}
                     </p>
@@ -327,17 +348,13 @@ export default function WelcomePage() {
                   </div>
                   <h3
                     className="text-base font-semibold text-foreground mb-2"
-                    style={{
-                      fontFamily: "'Noto Sans Devanagari', sans-serif",
-                    }}
+                    style={{ fontFamily: "'Noto Sans Devanagari', sans-serif" }}
                   >
                     {feature.title}
                   </h3>
                   <p
                     className="text-sm text-muted-foreground"
-                    style={{
-                      fontFamily: "'Noto Sans Devanagari', sans-serif",
-                    }}
+                    style={{ fontFamily: "'Noto Sans Devanagari', sans-serif" }}
                   >
                     {feature.desc}
                   </p>
@@ -357,25 +374,20 @@ export default function WelcomePage() {
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
           >
-            <div className="bg-gradient-to-r from-primary to-rose-dark rounded-2xl p-8 sm:p-12 text-center text-white relative overflow-hidden">
-              {/* Decorative circles */}
+            <div className="bg-gradient-to-r from-primary to-rose-700 rounded-2xl p-8 sm:p-12 text-center text-white relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
               <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2" />
 
               <div className="relative">
                 <h3
                   className="text-2xl sm:text-3xl font-bold mb-3"
-                  style={{
-                    fontFamily: "'Noto Sans Devanagari', sans-serif",
-                  }}
+                  style={{ fontFamily: "'Noto Sans Devanagari', sans-serif" }}
                 >
-                  🎉 खास ऑफ़र — सिर्फ आपके लिए!
+                  खास ऑफ़र — सिर्फ आपके लिए!
                 </h3>
                 <p
                   className="text-white/90 mb-6 max-w-lg mx-auto"
-                  style={{
-                    fontFamily: "'Noto Sans Devanagari', sans-serif",
-                  }}
+                  style={{ fontFamily: "'Noto Sans Devanagari', sans-serif" }}
                 >
                   पहली बुकिंग पर 20% छूट! कोड:
                   <span className="font-bold text-yellow-200 ml-1">
@@ -385,6 +397,7 @@ export default function WelcomePage() {
                 <Button
                   size="lg"
                   className="bg-white text-primary hover:bg-white/90 px-8 py-6 text-lg rounded-xl font-bold"
+                  onClick={handleBookNow}
                 >
                   अभी बुक करें
                   <ArrowRight className="ml-2 h-5 w-5" />
@@ -408,13 +421,13 @@ export default function WelcomePage() {
             आपकी खूबसूरती हमारी ज़िम्मेदारी
           </p>
           <div className="flex items-center justify-center gap-4 text-sm text-white/60 mb-4">
-            <span>सेवाएं</span>
+            <button onClick={() => router.push("/services")} className="hover:text-white transition-colors">सेवाएं</button>
             <span>•</span>
-            <span>बुकिंग</span>
+            <button onClick={() => router.push("/bookings")} className="hover:text-white transition-colors">बुकिंग</button>
             <span>•</span>
-            <span>ऑफ़र</span>
+            <button onClick={() => router.push("/offers")} className="hover:text-white transition-colors">ऑफ़र</button>
             <span>•</span>
-            <span>हमसे संपर्क करें</span>
+            <button onClick={() => router.push("/login")} className="hover:text-white transition-colors">लॉगिन</button>
           </div>
           <p className="text-xs text-white/40">
             © 2026 Nikharta Roop. सर्वाधिकार सुरक्षित।

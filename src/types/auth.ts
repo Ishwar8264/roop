@@ -101,6 +101,8 @@ export interface SendOtpResponse {
   mobile: string;
   expiresIn: number;
   messageId: string | null;
+  /** Dev-only: OTP returned for testing (not in production) */
+  devOtp?: string;
 }
 
 /** Response from register-email endpoint */

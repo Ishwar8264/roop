@@ -96,11 +96,15 @@ export const POST = createApiHandler({
     // 7. Log auth event for audit trail
     await logAuthEvent(mobile, "OTP_SENT", request, { purpose: "LOGIN" });
 
-    // 8. Return data — NEVER include OTP in response
+    // 8. Return data
+    // In development, include OTP for testing (NEVER in production)
+    const isDev = process.env.NODE_ENV === "development";
+
     return {
       mobile,
       expiresIn: 300, // 5 minutes in seconds
       messageId: smsResult.messageId,
+      ...(isDev ? { devOtp: plainOtp } : {}),
     };
   },
 });

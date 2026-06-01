@@ -1,7 +1,12 @@
 /**
  * Purpose: API client for Nikharta Roop backend communication
- * Responsibility: Handle all HTTP requests, responses, and error normalization
- * Important Notes: Never call APIs directly from UI components — use this service layer
+ * Responsibility: Handle all HTTP requests, responses, error normalization, and auth token management
+ * Important Notes:
+ *   - Never call APIs directly from UI components — use this service layer
+ *   - Access token read from Zustand store (RAM) — NOT from storage
+ *   - Auto-refresh on 401 with retry — user never sees token expiry
+ *   - Refresh token sent via HttpOnly cookie (browser auto-includes)
+ *   - Refresh mutex prevents concurrent refresh calls
  */
 
 import type { ApiResponse, ApiError } from "@/types";
@@ -24,21 +29,66 @@ export class ApiClientError extends Error {
   }
 }
 
-// ==================== Token Helpers ====================
+// ==================== Refresh Mutex ====================
 
-function getAuthToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("nr_token");
+let isRefreshing = false;
+let refreshPromise: Promise<boolean> | null = null;
+
+/**
+ * Get the current access token from Zustand store
+ * Import is deferred to avoid circular dependency at module load time
+ */
+function getStoreToken(): string | null {
+  const { useAuthStore } = require("@/stores/auth-store");
+  return useAuthStore.getState().token;
 }
 
-export function setAuthToken(token: string): void {
-  if (typeof window === "undefined") return;
-  localStorage.setItem("nr_token", token);
+/**
+ * Set new access token in Zustand store after refresh
+ */
+function setStoreToken(token: string): void {
+  const { useAuthStore } = require("@/stores/auth-store");
+  useAuthStore.getState().setToken(token);
 }
 
-export function removeAuthToken(): void {
-  if (typeof window === "undefined") return;
-  localStorage.removeItem("nr_token");
+/**
+ * Attempt to refresh the access token using the HttpOnly refresh cookie
+ * Returns true if refresh succeeded, false otherwise
+ * Uses mutex to prevent concurrent refresh calls
+ */
+async function refreshAccessToken(): Promise<boolean> {
+  if (isRefreshing && refreshPromise) {
+    return refreshPromise;
+  }
+
+  isRefreshing = true;
+  refreshPromise = (async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (!response.ok) return false;
+
+      const data: ApiResponse<{ tokens: { accessToken: string; refreshToken: string } }> =
+        await response.json();
+
+      if (data.success && data.data?.tokens?.accessToken) {
+        setStoreToken(data.data.tokens.accessToken);
+        return true;
+      }
+
+      return false;
+    } catch {
+      return false;
+    } finally {
+      isRefreshing = false;
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
 }
 
 // ==================== Core Request Function ====================
@@ -47,7 +97,7 @@ async function request<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const token = getAuthToken();
+  const token = getStoreToken();
 
   const headers: HeadersInit = {
     "Content-Type": "application/json",
@@ -60,15 +110,62 @@ async function request<T>(
     headers,
   });
 
+  // Auto-refresh on 401 — token expired
+  if (response.status === 401 && token) {
+    const refreshed = await refreshAccessToken();
+
+    if (refreshed) {
+      const newToken = getStoreToken();
+      const retryHeaders: HeadersInit = {
+        "Content-Type": "application/json",
+        ...(newToken ? { Authorization: `Bearer ${newToken}` } : {}),
+        ...((options.headers as Record<string, string>) || {}),
+      };
+
+      const retryResponse = await fetch(`${API_BASE_URL}${endpoint}`, {
+        ...options,
+        headers: retryHeaders,
+      });
+
+      const retryData = await retryResponse.json();
+
+      if (!retryResponse.ok) {
+        throw new ApiClientError({
+          success: false,
+          error: retryData.error || "UNKNOWN_ERROR",
+          message: retryData.message || "कुछ गलत हो गया।",
+          statusCode: retryResponse.status,
+        });
+      }
+
+      return retryData as T;
+    } else {
+      const { useAuthStore } = require("@/stores/auth-store");
+      useAuthStore.getState().logout();
+      if (typeof window !== "undefined") {
+        window.location.href = "/?auth=expired";
+      }
+      throw new ApiClientError({
+        success: false,
+        error: "AUTH_SESSION_EXPIRED",
+        message: "Session expired. Please login again.",
+        statusCode: 401,
+      });
+    }
+  }
+
   // Parse response
   const data = await response.json();
 
   // Handle error responses
   if (!response.ok) {
     const error: ApiError = {
+      success: false,
       error: data.error || "UNKNOWN_ERROR",
       message: data.message || "कुछ गलत हो गया।",
       statusCode: response.status,
+      retryAfterSeconds: data.retryAfterSeconds,
+      fields: data.fields,
     };
     throw new ApiClientError(error);
   }
@@ -93,6 +190,13 @@ export const apiClient = {
     });
   },
 
+  patch<T>(endpoint: string, body?: unknown): Promise<T> {
+    return request<T>(endpoint, {
+      method: "PATCH",
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  },
+
   put<T>(endpoint: string, body?: unknown): Promise<T> {
     return request<T>(endpoint, {
       method: "PUT",
@@ -104,3 +208,18 @@ export const apiClient = {
     return request<T>(endpoint, { method: "DELETE" });
   },
 } as const;
+
+// ==================== Legacy Token Helpers ====================
+
+export function setAuthToken(token: string): void {
+  setStoreToken(token);
+}
+
+export function removeAuthToken(): void {
+  const { useAuthStore } = require("@/stores/auth-store");
+  useAuthStore.getState().setToken(null as unknown as string);
+}
+
+export function getAuthToken(): string | null {
+  return getStoreToken();
+}
