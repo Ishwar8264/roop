@@ -58,8 +58,9 @@ export function PublicHeader() {
         <div className="flex lg:hidden items-center justify-between h-14">
           <MobileMenu />
 
-          <Link href="/" className="font-bold text-primary text-lg">
-            {t("appNameHi")}
+          <Link href="/" className="flex items-center gap-2">
+            <img src="/favicon-32x32.png" alt="NR" className="h-8 w-8 rounded-lg" />
+            <span className="font-bold text-primary text-lg">{t("appNameHi")}</span>
           </Link>
 
           <div className="flex items-center gap-1">
@@ -82,8 +83,9 @@ export function PublicHeader() {
         <div className="hidden lg:flex items-center h-16">
           {/* Brand */}
           <div className="flex-shrink-0">
-            <Link href="/" className="font-bold text-primary text-xl">
-              {t("appNameHi")}
+            <Link href="/" className="flex items-center gap-2.5">
+              <img src="/favicon-32x32.png" alt="NR" className="h-9 w-9 rounded-lg" />
+              <span className="font-bold text-primary text-xl">{t("appNameHi")}</span>
             </Link>
           </div>
 
@@ -147,8 +149,9 @@ function MobileMenu() {
         </Button>
       </SheetTrigger>
       <SheetContent side="left" className="w-72 p-0">
-        <SheetTitle className="px-4 pt-4 pb-2 text-primary font-bold text-lg border-b">
-          {t("appNameHi")}
+        <SheetTitle className="px-4 pt-4 pb-2 border-b flex items-center gap-2">
+          <img src="/favicon-32x32.png" alt="NR" className="h-7 w-7 rounded-lg" />
+          <span className="text-primary font-bold text-lg">{t("appNameHi")}</span>
         </SheetTitle>
         <nav className="flex flex-col p-2">
           {publicNavItems.map((item) => (
