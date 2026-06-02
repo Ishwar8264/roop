@@ -3,55 +3,34 @@
  * Responsibility: Render fixed bottom navigation with 5 tabs for mobile/tablet
  * Important Notes:
  *   - Renders ONLY on mobile/tablet (md:hidden in parent)
- *   - Uses generic NavItem[] config — no hardcoded routes inside component
+ *   - Uses shared nav-config for items (subset of allNavItems)
  *   - Safe area support for iPhone notch (pb-safe)
  *   - Active tab highlighted with primary color
  *   - Fixed to bottom, content gets padding-bottom to avoid overlap
+ *   - Uses i18n for labels
  */
 
 "use client";
 
-import { Home, Scissors, Calendar, Gift, User } from "lucide-react";
 import { NavLink, type NavItem } from "./nav-link";
-
-// ==================== Nav Items Config ====================
-
-const bottomNavItems: NavItem[] = [
-  {
-    href: "/dashboard",
-    icon: Home,
-    label: "होम",
-    labelEn: "Home",
-  },
-  {
-    href: "/services",
-    icon: Scissors,
-    label: "सेवाएं",
-    labelEn: "Services",
-  },
-  {
-    href: "/bookings",
-    icon: Calendar,
-    label: "बुकिंग",
-    labelEn: "Bookings",
-  },
-  {
-    href: "/offers",
-    icon: Gift,
-    label: "ऑफ़र",
-    labelEn: "Offers",
-  },
-  {
-    href: "/profile",
-    icon: User,
-    label: "प्रोफ़ाइल",
-    labelEn: "Profile",
-  },
-];
+import { useTranslation } from "@/i18n/use-translation";
+import { allNavItems, bottomNavItemHrefs } from "./nav-config";
 
 // ==================== Component ====================
 
 export function BottomNav() {
+  const { t } = useTranslation();
+
+  // Bottom nav items — subset (5 items for mobile, no Blog)
+  const bottomNavItems: NavItem[] = allNavItems
+    .filter((item) => bottomNavItemHrefs.includes(item.href))
+    .map((item) => ({
+      href: item.href,
+      icon: item.icon,
+      label: t(item.labelKey),
+      iconName: item.iconName,
+    }));
+
   return (
     <nav
       role="navigation"
@@ -70,7 +49,5 @@ export function BottomNav() {
   );
 }
 
-/**
- * Export bottom nav items so other components (like AppHeader) can reuse
- */
-export { bottomNavItems };
+// Re-export for backward compatibility
+export { bottomNavItemHrefs as bottomNavItems };

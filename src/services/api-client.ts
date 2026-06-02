@@ -143,7 +143,7 @@ async function request<T>(
       const { useAuthStore } = require("@/stores/auth-store");
       useAuthStore.getState().logout();
       if (typeof window !== "undefined") {
-        window.location.href = "/?auth=expired";
+        window.location.href = "/login";
       }
       throw new ApiClientError({
         success: false,

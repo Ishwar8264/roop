@@ -1,16 +1,20 @@
 /**
  * Purpose: Root layout for the entire application
- * Responsibility: Provide fonts, metadata, AuthProvider, and Toaster
+ * Responsibility: Provide fonts, metadata, ThemeProvider, AuthProvider, and Toaster
  * Important Notes:
  *   - Server component — only wraps children, no client logic
+ *   - ThemeProvider wraps AuthProvider for theme context
  *   - AuthProvider handles: auth init, QueryClientProvider, loading state
  *   - Toaster at root level for global toast notifications
+ *   - Default lang="en" — language switching is client-side via Zustand
+ *   - suppressHydrationWarning required for next-themes
  */
 
 import type { Metadata } from "next";
 import { Noto_Sans_Devanagari, Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
+import { ThemeProvider } from "@/features/shell/components/theme-provider";
 import { AuthProvider } from "@/features/auth/components/auth-provider";
 
 const notoSansDevanagari = Noto_Sans_Devanagari({
@@ -28,16 +32,15 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "निखरता रूप — Nikharta Roop | Beauty Parlour",
+  title: "Nikharta Roop | Beauty Parlour",
   description:
-    "भारत का सबसे भरोसेमंद ब्यूटी पार्लर। अभी बुक करें — फेशियल, ब्राइडल मेकअप, हेयर कटिंग और भी बहुत कुछ।",
+    "India's most trusted beauty parlour. Book now — Facial, Bridal Makeup, Hair Cutting and more.",
   keywords: [
     "beauty parlour",
-    "ब्यूटी पार्लर",
     "bridal makeup",
     "facial",
     "booking",
-    "निखरता रूप",
+    "Nikharta Roop",
   ],
   icons: {
     icon: "/favicon.ico",
@@ -50,14 +53,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="hi" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${notoSansDevanagari.variable} ${inter.variable} antialiased bg-background text-foreground min-h-screen flex flex-col`}
       >
-        <AuthProvider>
-          {children}
-        </AuthProvider>
-        <Toaster />
+        <ThemeProvider>
+          <AuthProvider>
+            {children}
+          </AuthProvider>
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   );

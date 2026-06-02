@@ -7,6 +7,7 @@
  *   - OTP flow: send-otp → verify-otp
  *   - Email flow: login-email
  *   - No auth store import — parent handles post-login via onSuccess
+ *   - Uses i18n for all UI strings
  */
 
 "use client";
@@ -17,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { apiClient } from "@/services/api-client";
+import { useTranslation } from "@/i18n/use-translation";
 import type { ApiResponse, SendOtpResponse, OTPVerifyResponse, LoginEmailResponse, UserProfile } from "@/types";
 
 // ==================== Types ====================
@@ -35,6 +37,7 @@ interface LoginFormProps {
 // ==================== Component ====================
 
 export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
+  const { t } = useTranslation();
   const [tab, setTab] = useState<"otp" | "email">("otp");
 
   // OTP state
@@ -56,7 +59,7 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
   async function handleSendOtp() {
     setError(null);
     if (!mobile || mobile.length < 10) {
-      setError("कृपया सही मोबाइल नंबर डालें");
+      setError(t("common.pleaseEnter") + " " + t("auth.mobileNumber").toLowerCase());
       return;
     }
 
@@ -69,13 +72,12 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
 
       if (res.success) {
         setOtpSent(true);
-        // Store dev OTP if in development
         if (res.data?.devOtp) {
           setDevOtp(res.data.devOtp);
         }
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "OTP भेजने में त्रुटि";
+      const message = err instanceof Error ? err.message : t("common.somethingWrong");
       setError(message);
     } finally {
       setLoading(false);
@@ -85,7 +87,7 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
   async function handleVerifyOtp() {
     setError(null);
     if (!otp || otp.length < 4) {
-      setError("कृपया सही OTP डालें");
+      setError(t("common.pleaseEnter") + " OTP");
       return;
     }
 
@@ -104,7 +106,7 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
         });
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "OTP वेरिफाई में त्रुटि";
+      const message = err instanceof Error ? err.message : t("common.somethingWrong");
       setError(message);
     } finally {
       setLoading(false);
@@ -116,7 +118,7 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
   async function handleEmailLogin() {
     setError(null);
     if (!email || !password) {
-      setError("कृपया ईमेल और पासवर्ड डालें");
+      setError(t("common.pleaseEnter") + " " + t("auth.email").toLowerCase() + " & " + t("auth.password").toLowerCase());
       return;
     }
 
@@ -134,7 +136,7 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
         });
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "लॉगिन में त्रुटि";
+      const message = err instanceof Error ? err.message : t("common.somethingWrong");
       setError(message);
     } finally {
       setLoading(false);
@@ -147,19 +149,19 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
     <Card className="w-full max-w-md mx-auto shadow-lg border-border/50">
       <CardHeader className="text-center pb-2">
         <CardTitle className="text-2xl font-bold">
-          लॉगिन करें
+          {t("auth.loginTitle")}
         </CardTitle>
         <CardDescription>
-          अपना अकाउंट एक्सेस करें
+          {t("auth.loginSubtitle")}
         </CardDescription>
       </CardHeader>
 
       <CardContent className="space-y-4">
         {/* Dev OTP Banner */}
         {devOtp && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-center">
-            <p className="text-sm font-medium text-yellow-800">
-              🔧 डेवलपमेंट OTP: <span className="font-bold text-yellow-900">{devOtp}</span>
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-center dark:bg-yellow-900/20 dark:border-yellow-800">
+            <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+              {t("auth.devOtp")}: <span className="font-bold">{devOtp}</span>
             </p>
           </div>
         )}
@@ -183,7 +185,7 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
             }`}
           >
             <Phone className="h-4 w-4" />
-            मोबाइल OTP
+            {t("auth.mobileOtp")}
           </button>
           <button
             type="button"
@@ -195,7 +197,7 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
             }`}
           >
             <Mail className="h-4 w-4" />
-            ईमेल
+            {t("auth.email")}
           </button>
         </div>
 
@@ -203,10 +205,10 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
         {tab === "otp" && (
           <div className="space-y-3">
             <div>
-              <label className="text-sm font-medium mb-1.5 block">मोबाइल नंबर</label>
+              <label className="text-sm font-medium mb-1.5 block">{t("auth.mobileNumber")}</label>
               <Input
                 type="tel"
-                placeholder="10 अंक का मोबाइल नंबर"
+                placeholder={t("auth.enterMobile")}
                 value={mobile}
                 onChange={(e) => setMobile(e.target.value.replace(/\D/g, "").slice(0, 10))}
                 disabled={otpSent}
@@ -219,7 +221,7 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
                 <label className="text-sm font-medium mb-1.5 block">OTP</label>
                 <Input
                   type="text"
-                  placeholder="4 अंक का OTP"
+                  placeholder={t("auth.enterOtp")}
                   value={otp}
                   onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
                   maxLength={6}
@@ -240,7 +242,7 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
                 ) : (
                   <ArrowRight className="h-4 w-4 mr-2" />
                 )}
-                OTP भेजें
+                {t("auth.sendOtp")}
               </Button>
             ) : (
               <div className="space-y-2">
@@ -252,14 +254,14 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
                   {loading ? (
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
                   ) : null}
-                  वेरिफाई करें
+                  {t("auth.verifyOtp")}
                 </Button>
                 <Button
                   variant="ghost"
                   className="w-full text-sm"
                   onClick={() => { setOtpSent(false); setOtp(""); setDevOtp(null); }}
                 >
-                  नंबर बदलें
+                  {t("auth.changeNumber")}
                 </Button>
               </div>
             )}
@@ -270,7 +272,7 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
         {tab === "email" && (
           <div className="space-y-3">
             <div>
-              <label className="text-sm font-medium mb-1.5 block">ईमेल</label>
+              <label className="text-sm font-medium mb-1.5 block">{t("auth.email")}</label>
               <Input
                 type="email"
                 placeholder="example@email.com"
@@ -280,10 +282,10 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
               />
             </div>
             <div>
-              <label className="text-sm font-medium mb-1.5 block">पासवर्ड</label>
+              <label className="text-sm font-medium mb-1.5 block">{t("auth.password")}</label>
               <Input
                 type="password"
-                placeholder="पासवर्ड डालें"
+                placeholder={t("auth.enterPassword")}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="h-11"
@@ -300,7 +302,7 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
               ) : (
                 <ArrowRight className="h-4 w-4 mr-2" />
               )}
-              लॉगिन करें
+              {t("auth.loginButton")}
             </Button>
           </div>
         )}
@@ -308,13 +310,13 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
         {/* Switch to Register */}
         <div className="text-center pt-2 border-t">
           <p className="text-sm text-muted-foreground">
-            अकाउंट नहीं है?{" "}
+            {t("auth.noAccount")}{" "}
             <button
               type="button"
               className="text-primary font-medium hover:underline"
               onClick={onSwitchToRegister}
             >
-              रजिस्टर करें
+              {t("auth.register")}
             </button>
           </p>
         </div>

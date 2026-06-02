@@ -6,6 +6,7 @@
  *   - Email + password + name fields
  *   - Calls /api/auth/register-email endpoint
  *   - No auth store import — parent handles post-register via onSuccess
+ *   - Uses i18n for all UI strings
  */
 
 "use client";
@@ -16,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { apiClient } from "@/services/api-client";
+import { useTranslation } from "@/i18n/use-translation";
 import type { ApiResponse, RegisterEmailResponse, UserProfile } from "@/types";
 
 // ==================== Types ====================
@@ -33,6 +35,7 @@ interface RegisterFormProps {
 // ==================== Component ====================
 
 export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) {
+  const { t } = useTranslation();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [mobile, setMobile] = useState("");
@@ -45,12 +48,12 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
     setError(null);
 
     if (!email || !password) {
-      setError("कृपया ईमेल और पासवर्ड डालें");
+      setError(t("common.pleaseEnter") + " " + t("auth.email").toLowerCase() + " & " + t("auth.password").toLowerCase());
       return;
     }
 
     if (password.length < 8) {
-      setError("पासवर्ड कम से कम 8 अक्षर का होना चाहिए");
+      setError("Password must be at least 8 characters");
       return;
     }
 
@@ -73,7 +76,7 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
         });
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "रजिस्ट्रेशन में त्रुटि";
+      const message = err instanceof Error ? err.message : t("common.somethingWrong");
       setError(message);
     } finally {
       setLoading(false);
@@ -84,10 +87,10 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
     <Card className="w-full max-w-md mx-auto shadow-lg border-border/50">
       <CardHeader className="text-center pb-2">
         <CardTitle className="text-2xl font-bold">
-          रजिस्टर करें
+          {t("auth.registerTitle")}
         </CardTitle>
         <CardDescription>
-          नया अकाउंट बनाएं
+          {t("auth.registerSubtitle")}
         </CardDescription>
       </CardHeader>
 
@@ -100,10 +103,10 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
         )}
 
         <div>
-          <label className="text-sm font-medium mb-1.5 block">नाम (वैकल्पिक)</label>
+          <label className="text-sm font-medium mb-1.5 block">{t("userMenu.profile")} (optional)</label>
           <Input
             type="text"
-            placeholder="आपका नाम"
+            placeholder="Your name"
             value={name}
             onChange={(e) => setName(e.target.value)}
             className="h-11"
@@ -111,10 +114,10 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
         </div>
 
         <div>
-          <label className="text-sm font-medium mb-1.5 block">मोबाइल नंबर (वैकल्पिक)</label>
+          <label className="text-sm font-medium mb-1.5 block">{t("auth.mobileNumber")} (optional)</label>
           <Input
             type="tel"
-            placeholder="10 अंक का मोबाइल नंबर"
+            placeholder={t("auth.enterMobile")}
             value={mobile}
             onChange={(e) => setMobile(e.target.value.replace(/\D/g, "").slice(0, 10))}
             className="h-11"
@@ -122,7 +125,7 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
         </div>
 
         <div>
-          <label className="text-sm font-medium mb-1.5 block">ईमेल *</label>
+          <label className="text-sm font-medium mb-1.5 block">{t("auth.email")} *</label>
           <Input
             type="email"
             placeholder="example@email.com"
@@ -133,11 +136,11 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
         </div>
 
         <div>
-          <label className="text-sm font-medium mb-1.5 block">पासवर्ड *</label>
+          <label className="text-sm font-medium mb-1.5 block">{t("auth.password")} *</label>
           <div className="relative">
             <Input
               type={showPassword ? "text" : "password"}
-              placeholder="कम से कम 8 अक्षर"
+              placeholder="At least 8 characters"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="h-11 pr-10"
@@ -163,19 +166,19 @@ export function RegisterForm({ onSuccess, onSwitchToLogin }: RegisterFormProps) 
           ) : (
             <ArrowRight className="h-4 w-4 mr-2" />
           )}
-          अकाउंट बनाएं
+          {t("auth.register")}
         </Button>
 
         {/* Switch to Login */}
         <div className="text-center pt-2 border-t">
           <p className="text-sm text-muted-foreground">
-            पहले से अकाउंट है?{" "}
+            {t("auth.hasAccount")}{" "}
             <button
               type="button"
               className="text-primary font-medium hover:underline"
               onClick={onSwitchToLogin}
             >
-              लॉगिन करें
+              {t("auth.login")}
             </button>
           </p>
         </div>

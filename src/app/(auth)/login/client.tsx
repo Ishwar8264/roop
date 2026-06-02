@@ -4,6 +4,7 @@
  * Important Notes:
  *   - Client component — uses router, auth store
  *   - On login success → store token + user → redirect to dashboard
+ *   - Uses router.replace for immediate redirect (no history entry)
  *   - On "register" click → navigate to /register
  */
 
@@ -20,7 +21,8 @@ export function LoginClient() {
 
   function handleSuccess(data: { user: UserProfile; token: string }) {
     login(data.user, data.token);
-    router.push("/dashboard");
+    // Use replace so user can't press Back to go to login
+    router.replace("/dashboard");
   }
 
   return (

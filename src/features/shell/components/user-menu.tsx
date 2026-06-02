@@ -6,6 +6,7 @@
  *   - Reads user from useAuthStore
  *   - Generic menu items — easy to add/remove links
  *   - Renders on both mobile and desktop (AppHeader controls visibility)
+ *   - Uses i18n for labels
  */
 
 "use client";
@@ -29,27 +30,14 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuthStore } from "@/stores/auth-store";
 import { apiClient } from "@/services/api-client";
-
-// ==================== Menu Items Config ====================
-
-interface UserMenuItem {
-  href: string;
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-}
-
-const userMenuItems: UserMenuItem[] = [
-  { href: "/profile", icon: User, label: "प्रोफ़ाइल" },
-  { href: "/bookings", icon: Calendar, label: "मेरी बुकिंग" },
-  { href: "/loyalty", icon: Star, label: "लॉयल्टी पॉइंट" },
-  { href: "/profile/settings", icon: Settings, label: "सेटिंग्स" },
-];
+import { useTranslation } from "@/i18n/use-translation";
 
 // ==================== Component ====================
 
 export function UserMenu() {
   const router = useRouter();
   const { user, logout } = useAuthStore();
+  const { t } = useTranslation();
 
   const handleLogout = async () => {
     try {
@@ -66,6 +54,14 @@ export function UserMenu() {
   const initials = (
     user.name?.charAt(0) || user.email?.charAt(0) || "U"
   ).toUpperCase();
+
+  // Menu items with i18n
+  const userMenuItems = [
+    { href: "/profile", icon: User, label: t("userMenu.profile") },
+    { href: "/bookings", icon: Calendar, label: t("userMenu.myBookings") },
+    { href: "/loyalty", icon: Star, label: t("userMenu.loyaltyPoints") },
+    { href: "/profile/settings", icon: Settings, label: t("userMenu.settings") },
+  ];
 
   return (
     <DropdownMenu>
@@ -90,7 +86,7 @@ export function UserMenu() {
       <DropdownMenuContent align="end" className="w-48">
         <div className="px-2 py-1.5">
           <p className="text-sm font-medium truncate">
-            {user.name || "उपयोगकर्ता"}
+            {user.name || t("userMenu.user")}
           </p>
           <p className="text-xs text-muted-foreground truncate">
             {user.email || user.mobile}
@@ -117,7 +113,7 @@ export function UserMenu() {
           className="cursor-pointer text-destructive focus:text-destructive"
         >
           <LogOut className="h-4 w-4 mr-2" />
-          लॉगआउट
+          {t("userMenu.logout")}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

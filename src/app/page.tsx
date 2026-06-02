@@ -2,10 +2,11 @@
  * Purpose: Landing page — welcome, services preview, CTA
  * Responsibility: First impression — convert visitors to users
  * Important Notes:
- *   - Client component — uses framer-motion animations + auth state
- *   - "अभी बुक करें" → /login if not authenticated, /dashboard if authenticated
- *   - "लॉगिन करें" button visible only when not authenticated
- *   - "सेवाएं देखें" → /services
+ *   - Client component — uses framer-motion animations + auth state + i18n
+ *   - "Book Now" → /login if not authenticated, /dashboard if authenticated
+ *   - "Login" button visible only when not authenticated
+ *   - "View Services" → /services
+ *   - All text driven by i18n translations
  */
 
 "use client";
@@ -26,6 +27,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuthStore } from "@/stores/auth-store";
+import { useTranslation } from "@/i18n/use-translation";
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 30 },
@@ -40,73 +42,70 @@ const stagger = {
   visible: { transition: { staggerChildren: 0.1 } },
 };
 
-const services = [
-  {
-    icon: <Scissors className="h-8 w-8" />,
-    title: "हेयर कटिंग",
-    titleEn: "Hair Cutting",
-    desc: "ट्रेंडी से लेकर क्लासिक — आपकी पसंद का स्टाइल",
-    price: "₹200 से",
-  },
-  {
-    icon: <Sparkles className="h-8 w-8" />,
-    title: "फेशियल",
-    titleEn: "Facial",
-    desc: "ग्लोइंग स्किन के लिए प्रोफेशनल फेशियल ट्रीटमेंट",
-    price: "₹500 से",
-  },
-  {
-    icon: <Heart className="h-8 w-8" />,
-    title: "ब्राइडल मेकअप",
-    titleEn: "Bridal Makeup",
-    desc: "आपके खास दिन के लिए परफेक्ट लुक",
-    price: "₹5,000 से",
-  },
-  {
-    icon: <Flower2 className="h-8 w-8" />,
-    title: "मेहंदी",
-    titleEn: "Mehendi",
-    desc: "सुंदर डिज़ाइन — शादी और त्योहार के लिए",
-    price: "₹300 से",
-  },
-];
-
-const features = [
-  {
-    icon: <CalendarCheck className="h-6 w-6" />,
-    title: "ऑनलाइन बुकिंग",
-    desc: "कहीं से भी, कभी भी बुक करें",
-  },
-  {
-    icon: <Phone className="h-6 w-6" />,
-    title: "OTP लॉगिन",
-    desc: "पासवर्ड नहीं — बस मोबाइल नंबर",
-  },
-  {
-    icon: <Star className="h-6 w-6" />,
-    title: "रिव्यू और रेटिंग",
-    desc: "असली कस्टमर रिव्यू पढ़ें",
-  },
-  {
-    icon: <Sparkles className="h-6 w-6" />,
-    title: "ऑफ़र और छूट",
-    desc: "त्योहारों पर खास डिस्काउंट",
-  },
-];
-
 export default function WelcomePage() {
   const router = useRouter();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const { t } = useTranslation();
 
   const handleBookNow = () => {
     router.push(isAuthenticated ? "/dashboard" : "/login");
   };
 
+  const services = [
+    {
+      icon: <Scissors className="h-8 w-8" />,
+      title: t("services.hairCutting"),
+      desc: t("services.hairCuttingDesc"),
+      price: "₹200+",
+    },
+    {
+      icon: <Sparkles className="h-8 w-8" />,
+      title: t("services.facial"),
+      desc: t("services.facialDesc"),
+      price: "₹500+",
+    },
+    {
+      icon: <Heart className="h-8 w-8" />,
+      title: t("services.bridalMakeup"),
+      desc: t("services.bridalMakeupDesc"),
+      price: "₹5,000+",
+    },
+    {
+      icon: <Flower2 className="h-8 w-8" />,
+      title: t("services.mehendi"),
+      desc: t("services.mehendiDesc"),
+      price: "₹300+",
+    },
+  ];
+
+  const features = [
+    {
+      icon: <CalendarCheck className="h-6 w-6" />,
+      title: t("landing.onlineBooking"),
+      desc: t("landing.onlineBookingDesc"),
+    },
+    {
+      icon: <Phone className="h-6 w-6" />,
+      title: t("landing.otpLogin"),
+      desc: t("landing.otpLoginDesc"),
+    },
+    {
+      icon: <Star className="h-6 w-6" />,
+      title: t("landing.reviewsRatings"),
+      desc: t("landing.reviewsRatingsDesc"),
+    },
+    {
+      icon: <Sparkles className="h-6 w-6" />,
+      title: t("landing.offersDiscounts"),
+      desc: t("landing.offersDiscountsDesc"),
+    },
+  ];
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {/* ===== HERO SECTION ===== */}
       <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-rose-50 via-white to-pink-50" />
+        <div className="absolute inset-0 bg-gradient-to-br from-rose-50 via-white to-pink-50 dark:from-rose-950/20 dark:via-background dark:to-pink-950/20" />
         <div className="absolute top-0 right-0 w-72 h-72 bg-primary/5 rounded-full blur-3xl" />
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-accent/10 rounded-full blur-3xl" />
 
@@ -142,7 +141,7 @@ export default function WelcomePage() {
             >
               <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium mb-6">
                 <Sparkles className="h-4 w-4" />
-                भारत का भरोसेमंद ब्यूटी पार्लर
+                {t("landing.trusted")}
               </div>
             </motion.div>
 
@@ -153,8 +152,8 @@ export default function WelcomePage() {
               className="text-4xl sm:text-5xl md:text-6xl font-bold text-foreground mb-2"
               style={{ fontFamily: "'Noto Sans Devanagari', sans-serif" }}
             >
-              निखरता
-              <span className="text-primary"> रूप</span>
+              {t("appNameHi").split(" ")[0]}
+              <span className="text-primary"> {t("appNameHi").split(" ")[1] || ""}</span>
             </motion.h1>
 
             <motion.p
@@ -171,11 +170,8 @@ export default function WelcomePage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5, duration: 0.8 }}
               className="text-base sm:text-lg text-muted-foreground max-w-xl mx-auto mb-8 leading-relaxed"
-              style={{ fontFamily: "'Noto Sans Devanagari', sans-serif" }}
             >
-              आपकी खूबसूरती की पूरी देखभाल — एक क्लिक में बुक करें।
-              <br />
-              फेशियल, ब्राइडल मेकअप, हेयर स्टाइलिंग और भी बहुत कुछ।
+              {t("appTagline")}
             </motion.p>
 
             <motion.div
@@ -189,7 +185,7 @@ export default function WelcomePage() {
                 className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-6 text-lg rounded-xl shadow-lg shadow-primary/25"
                 onClick={handleBookNow}
               >
-                अभी बुक करें
+                {t("landing.bookNow")}
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
               <Button
@@ -198,7 +194,7 @@ export default function WelcomePage() {
                 className="px-8 py-6 text-lg rounded-xl border-primary/30 text-primary hover:bg-primary/5"
                 onClick={() => router.push("/services")}
               >
-                सेवाएं देखें
+                {t("landing.viewServices")}
               </Button>
               {!isAuthenticated && (
                 <Button
@@ -208,7 +204,7 @@ export default function WelcomePage() {
                   onClick={() => router.push("/login")}
                 >
                   <LogIn className="mr-2 h-5 w-5" />
-                  लॉगिन करें
+                  {t("landing.loginBtn")}
                 </Button>
               )}
             </motion.div>
@@ -221,15 +217,15 @@ export default function WelcomePage() {
             >
               <div className="flex items-center gap-1.5">
                 <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                <span>4.8 रेटिंग</span>
+                <span>{t("landing.rating")}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <Heart className="h-4 w-4 text-primary" />
-                <span>5,000+ खुश कस्टमर</span>
+                <span>{t("landing.happyCustomers")}</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <CalendarCheck className="h-4 w-4 text-green-500" />
-                <span>10,000+ बुकिंग</span>
+                <span>{t("landing.bookings")}</span>
               </div>
             </motion.div>
           </div>
@@ -237,7 +233,7 @@ export default function WelcomePage() {
       </section>
 
       {/* ===== SERVICES PREVIEW ===== */}
-      <section className="py-16 sm:py-20 bg-white">
+      <section className="py-16 sm:py-20 bg-card">
         <div className="max-w-6xl mx-auto px-4">
           <motion.div
             initial="hidden"
@@ -248,23 +244,22 @@ export default function WelcomePage() {
           >
             <motion.div variants={fadeInUp} custom={0}>
               <span className="inline-block bg-primary/10 text-primary px-4 py-1.5 rounded-full text-sm font-medium mb-4">
-                हमारी सेवाएं
+                {t("landing.ourServices")}
               </span>
             </motion.div>
             <motion.h2
               variants={fadeInUp}
               custom={1}
               className="text-2xl sm:text-3xl font-bold text-foreground mb-3"
-              style={{ fontFamily: "'Noto Sans Devanagari', sans-serif" }}
             >
-              आपकी खूबसूरती का हर रंग
+              {t("landing.everyShade")}
             </motion.h2>
             <motion.p
               variants={fadeInUp}
               custom={2}
               className="text-muted-foreground max-w-md mx-auto"
             >
-              प्रोफेशनल ब्यूटीशियन — घर जैसा अनुभव
+              {t("landing.professionalBeauticians")}
             </motion.p>
           </motion.div>
 
@@ -282,19 +277,10 @@ export default function WelcomePage() {
                     <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 text-primary mb-4 group-hover:bg-primary group-hover:text-white transition-colors duration-300">
                       {service.icon}
                     </div>
-                    <h3
-                      className="text-lg font-semibold text-foreground mb-1"
-                      style={{ fontFamily: "'Noto Sans Devanagari', sans-serif" }}
-                    >
+                    <h3 className="text-lg font-semibold text-foreground mb-1">
                       {service.title}
                     </h3>
-                    <p className="text-xs text-muted-foreground mb-2">
-                      {service.titleEn}
-                    </p>
-                    <p
-                      className="text-sm text-muted-foreground mb-3"
-                      style={{ fontFamily: "'Noto Sans Devanagari', sans-serif" }}
-                    >
+                    <p className="text-sm text-muted-foreground mb-3">
                       {service.desc}
                     </p>
                     <span className="text-primary font-bold">
@@ -309,7 +295,7 @@ export default function WelcomePage() {
       </section>
 
       {/* ===== FEATURES SECTION ===== */}
-      <section className="py-16 sm:py-20 bg-gradient-to-b from-rose-50/50 to-background">
+      <section className="py-16 sm:py-20 bg-gradient-to-b from-rose-50/50 to-background dark:from-rose-950/10 dark:to-background">
         <div className="max-w-6xl mx-auto px-4">
           <motion.div
             initial="hidden"
@@ -320,16 +306,15 @@ export default function WelcomePage() {
           >
             <motion.div variants={fadeInUp} custom={0}>
               <span className="inline-block bg-primary/10 text-primary px-4 py-1.5 rounded-full text-sm font-medium mb-4">
-                क्यों चुनें हमें?
+                {t("landing.whyChooseUs")}
               </span>
             </motion.div>
             <motion.h2
               variants={fadeInUp}
               custom={1}
               className="text-2xl sm:text-3xl font-bold text-foreground mb-3"
-              style={{ fontFamily: "'Noto Sans Devanagari', sans-serif" }}
             >
-              आसान, तेज़ और भरोसेमंद
+              {t("landing.easyFastReliable")}
             </motion.h2>
           </motion.div>
 
@@ -342,20 +327,14 @@ export default function WelcomePage() {
           >
             {features.map((feature, i) => (
               <motion.div key={i} variants={fadeInUp} custom={i}>
-                <div className="text-center p-6 rounded-xl hover:bg-white hover:shadow-md transition-all duration-300">
+                <div className="text-center p-6 rounded-xl hover:bg-card hover:shadow-md transition-all duration-300">
                   <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-secondary text-primary mb-4">
                     {feature.icon}
                   </div>
-                  <h3
-                    className="text-base font-semibold text-foreground mb-2"
-                    style={{ fontFamily: "'Noto Sans Devanagari', sans-serif" }}
-                  >
+                  <h3 className="text-base font-semibold text-foreground mb-2">
                     {feature.title}
                   </h3>
-                  <p
-                    className="text-sm text-muted-foreground"
-                    style={{ fontFamily: "'Noto Sans Devanagari', sans-serif" }}
-                  >
+                  <p className="text-sm text-muted-foreground">
                     {feature.desc}
                   </p>
                 </div>
@@ -379,17 +358,11 @@ export default function WelcomePage() {
               <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2" />
 
               <div className="relative">
-                <h3
-                  className="text-2xl sm:text-3xl font-bold mb-3"
-                  style={{ fontFamily: "'Noto Sans Devanagari', sans-serif" }}
-                >
-                  खास ऑफ़र — सिर्फ आपके लिए!
+                <h3 className="text-2xl sm:text-3xl font-bold mb-3">
+                  {t("landing.specialOffer")}
                 </h3>
-                <p
-                  className="text-white/90 mb-6 max-w-lg mx-auto"
-                  style={{ fontFamily: "'Noto Sans Devanagari', sans-serif" }}
-                >
-                  पहली बुकिंग पर 20% छूट! कोड:
+                <p className="text-white/90 mb-6 max-w-lg mx-auto">
+                  {t("landing.firstBookingDiscount")}
                   <span className="font-bold text-yellow-200 ml-1">
                     NR20FIRST
                   </span>
@@ -399,7 +372,7 @@ export default function WelcomePage() {
                   className="bg-white text-primary hover:bg-white/90 px-8 py-6 text-lg rounded-xl font-bold"
                   onClick={handleBookNow}
                 >
-                  अभी बुक करें
+                  {t("landing.bookNow")}
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </div>
@@ -411,26 +384,23 @@ export default function WelcomePage() {
       {/* ===== FOOTER ===== */}
       <footer className="mt-auto bg-foreground text-white/80 py-8">
         <div className="max-w-6xl mx-auto px-4 text-center">
-          <h3
-            className="text-xl font-bold text-white mb-2"
-            style={{ fontFamily: "'Noto Sans Devanagari', sans-serif" }}
-          >
-            निखरता रूप
+          <h3 className="text-xl font-bold text-white mb-2">
+            {t("appNameHi")}
           </h3>
-          <p className="text-sm mb-4" style={{ fontFamily: "'Noto Sans Devanagari', sans-serif" }}>
-            आपकी खूबसूरती हमारी ज़िम्मेदारी
+          <p className="text-sm mb-4">
+            {t("appTagline")}
           </p>
           <div className="flex items-center justify-center gap-4 text-sm text-white/60 mb-4">
-            <button onClick={() => router.push("/services")} className="hover:text-white transition-colors">सेवाएं</button>
+            <button onClick={() => router.push("/services")} className="hover:text-white transition-colors">{t("nav.services")}</button>
             <span>•</span>
-            <button onClick={() => router.push("/bookings")} className="hover:text-white transition-colors">बुकिंग</button>
+            <button onClick={() => router.push("/bookings")} className="hover:text-white transition-colors">{t("nav.bookings")}</button>
             <span>•</span>
-            <button onClick={() => router.push("/offers")} className="hover:text-white transition-colors">ऑफ़र</button>
+            <button onClick={() => router.push("/offers")} className="hover:text-white transition-colors">{t("nav.offers")}</button>
             <span>•</span>
-            <button onClick={() => router.push("/login")} className="hover:text-white transition-colors">लॉगिन</button>
+            <button onClick={() => router.push("/login")} className="hover:text-white transition-colors">{t("auth.login")}</button>
           </div>
           <p className="text-xs text-white/40">
-            © 2026 Nikharta Roop. सर्वाधिकार सुरक्षित।
+            {t("landing.copyright")}
           </p>
         </div>
       </footer>

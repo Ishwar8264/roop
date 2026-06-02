@@ -6,6 +6,7 @@
  *   - `variant` prop switches style: "bottom" for mobile, "header" for desktop
  *   - Active state detected by comparing href with current pathname
  *   - 48px minimum touch target for mobile accessibility
+ *   - Supports iconName for dynamic icon rendering from translation
  */
 
 "use client";
@@ -13,16 +14,32 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
+import { Home, Scissors, Calendar, Gift, User, BookOpen, Star, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+// ==================== Icon Map ====================
+
+const ICON_MAP: Record<string, LucideIcon> = {
+  Home,
+  Scissors,
+  Calendar,
+  Gift,
+  User,
+  BookOpen,
+  Star,
+  Settings,
+};
 
 // ==================== Types ====================
 
 export interface NavItem {
   href: string;
-  icon: LucideIcon;
+  icon: LucideIcon | (() => null);
   label: string;
-  /** English label for accessibility / aria-label */
-  labelEn?: string;
+  /** Alternative label (e.g., for accessibility) */
+  labelAlt?: string;
+  /** Icon name for dynamic icon resolution */
+  iconName?: string;
 }
 
 interface NavLinkProps {
@@ -35,7 +52,11 @@ interface NavLinkProps {
 
 export function NavLink({ item, variant = "header", className }: NavLinkProps) {
   const pathname = usePathname();
-  const Icon = item.icon;
+
+  // Resolve icon: prefer iconName map, fallback to item.icon
+  const Icon: LucideIcon = item.iconName
+    ? (ICON_MAP[item.iconName] || Home)
+    : (item.icon as LucideIcon);
 
   const isActive =
     pathname === item.href || pathname.startsWith(item.href + "/");
@@ -54,7 +75,7 @@ export function NavLink({ item, variant = "header", className }: NavLinkProps) {
           className
         )}
         aria-current={isActive ? "page" : undefined}
-        aria-label={item.labelEn || item.label}
+        aria-label={item.labelAlt || item.label}
       >
         <Icon className={cn("h-5 w-5", isActive && "fill-primary/20")} />
         <span className="text-[10px] leading-tight font-medium truncate">
@@ -77,7 +98,7 @@ export function NavLink({ item, variant = "header", className }: NavLinkProps) {
         className
       )}
       aria-current={isActive ? "page" : undefined}
-      aria-label={item.labelEn || item.label}
+      aria-label={item.labelAlt || item.label}
     >
       <Icon className="h-4 w-4" />
       <span>{item.label}</span>
