@@ -1,30 +1,38 @@
 /**
- * @file Glassmorphism card — premium frosted-glass container
+ * @file Glassmorphism card wrapper — reusable across the entire app
  *
- * PURPOSE: Premium card wrapper with backdrop blur, semi-transparent bg,
- * subtle rose shadow, and decorative gradient corners.
- * Works in both light and dark mode.
+ * PURPOSE:
+ *   Provides a premium glass-like card container with:
+ *   - Backdrop blur for the frosted-glass effect
+ *   - Semi-transparent background (light/dark mode aware)
+ *   - Decorative gradient corners for visual flair
+ *   - Rose-tinted shadow for the salon brand feel
+ *
+ * WHY NOT JUST A <div>?
+ *   The glassmorphism effect requires multiple CSS properties working together:
+ *   backdrop-blur, semi-transparent bg, border, shadow, and decorative corners.
+ *   Wrapping this in a component ensures consistency wherever cards are used.
+ *
+ * REUSABILITY:
+ *   Currently used for auth forms, but can wrap any content:
+ *   booking cards, profile sections, dashboard panels, etc.
  */
 
 import { type ReactNode } from "react";
 
 interface GlassmorphismCardProps {
+  /** Content to render inside the card */
   children: ReactNode;
 }
 
 export function GlassmorphismCard({ children }: GlassmorphismCardProps) {
   return (
-    <div className="relative w-full rounded-3xl p-8 overflow-hidden
-      backdrop-blur-xl
-      bg-white/80 dark:bg-zinc-900/80
-      border border-white/60 dark:border-zinc-700/50
-      shadow-2xl shadow-rose-500/10 dark:shadow-rose-500/5
-    ">
-      {/* Decorative top-right corner */}
-      <div className="absolute -top-1 -right-1 w-24 h-24 bg-gradient-to-bl from-rose-400/20 to-transparent rounded-bl-3xl pointer-events-none" />
-      {/* Decorative bottom-left corner */}
-      <div className="absolute -bottom-1 -left-1 w-20 h-20 bg-gradient-to-tr from-pink-400/15 to-transparent rounded-tr-3xl pointer-events-none" />
-      {/* Content */}
+    <div className="relative backdrop-blur-xl bg-white/70 dark:bg-card/70 rounded-3xl shadow-2xl shadow-rose-500/10 border border-white/50 dark:border-border/50 p-8 overflow-hidden">
+      {/* Decorative top-right gradient corner */}
+      <div className="absolute -top-1 -right-1 w-20 h-20 bg-gradient-to-bl from-primary/20 to-transparent rounded-bl-3xl" />
+      {/* Decorative bottom-left gradient corner */}
+      <div className="absolute -bottom-1 -left-1 w-16 h-16 bg-gradient-to-tr from-primary/10 to-transparent rounded-tr-3xl" />
+      {/* Actual content sits above decorative corners */}
       <div className="relative">{children}</div>
     </div>
   );
