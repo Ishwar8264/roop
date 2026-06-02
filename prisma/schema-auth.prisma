@@ -1,0 +1,260 @@
+/**
+ * Nikharta Roop (निखरता रूप) — Auth Schema (v2)
+ * Purpose: Production-grade authentication system with multi-provider support, device-tracked sessions,
+ *          and comprehensive audit trail
+ * Responsibility: Define auth-only models — User, Account, Session, VerificationToken, AuthEvent
+ * Important Notes:
+ * - This file is the NEW auth schema — to be merged with schema.prisma later
+ * - Replaces the old AuthSession, AuthOtp, AuthEvent models from schema.prisma
+ * - Adds Account model for multi-provider linking (NextAuth adapter pattern)
+ * - Adds VerificationToken for unified OTP + Magic Link + Password Reset flow
+ * - Session now has full device fingerprinting (device, browser, OS, geo)
+ * - AuthEvent now has expanded event types for better audit coverage
+ * - PostgreSQL only — uses Json, DateTime native types
+ * - Follows Staff Engineer Guidelines — one clear responsibility per model
+ */
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== AUTH ENUMS ====================
+
+/// Auth provider — किस तरीके से यूज़र ने लॉगिन/रजिस्टर किया
+/// MOBILE = OTP-based phone login (भारतीय फ़ोन नंबर), EMAIL = Email + password OR magic link, GOOGLE = Google OAuth
+enum AuthProvider {
+  MOBILE  // OTP-based phone login — फ़ोन नंबर से OTP
+  EMAIL   // Email + password OR magic link — ईमेल + पासवर्ड या मैजिक लिंक
+  GOOGLE  // Google OAuth — गूगल से लॉगिन
+}
+
+/// User roles — यूज़र की भूमिका
+/// GUEST = browsing only (ब्राउज़ कर रहा), USER = customer (ग्राहक), STAFF = beautician (ब्यूटीशियन), ADMIN = owner (मालिक)
+enum UserRole {
+  GUEST
+  USER
+  STAFF
+  ADMIN
+}
+
+/// Verification type — किस उद्देश्य के लिए वेरिफिकेशन टोकन भेजा गया
+/// PHONE_OTP = mobile verification, EMAIL_OTP = email verification,
+/// EMAIL_MAGIC_LINK = passwordless email login, PASSWORD_RESET = password reset flow
+enum VerificationType {
+  PHONE_OTP          // फ़ोन नंबर OTP वेरिफिकेशन
+  EMAIL_OTP          // ईमेल OTP वेरिफिकेशन
+  EMAIL_MAGIC_LINK   // पासवर्ड-रहित ईमेल लॉगिन — मैजिक लिंक
+  PASSWORD_RESET     // पासवर्ड रीसेट फ्लो
+}
+
+/// Auth event types — सभी ऑथ इवेंट्स का ऑडिट ट्रेल
+/// Covers login, registration, OTP, token refresh, device management, and security events
+enum AuthEventType {
+  LOGIN_SUCCESS              // लॉगिन सफल
+  LOGIN_FAILED               // लॉगिन विफल
+  OTP_SENT                   // OTP भेजा गया
+  OTP_VERIFIED               // OTP वेरिफाइड
+  LOGOUT                     // लॉगआउट
+  TOKEN_REFRESHED            // टोकन रिफ्रेश
+  REGISTER_EMAIL             // ईमेल से नया यूज़र रजिस्टर
+  REGISTER_GOOGLE            // गूगल से नया यूज़र रजिस्टर
+  REGISTER_PHONE             // फ़ोन से नया यूज़र रजिस्टर
+  MAGIC_LINK_SENT            // मैजिक लिंक भेजा गया
+  MAGIC_LINK_VERIFIED        // मैजिक लिंक वेरिफाइड
+  PASSWORD_RESET_REQUESTED   // पासवर्ड रीसेट का अनुरोध
+  PASSWORD_RESET_COMPLETED   // पासवर्ड रीसेट पूरा
+  ACCOUNT_LINKED             // नया प्रोवाइडर अकाउंट लिंक (e.g. Google linked to phone user)
+  DEVICE_REVOKED             // किसी डिवाइस की सेशन रद्द की गई
+  SUSPICIOUS_LOGIN           // संदिग्ध लॉगिन — असामान्य IP/डिवाइस/लोकेशन
+}
+
+// ==================== USER ====================
+
+/// Core user model — प्लेटफ़ॉर्म के सभी यूज़र्स (ग्राहक, स्टाफ, एडमिन)
+/// Replaces the old User model — adds phone field, phoneVerified, and password as nullable
+/// Key changes from v1:
+/// - `mobile` renamed to `phone` (more universal, supports international)
+/// - Added `phoneVerified` field (पहले सिर्फ emailVerified था)
+/// - `password` is nullable (magic link / OTP / Google users don't need password)
+/// - `googleId` removed — moved to Account model (multi-provider pattern)
+/// - `authProvider` removed — derived from Account records (one user can have multiple providers)
+model User {
+  id            String       @id @default(cuid())
+  name          String? // Full name — रजिस्ट्रेशन पर ऑप्शनल
+  email         String?      @unique // Email — nullable for phone-only users (सिर्फ फ़ोन वाले यूज़र्स के लिए null)
+  phone         String?      @unique // Phone — nullable for email/google-only users (सिर्फ ईमेल/गूगल वाले यूज़र्स के लिए null)
+  avatarUrl     String? // Profile photo URL (Cloudinary/S3)
+  emailVerified Boolean      @default(false) // क्या ईमेल वेरिफाइड है
+  phoneVerified Boolean      @default(false) // क्या फ़ोन वेरिफाइड है — नया फ़ील्ड
+  role          UserRole     @default(USER) // GUEST | USER | STAFF | ADMIN
+  branchId      String? // For STAFF/ADMIN — किस शाखा से जुड़े हैं
+  loyaltyPoints Int          @default(0) // Accumulated loyalty points — लॉयल्टी पॉइंट्स
+  isActive      Boolean      @default(true) // false = account suspended by admin — एडमिन ने सस्पेंड किया
+  lastLoginAt   DateTime? // Last login timestamp — आखिरी बार कब लॉगिन किया
+  password      String? // Hashed password (bcrypt) — for email+password auth, nullable for magic link/OTP/Google
+  createdAt     DateTime     @default(now()) // Account creation timestamp
+  updatedAt     DateTime     @updatedAt
+
+  // Relations — ऑथ-संबंधित रिलेशन्स (बाकी रिलेशन्स मर्ज के बाद जोड़ेंगे)
+  accounts            Account[]
+  sessions            Session[]
+  verificationTokens  VerificationToken[]
+  authEvents          AuthEvent[]
+
+  // Indexes — every query path covered
+  @@index([email])
+  @@index([phone])
+  @@index([role])
+  @@index([isActive])
+  @@index([branchId])
+  @@map("users")
+}
+
+// ==================== ACCOUNT (MULTI-PROVIDER) ====================
+
+/// Multi-provider account linking — NextAuth adapter pattern
+/// एक यूज़र के कई ऑथ प्रोवाइडर हो सकते हैं (e.g. phone + Google + email)
+/// Each provider stores its own credentials — Google has OAuth tokens, Mobile has nothing extra
+/// Key design:
+/// - One Account row per provider per user
+/// - providerAccountId = phone number (for MOBILE), email (for EMAIL), Google sub ID (for GOOGLE)
+/// - @@unique([provider, providerAccountId]) ensures no duplicate accounts
+model Account {
+  id                String       @id @default(cuid())
+  userId            String // Which user owns this account
+  provider          AuthProvider // MOBILE | EMAIL | GOOGLE
+  providerAccountId String // Phone number, email, or Google sub ID — प्रोवाइडर का यूनिक ID
+  accessToken       String? // OAuth access token (Google only) — गूगल OAuth टोकन
+  refreshToken      String? // OAuth refresh token (Google only) — गूगल रिफ्रेश टोकन
+  tokenExpiry       DateTime? // OAuth token expiry — टोकन कब एक्सपायर होगा
+  metadata          Json? // Provider-specific data (Google profile, etc.) — प्रोवाइडर-विशिष्ट डेटा
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // One account per provider per provider ID — एक प्रोवाइडर पर एक ही ID दोबारा नहीं
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@index([provider])
+  @@map("accounts")
+}
+
+// ==================== SESSION (DEVICE-TRACKED) ====================
+
+/// Device-tracked sessions — डिवाइस फिंगरप्रिंटिंग के साथ सेशन ट्रैकिंग
+/// Replaces the old AuthSession model — now with full device info, geo, and browser details
+/// Key design:
+/// - refreshTokenHash = SHA-256 hash of refresh token (never store raw token)
+/// - Device fingerprinting: deviceName, deviceType, browser, os
+/// - Geo tracking: ip, country, city (for suspicious login detection)
+/// - lastActiveAt updated on every API call (for session activity tracking)
+/// - "Revoke all sessions" = DELETE all sessions for a userId
+/// - "Revoke this device" = DELETE session by id
+model Session {
+  id               String   @id @default(cuid())
+  userId           String // Which user owns this session
+  refreshTokenHash String   @unique // SHA-256 hash of refresh token — रिफ्रेश टोकन का हैश
+  deviceName       String? // "iPhone 15" — डिवाइस का नाम
+  deviceType       String? // "mobile" | "desktop" | "tablet" — डिवाइस टाइप
+  browser          String? // "Chrome 120" — ब्राउज़र इन्फो
+  os               String? // "iOS 17" — ऑपरेटिंग सिस्टम
+  ip               String? // IP address at login
+  country          String? // Country from IP geolocation — IP से देश
+  city             String? // City from IP geolocation — IP से शहर
+  userAgent        String? // Raw UA string — पूरा User-Agent
+  lastActiveAt     DateTime @default(now()) // Last API call — आखिरी एक्टिविटी
+  expiresAt        DateTime // Session expiry — सेशन एक्सपायरी
+  createdAt        DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Indexes — session lookup, cleanup, activity tracking
+  @@index([userId])
+  @@index([refreshTokenHash])
+  @@index([expiresAt])
+  @@index([lastActiveAt])
+  @@map("sessions")
+}
+
+// ==================== VERIFICATION TOKEN ====================
+
+/// Unified verification token — OTP + Magic Link + Password Reset सब एक जगह
+/// Replaces the old AuthOtp model — now supports email verification too
+/// Key design:
+/// - userId is nullable — registration flow (user doesn't exist yet)
+/// - identifier = phone number OR email being verified
+/// - token = hashed OTP or magic link token (never store raw)
+/// - type = what kind of verification — PHONE_OTP, EMAIL_OTP, EMAIL_MAGIC_LINK, PASSWORD_RESET
+/// - attempts + maxAttempts = brute-force protection (default max 5)
+/// - usedAt = when token was consumed (for audit + dedup)
+/// - @@unique([identifier, type, token]) prevents duplicate tokens
+model VerificationToken {
+  id          String           @id @default(cuid())
+  userId      String? // Nullable for registration — रजिस्ट्रेशन के लिए null (यूज़र अभी exist नहीं करता)
+  identifier  String // Phone number OR email — वेरिफाई होने वाला फ़ोन/ईमेल
+  token       String // Hashed OTP or magic link token — हैश्ड टोकन (raw कभी न स्टोर करें)
+  type        VerificationType // PHONE_OTP | EMAIL_OTP | EMAIL_MAGIC_LINK | PASSWORD_RESET
+  attempts    Int              @default(0) // Wrong attempt counter — गलत कोशिशों की गिनती
+  maxAttempts Int              @default(5) // Max allowed attempts — अधिकतम 5 कोशिशें
+  expiresAt   DateTime // Token expiry — OTP: 5 min, Magic Link: 15 min, Password Reset: 30 min
+  usedAt      DateTime? // When token was consumed — टोकन कब इस्तेमाल हुआ (audit + dedup)
+  createdAt   DateTime         @default(now())
+
+  // Relations
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Prevents duplicate tokens — एक ही identifier + type + token दोबारा नहीं
+  @@unique([identifier, type, token])
+  // Fast lookup — identifier + type से जल्दी ढूंढें
+  @@index([identifier, type])
+  // Cleanup expired tokens — एक्सपायर्ड टोकन क्लीनअप
+  @@index([expiresAt])
+  // Audit — कितने टोकन इस्तेमाल हुए
+  @@index([usedAt])
+  @@map("verification_tokens")
+}
+
+// ==================== AUTH EVENT (AUDIT TRAIL) ====================
+
+/// Auth event audit trail — हर ऑथ एक्शन का रिकॉर्ड
+/// Replaces the old AuthEvent model — now with expanded event types and identifier field
+/// Key changes from v1:
+/// - `mobile` field replaced with `identifier` (supports email + phone both)
+/// - `device` field replaced with `userAgent` (more accurate, raw UA string)
+/// - Added `country` field (geo from IP)
+/// - Expanded AuthEventType enum: REGISTER_PHONE, MAGIC_LINK_SENT, MAGIC_LINK_VERIFIED,
+///   PASSWORD_RESET_REQUESTED, PASSWORD_RESET_COMPLETED, ACCOUNT_LINKED, DEVICE_REVOKED, SUSPICIOUS_LOGIN
+/// Key design:
+/// - userId nullable — events can happen before user is identified (e.g. failed login with wrong email)
+/// - identifier = phone or email involved — फ़ोन या ईमेल जो इस इवेंट में शामिल था
+/// - metadata = flexible JSON for extra data (error reason, provider, etc.)
+/// - onDelete: SetNull — user deleted? Keep the audit trail, just null the userId
+model AuthEvent {
+  id         String         @id @default(cuid())
+  userId     String? // null if event before user was found — यूज़र मिलने से पहले का इवेंट
+  identifier String? // Phone or email involved — शामिल फ़ोन/ईमेल
+  event      AuthEventType // Which auth event — कौन सा ऑथ इवेंट
+  ip         String? // IP address
+  userAgent  String? // Raw UA string — ब्राउज़र/डिवाइस इन्फो
+  country    String? // Country from IP — IP से देश
+  metadata   Json? // Extra event data — अतिरिक्त डेटा (error reason, provider, etc.)
+  createdAt  DateTime       @default(now())
+
+  // Relations
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  // Indexes — every query path covered
+  @@index([userId])
+  @@index([identifier])
+  @@index([event])
+  @@index([createdAt])
+  @@map("auth_events")
+}
