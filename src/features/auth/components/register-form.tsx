@@ -1,21 +1,23 @@
 /**
  * Purpose: Premium registration form with salon-grade design
  * Responsibility: Handle new user registration via mobile + OTP
- * Design: Glassmorphism card, gradient buttons, step indicators, premium feel
+ * Design: Glassmorphism card, floating labels, gradient buttons, step indicators, premium feel
  */
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { ArrowRight, Loader2, Phone, Timer, CheckCircle2, Sparkles, User } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { apiClient, ApiClientError } from "@/services/api-client";
 import { useTranslation } from "@/i18n/use-translation";
+import { useOtpTimer } from "@/features/auth/hooks/use-otp-timer";
+import { FloatingLabelInput } from "./floating-label-input";
+import { OtpInput } from "./otp-input";
 import type { ApiResponse, SendOtpResponse, OTPVerifyResponse, UserProfile } from "@/types";
 
 // ==================== Zod Schemas ====================
@@ -52,31 +54,6 @@ interface RegisterFormProps {
   prefilledMobile?: string;
 }
 
-// ==================== OTP Timer Hook ====================
-
-function useOtpTimer(initialSeconds: number = 30) {
-  const [secondsLeft, setSecondsLeft] = useState(0);
-  const [isRunning, setIsRunning] = useState(false);
-
-  const start = useCallback(() => {
-    setSecondsLeft(initialSeconds);
-    setIsRunning(true);
-  }, [initialSeconds]);
-
-  useEffect(() => {
-    if (!isRunning || secondsLeft <= 0) {
-      setIsRunning(false);
-      return;
-    }
-    const interval = setInterval(() => {
-      setSecondsLeft((prev) => prev - 1);
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [isRunning, secondsLeft]);
-
-  return { secondsLeft, isRunning, start, canResend: !isRunning && secondsLeft === 0 };
-}
-
 // ==================== Component ====================
 
 export function RegisterForm({ onSuccess, onSwitchToLogin, prefilledMobile }: RegisterFormProps) {
@@ -85,7 +62,6 @@ export function RegisterForm({ onSuccess, onSwitchToLogin, prefilledMobile }: Re
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [devOtp, setDevOtp] = useState<string | null>(null);
   const otpTimer = useOtpTimer(30);
-  const [otpDigits, setOtpDigits] = useState<string[]>(["", "", "", "", "", ""]);
 
   // ===== Details Form (Step 1) =====
   const detailsForm = useForm<DetailsForm>({
@@ -115,7 +91,7 @@ export function RegisterForm({ onSuccess, onSwitchToLogin, prefilledMobile }: Re
         otpForm.setValue("mobile", data.mobile);
         otpTimer.start();
         if (res.data?.devOtp) setDevOtp(res.data.devOtp);
-        toast.success(t("auth.sendOtp"), { description: `OTP sent to ${data.mobile}` });
+        toast.success(t("auth.sendOtp"), { description: t("auth.otpSentTo", { mobile: data.mobile }) });
       }
     } catch (err: unknown) {
       if (err instanceof ApiClientError) {
@@ -144,7 +120,7 @@ export function RegisterForm({ onSuccess, onSwitchToLogin, prefilledMobile }: Re
       if (res.success) {
         otpTimer.start();
         if (res.data?.devOtp) setDevOtp(res.data.devOtp);
-        toast.success("OTP Resent", { description: `New OTP sent to ${mobile}` });
+        toast.success(t("auth.otpResent"), { description: t("auth.newOtpSentTo", { mobile }) });
       }
     } catch (err: unknown) {
       const message = err instanceof ApiClientError ? err.message : t("common.somethingWrong");
@@ -163,12 +139,12 @@ export function RegisterForm({ onSuccess, onSwitchToLogin, prefilledMobile }: Re
         { mobile: data.mobile, otp: data.otp, purpose: "REGISTER", name }
       );
       if (res.success && res.data) {
-        toast.success(t("auth.registerSuccess"), { description: "Welcome to Nikharta Roop!" });
+        toast.success(t("auth.registerSuccess"), { description: t("auth.welcomeToNr") });
         onSuccess?.({ user: res.data.user, token: res.data.tokens.accessToken });
       }
     } catch (err: unknown) {
       const message = err instanceof ApiClientError ? err.message : t("common.somethingWrong");
-      toast.error("Registration Failed", { description: message });
+      toast.error(t("auth.registrationFailed"), { description: message });
     } finally {
       setIsSubmitting(false);
     }
@@ -176,26 +152,6 @@ export function RegisterForm({ onSuccess, onSwitchToLogin, prefilledMobile }: Re
 
   const watchedMobile = detailsForm.watch("mobile");
   const nameValue = detailsForm.watch("name");
-
-  // ===== OTP Box Handlers =====
-  function handleOtpBoxChange(index: number, value: string, e: React.ChangeEvent<HTMLInputElement>) {
-    if (!/^\d*$/.test(value)) return;
-    const newDigits = [...otpDigits];
-    newDigits[index] = value.slice(-1);
-    setOtpDigits(newDigits);
-    otpForm.setValue("otp", newDigits.join(""), { shouldValidate: true });
-    if (value && index < 5) {
-      const nextBox = e.currentTarget.parentElement?.querySelectorAll<HTMLInputElement>("input")[index + 1];
-      nextBox?.focus();
-    }
-  }
-
-  function handleOtpBoxKeyDown(index: number, e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Backspace" && !otpDigits[index] && index > 0) {
-      const prevBox = (e.currentTarget.parentElement?.querySelectorAll<HTMLInputElement>("input") || [])[index - 1];
-      prevBox?.focus();
-    }
-  }
 
   // ===== Render =====
 
@@ -262,42 +218,22 @@ export function RegisterForm({ onSuccess, onSwitchToLogin, prefilledMobile }: Re
 
         {/* ===== Step 1: Details ===== */}
         {step === "details" && (
-          <form onSubmit={detailsForm.handleSubmit(handleSendOtp)} className="space-y-4">
-            <div>
-              <label className="text-sm font-medium mb-2 block text-foreground">{t("auth.name")} *</label>
-              <div className="relative">
-                <User className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-muted-foreground" />
-                <Input
-                  type="text"
-                  placeholder={t("auth.enterName")}
-                  {...detailsForm.register("name")}
-                  className={`h-12 pl-11 rounded-xl border-muted/50 bg-white/50 dark:bg-background/50 focus-visible:ring-rose-500/30 focus-visible:border-primary/50 transition-all ${
-                    detailsForm.formState.errors.name ? "border-destructive focus-visible:ring-destructive/30" : ""
-                  }`}
-                />
-              </div>
-              {detailsForm.formState.errors.name && (
-                <p className="text-xs text-destructive mt-1.5 ml-1">{detailsForm.formState.errors.name.message}</p>
-              )}
-            </div>
+          <form onSubmit={detailsForm.handleSubmit(handleSendOtp)} className="space-y-5">
+            <FloatingLabelInput
+              label={t("auth.name")}
+              type="text"
+              icon={<User className="h-4.5 w-4.5" />}
+              error={detailsForm.formState.errors.name?.message}
+              registerProps={detailsForm.register("name")}
+            />
 
-            <div>
-              <label className="text-sm font-medium mb-2 block text-foreground">{t("auth.mobileNumber")} *</label>
-              <div className="relative">
-                <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-muted-foreground" />
-                <Input
-                  type="tel"
-                  placeholder={t("auth.enterMobile")}
-                  {...detailsForm.register("mobile")}
-                  className={`h-12 pl-11 rounded-xl border-muted/50 bg-white/50 dark:bg-background/50 focus-visible:ring-rose-500/30 focus-visible:border-primary/50 transition-all ${
-                    detailsForm.formState.errors.mobile ? "border-destructive focus-visible:ring-destructive/30" : ""
-                  }`}
-                />
-              </div>
-              {detailsForm.formState.errors.mobile && (
-                <p className="text-xs text-destructive mt-1.5 ml-1">{detailsForm.formState.errors.mobile.message}</p>
-              )}
-            </div>
+            <FloatingLabelInput
+              label={t("auth.mobileNumber")}
+              type="tel"
+              icon={<Phone className="h-4.5 w-4.5" />}
+              error={detailsForm.formState.errors.mobile?.message}
+              registerProps={detailsForm.register("mobile")}
+            />
 
             <Button
               type="submit"
@@ -318,7 +254,7 @@ export function RegisterForm({ onSuccess, onSwitchToLogin, prefilledMobile }: Re
 
         {/* ===== Step 2: OTP Verification ===== */}
         {step === "otp" && (
-          <form onSubmit={otpForm.handleSubmit(handleVerifyOtp)} className="space-y-4">
+          <form onSubmit={otpForm.handleSubmit(handleVerifyOtp)} className="space-y-5">
             {/* Summary of details */}
             <div className="bg-gradient-to-r from-rose-50 to-pink-50 dark:from-rose-950/20 dark:to-pink-950/20 rounded-xl p-4 space-y-2 border border-rose-100 dark:border-rose-900/30">
               <div className="flex justify-between text-sm">
@@ -332,35 +268,19 @@ export function RegisterForm({ onSuccess, onSwitchToLogin, prefilledMobile }: Re
               <button
                 type="button"
                 className="text-xs text-primary font-medium hover:underline"
-                onClick={() => { setStep("details"); setDevOtp(null); otpForm.reset(); setOtpDigits(["", "", "", "", "", ""]); }}
+                onClick={() => { setStep("details"); setDevOtp(null); otpForm.reset(); otpForm.setValue("otp", ""); }}
               >
                 {t("auth.changeDetails")}
               </button>
             </div>
 
             {/* OTP Digit Boxes */}
-            <div>
-              <label className="text-sm font-medium mb-2 block text-foreground">OTP</label>
-              <div className="flex gap-2 justify-center">
-                {otpDigits.map((digit, i) => (
-                  <input
-                    key={i}
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={1}
-                    value={digit}
-                    onChange={(e) => handleOtpBoxChange(i, e.target.value, e)}
-                    onKeyDown={(e) => handleOtpBoxKeyDown(i, e)}
-                    className={`w-11 h-13 text-center text-lg font-bold rounded-xl border-2 bg-white/50 dark:bg-background/50 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-rose-500/30 focus:border-primary/50 focus:scale-105 ${
-                      digit ? "border-primary/50 text-primary" : "border-muted/50 text-foreground"
-                    }`}
-                  />
-                ))}
-              </div>
-              {otpForm.formState.errors.otp && (
-                <p className="text-xs text-destructive mt-1.5 text-center">{otpForm.formState.errors.otp.message}</p>
-              )}
-            </div>
+            <OtpInput
+              value={otpForm.watch("otp") || ""}
+              onChange={(val) => otpForm.setValue("otp", val, { shouldValidate: true })}
+              error={otpForm.formState.errors.otp?.message}
+              disabled={isSubmitting}
+            />
 
             <Button
               type="submit"
@@ -382,7 +302,7 @@ export function RegisterForm({ onSuccess, onSwitchToLogin, prefilledMobile }: Re
               {otpTimer.isRunning ? (
                 <p className="text-sm text-muted-foreground flex items-center justify-center gap-1.5">
                   <Timer className="h-3.5 w-3.5 animate-pulse" />
-                  Resend in <span className="font-semibold text-foreground tabular-nums">{otpTimer.secondsLeft}s</span>
+                  {t("auth.resendIn")} <span className="font-semibold text-foreground tabular-nums">{otpTimer.secondsLeft}s</span>
                 </p>
               ) : (
                 <button
@@ -391,7 +311,7 @@ export function RegisterForm({ onSuccess, onSwitchToLogin, prefilledMobile }: Re
                   onClick={handleResendOtp}
                   disabled={isSubmitting}
                 >
-                  Resend OTP
+                  {t("auth.resendOtp")}
                 </button>
               )}
             </div>

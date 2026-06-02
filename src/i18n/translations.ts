@@ -69,6 +69,16 @@ export const translations = {
       registerFirst: "Register first",
       mobileAlreadyRegistered: "Mobile number already registered",
       registerSuccess: "Registration successful!",
+      welcomeBack: "Welcome back!",
+      welcomeToNr: "Welcome to Nikharta Roop!",
+      verificationFailed: "Verification failed",
+      loginFailed: "Login failed",
+      registrationFailed: "Registration failed",
+      otpSentTo: "OTP sent to {mobile}",
+      newOtpSentTo: "New OTP sent to {mobile}",
+      otpResent: "OTP Resent",
+      resendIn: "Resend in",
+      resendOtp: "Resend OTP",
     },
 
     // Landing Page
@@ -229,6 +239,16 @@ export const translations = {
       registerFirst: "पहले रजिस्टर करें",
       mobileAlreadyRegistered: "मोबाइल नंबर पहले से रजिस्टर है",
       registerSuccess: "रजिस्ट्रेशन सफल!",
+      welcomeBack: "वापस स्वागत है!",
+      welcomeToNr: "निखरता रूप में आपका स्वागत है!",
+      verificationFailed: "वेरिफिकेशन फेल हुआ",
+      loginFailed: "लॉगिन फेल हुआ",
+      registrationFailed: "रजिस्ट्रेशन फेल हुआ",
+      otpSentTo: "OTP भेजा गया {mobile} पर",
+      newOtpSentTo: "नया OTP भेजा गया {mobile} पर",
+      otpResent: "OTP दोबारा भेजा गया",
+      resendIn: "दोबारा भेजें",
+      resendOtp: "OTP दोबारा भेजें",
     },
 
     // Landing Page

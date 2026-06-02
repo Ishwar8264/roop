@@ -1,21 +1,23 @@
 /**
  * Purpose: Premium login form with salon-grade design
  * Responsibility: Handle user login via OTP or email/password
- * Design: Glassmorphism card, gradient buttons, floating animations, premium feel
+ * Design: Glassmorphism card, floating labels, gradient buttons, premium feel
  */
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Phone, Mail, ArrowRight, Loader2, Timer, AlertCircle, Sparkles } from "lucide-react";
+import { Phone, Mail, ArrowRight, Loader2, Timer, AlertCircle, Sparkles, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { apiClient, ApiClientError } from "@/services/api-client";
 import { useTranslation } from "@/i18n/use-translation";
+import { useOtpTimer } from "@/features/auth/hooks/use-otp-timer";
+import { FloatingLabelInput } from "./floating-label-input";
+import { OtpInput } from "./otp-input";
 import type { ApiResponse, SendOtpResponse, OTPVerifyResponse, LoginEmailResponse, UserProfile } from "@/types";
 
 // ==================== Zod Schemas ====================
@@ -57,31 +59,6 @@ interface LoginFormProps {
   onSwitchToRegister?: (mobile?: string) => void;
 }
 
-// ==================== OTP Timer Hook ====================
-
-function useOtpTimer(initialSeconds: number = 30) {
-  const [secondsLeft, setSecondsLeft] = useState(0);
-  const [isRunning, setIsRunning] = useState(false);
-
-  const start = useCallback(() => {
-    setSecondsLeft(initialSeconds);
-    setIsRunning(true);
-  }, [initialSeconds]);
-
-  useEffect(() => {
-    if (!isRunning || secondsLeft <= 0) {
-      setIsRunning(false);
-      return;
-    }
-    const interval = setInterval(() => {
-      setSecondsLeft((prev) => prev - 1);
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [isRunning, secondsLeft]);
-
-  return { secondsLeft, isRunning, start, canResend: !isRunning && secondsLeft === 0 };
-}
-
 // ==================== Component ====================
 
 export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
@@ -91,6 +68,7 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
   const [devOtp, setDevOtp] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mobileNotFoundError, setMobileNotFoundError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
   const otpTimer = useOtpTimer(30);
 
   // ===== OTP Send Form =====
@@ -136,7 +114,7 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
         otpVerifyForm.setValue("mobile", data.mobile);
         otpTimer.start();
         if (res.data?.devOtp) setDevOtp(res.data.devOtp);
-        toast.success(t("auth.sendOtp"), { description: `OTP sent to ${data.mobile}` });
+        toast.success(t("auth.sendOtp"), { description: t("auth.otpSentTo", { mobile: data.mobile }) });
       }
     } catch (err: unknown) {
       if (err instanceof ApiClientError) {
@@ -166,7 +144,7 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
       if (res.success) {
         otpTimer.start();
         if (res.data?.devOtp) setDevOtp(res.data.devOtp);
-        toast.success("OTP Resent", { description: `New OTP sent to ${mobile}` });
+        toast.success(t("auth.otpResent"), { description: t("auth.newOtpSentTo", { mobile }) });
       }
     } catch (err: unknown) {
       const message = err instanceof ApiClientError ? err.message : t("common.somethingWrong");
@@ -184,7 +162,7 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
         { mobile: data.mobile, otp: data.otp, purpose: "LOGIN" }
       );
       if (res.success && res.data) {
-        toast.success(t("common.success"), { description: "Welcome back!" });
+        toast.success(t("common.success"), { description: t("auth.welcomeBack") });
         onSuccess?.({ user: res.data.user, token: res.data.tokens.accessToken, isNewUser: res.data.isNewUser });
       }
     } catch (err: unknown) {
@@ -193,10 +171,10 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
           setMobileNotFoundError(err.message);
           toast.error(t("auth.mobileNotRegistered"), { description: err.message, duration: 6000 });
         } else {
-          toast.error("Verification Failed", { description: err.message });
+          toast.error(t("auth.verificationFailed"), { description: err.message });
         }
       } else {
-        toast.error("Verification Failed", { description: t("common.somethingWrong") });
+        toast.error(t("auth.verificationFailed"), { description: t("common.somethingWrong") });
       }
     } finally {
       setIsSubmitting(false);
@@ -211,39 +189,14 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
         { email: data.email, password: data.password }
       );
       if (res.success && res.data) {
-        toast.success(t("common.success"), { description: "Welcome back!" });
+        toast.success(t("common.success"), { description: t("auth.welcomeBack") });
         onSuccess?.({ user: res.data.user, token: res.data.tokens.accessToken });
       }
     } catch (err: unknown) {
       const message = err instanceof ApiClientError ? err.message : t("common.somethingWrong");
-      toast.error(t("auth.loginTitle") + " Failed", { description: message });
+      toast.error(t("auth.loginFailed"), { description: message });
     } finally {
       setIsSubmitting(false);
-    }
-  }
-
-  // ===== OTP digit boxes =====
-  const [otpDigits, setOtpDigits] = useState<string[]>(["", "", "", "", "", ""]);
-
-  function handleOtpBoxChange(index: number, value: string, e: React.ChangeEvent<HTMLInputElement>) {
-    if (!/^\d*$/.test(value)) return;
-    const newDigits = [...otpDigits];
-    newDigits[index] = value.slice(-1);
-    setOtpDigits(newDigits);
-    const combined = newDigits.join("");
-    otpVerifyForm.setValue("otp", combined, { shouldValidate: true });
-
-    // Auto-focus next box
-    if (value && index < 5) {
-      const nextBox = e.currentTarget.parentElement?.querySelectorAll<HTMLInputElement>("input")[index + 1];
-      nextBox?.focus();
-    }
-  }
-
-  function handleOtpBoxKeyDown(index: number, e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Backspace" && !otpDigits[index] && index > 0) {
-      const prevBox = (e.currentTarget.parentElement?.querySelectorAll<HTMLInputElement>("input") || [])[index - 1];
-      prevBox?.focus();
     }
   }
 
@@ -328,24 +281,14 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
 
         {/* ===== OTP Tab ===== */}
         {tab === "otp" && !otpSent && (
-          <form onSubmit={otpSendForm.handleSubmit(handleSendOtp)} className="space-y-4">
-            <div>
-              <label className="text-sm font-medium mb-2 block text-foreground">{t("auth.mobileNumber")}</label>
-              <div className="relative">
-                <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-muted-foreground" />
-                <Input
-                  type="tel"
-                  placeholder={t("auth.enterMobile")}
-                  {...otpSendForm.register("mobile")}
-                  className={`h-12 pl-11 rounded-xl border-muted/50 bg-white/50 dark:bg-background/50 focus-visible:ring-rose-500/30 focus-visible:border-primary/50 transition-all ${
-                    otpSendForm.formState.errors.mobile ? "border-destructive focus-visible:ring-destructive/30" : ""
-                  }`}
-                />
-              </div>
-              {otpSendForm.formState.errors.mobile && (
-                <p className="text-xs text-destructive mt-1.5 ml-1">{otpSendForm.formState.errors.mobile.message}</p>
-              )}
-            </div>
+          <form onSubmit={otpSendForm.handleSubmit(handleSendOtp)} className="space-y-5">
+            <FloatingLabelInput
+              label={t("auth.mobileNumber")}
+              type="tel"
+              icon={<Phone className="h-4.5 w-4.5" />}
+              error={otpSendForm.formState.errors.mobile?.message}
+              registerProps={otpSendForm.register("mobile")}
+            />
             <Button
               type="submit"
               className="w-full h-12 rounded-xl bg-gradient-to-r from-rose-600 to-pink-500 hover:from-rose-700 hover:to-pink-600 text-white font-semibold shadow-lg shadow-rose-500/25 hover:shadow-rose-500/40 transition-all duration-300 disabled:opacity-50"
@@ -364,43 +307,27 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
         )}
 
         {tab === "otp" && otpSent && (
-          <form onSubmit={otpVerifyForm.handleSubmit(handleVerifyOtp)} className="space-y-4">
+          <form onSubmit={otpVerifyForm.handleSubmit(handleVerifyOtp)} className="space-y-5">
             <div className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">
-                OTP sent to <span className="font-semibold text-foreground">{watchedMobile}</span>
+                {t("auth.otpSentTo")} <span className="font-semibold text-foreground">{watchedMobile}</span>
               </span>
               <button
                 type="button"
                 className="text-primary text-xs font-medium hover:underline"
-                onClick={() => { setOtpSent(false); setDevOtp(null); otpSendForm.reset(); setOtpDigits(["", "", "", "", "", ""]); }}
+                onClick={() => { setOtpSent(false); setDevOtp(null); otpSendForm.reset(); otpVerifyForm.setValue("otp", ""); }}
               >
                 {t("auth.changeNumber")}
               </button>
             </div>
 
             {/* OTP Digit Boxes */}
-            <div>
-              <label className="text-sm font-medium mb-2 block text-foreground">OTP</label>
-              <div className="flex gap-2 justify-center">
-                {otpDigits.map((digit, i) => (
-                  <input
-                    key={i}
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={1}
-                    value={digit}
-                    onChange={(e) => handleOtpBoxChange(i, e.target.value, e)}
-                    onKeyDown={(e) => handleOtpBoxKeyDown(i, e)}
-                    className={`w-11 h-13 text-center text-lg font-bold rounded-xl border-2 bg-white/50 dark:bg-background/50 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-rose-500/30 focus:border-primary/50 focus:scale-105 ${
-                      digit ? "border-primary/50 text-primary" : "border-muted/50 text-foreground"
-                    }`}
-                  />
-                ))}
-              </div>
-              {otpVerifyForm.formState.errors.otp && (
-                <p className="text-xs text-destructive mt-1.5 text-center">{otpVerifyForm.formState.errors.otp.message}</p>
-              )}
-            </div>
+            <OtpInput
+              value={otpVerifyForm.watch("otp") || ""}
+              onChange={(val) => otpVerifyForm.setValue("otp", val, { shouldValidate: true })}
+              error={otpVerifyForm.formState.errors.otp?.message}
+              disabled={isSubmitting}
+            />
 
             <Button
               type="submit"
@@ -415,7 +342,7 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
               {otpTimer.isRunning ? (
                 <p className="text-sm text-muted-foreground flex items-center justify-center gap-1.5">
                   <Timer className="h-3.5 w-3.5 animate-pulse" />
-                  Resend in <span className="font-semibold text-foreground tabular-nums">{otpTimer.secondsLeft}s</span>
+                  {t("auth.resendIn")} <span className="font-semibold text-foreground tabular-nums">{otpTimer.secondsLeft}s</span>
                 </p>
               ) : (
                 <button
@@ -424,7 +351,7 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
                   onClick={handleResendOtp}
                   disabled={isSubmitting}
                 >
-                  Resend OTP
+                  {t("auth.resendOtp")}
                 </button>
               )}
             </div>
@@ -433,38 +360,32 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
 
         {/* ===== Email Tab ===== */}
         {tab === "email" && (
-          <form onSubmit={emailForm.handleSubmit(handleEmailLogin)} className="space-y-4">
-            <div>
-              <label className="text-sm font-medium mb-2 block text-foreground">{t("auth.email")}</label>
-              <div className="relative">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-muted-foreground" />
-                <Input
-                  type="email"
-                  placeholder="example@email.com"
-                  {...emailForm.register("email")}
-                  className={`h-12 pl-11 rounded-xl border-muted/50 bg-white/50 dark:bg-background/50 focus-visible:ring-rose-500/30 focus-visible:border-primary/50 transition-all ${
-                    emailForm.formState.errors.email ? "border-destructive focus-visible:ring-destructive/30" : ""
-                  }`}
-                />
-              </div>
-              {emailForm.formState.errors.email && (
-                <p className="text-xs text-destructive mt-1.5 ml-1">{emailForm.formState.errors.email.message}</p>
-              )}
-            </div>
-            <div>
-              <label className="text-sm font-medium mb-2 block text-foreground">{t("auth.password")}</label>
-              <Input
-                type="password"
-                placeholder={t("auth.enterPassword")}
-                {...emailForm.register("password")}
-                className={`h-12 rounded-xl border-muted/50 bg-white/50 dark:bg-background/50 focus-visible:ring-rose-500/30 focus-visible:border-primary/50 transition-all ${
-                  emailForm.formState.errors.password ? "border-destructive focus-visible:ring-destructive/30" : ""
-                }`}
-              />
-              {emailForm.formState.errors.password && (
-                <p className="text-xs text-destructive mt-1.5 ml-1">{emailForm.formState.errors.password.message}</p>
-              )}
-            </div>
+          <form onSubmit={emailForm.handleSubmit(handleEmailLogin)} className="space-y-5">
+            <FloatingLabelInput
+              label={t("auth.email")}
+              type="email"
+              icon={<Mail className="h-4.5 w-4.5" />}
+              error={emailForm.formState.errors.email?.message}
+              registerProps={emailForm.register("email")}
+            />
+            <FloatingLabelInput
+              label={t("auth.password")}
+              type={showPassword ? "text" : "password"}
+              icon={<Eye className="h-4.5 w-4.5" />}
+              error={emailForm.formState.errors.password?.message}
+              registerProps={emailForm.register("password")}
+              rightAction={
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="text-muted-foreground hover:text-foreground transition-colors p-1"
+                  tabIndex={-1}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              }
+            />
             <Button
               type="submit"
               className="w-full h-12 rounded-xl bg-gradient-to-r from-rose-600 to-pink-500 hover:from-rose-700 hover:to-pink-600 text-white font-semibold shadow-lg shadow-rose-500/25 hover:shadow-rose-500/40 transition-all duration-300 disabled:opacity-50"

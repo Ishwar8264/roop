@@ -35,13 +35,19 @@ export function useTranslation() {
   const dict = translations[locale];
   const fallbackDict = translations.en;
 
-  function t(key: string): string {
-    const value = getNestedValue(dict as unknown as NestedObject, key);
-    if (value) return value;
+  function t(key: string, params?: Record<string, string | number>): string {
+    let value = getNestedValue(dict as unknown as NestedObject, key);
+    if (!value) {
+      // Fallback to English
+      value = getNestedValue(fallbackDict as unknown as NestedObject, key);
+    }
+    const result = value || key;
 
-    // Fallback to English
-    const fallback = getNestedValue(fallbackDict as unknown as NestedObject, key);
-    return fallback || key;
+    // Replace {param} placeholders with actual values
+    if (params) {
+      return result.replace(/\{(\w+)\}/g, (_, k) => String(params[k] ?? `{${k}}`));
+    }
+    return result;
   }
 
   return {
