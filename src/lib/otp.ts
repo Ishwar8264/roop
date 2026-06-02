@@ -186,9 +186,12 @@ export async function sendOtpSms(
   //   - Twilio: https://www.twilio.com/docs/sms
   //   - WhatsApp Business API: https://developers.facebook.com/docs/whatsapp
 
-  console.log(
-    `[OTP STUB] Sending OTP ${otp} to ${mobile} for purpose: ${purpose}`
-  );
+  // Only log OTP in development — NEVER in production
+  if (process.env.NODE_ENV === "development") {
+    console.log(
+      `[OTP STUB] Sending OTP ${otp} to ${mobile} for purpose: ${purpose}`
+    );
+  }
 
   // Simulate async SMS gateway call
   return {
