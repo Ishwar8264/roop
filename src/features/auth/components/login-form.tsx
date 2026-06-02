@@ -2,24 +2,54 @@
  * Purpose: Login form with OTP (mobile) and Email+Password tabs
  * Responsibility: Handle user login via OTP or email/password
  * Important Notes:
- *   - Generic component — receives `onSuccess` callback, no router coupling
- *   - Dev OTP shown in yellow banner during development
- *   - OTP flow: send-otp → verify-otp
- *   - Email flow: login-email
- *   - No auth store import — parent handles post-login via onSuccess
- *   - Uses i18n for all UI strings
+ *   - react-hook-form + Zod for real-time validation
+ *   - OTP countdown timer (30s cooldown before resend)
+ *   - Toast notifications on success/error (sonner)
+ *   - Field-level validation with error messages
+ *   - Backend error messages shown via toast
+ *   - i18n for all UI strings
  */
 
 "use client";
 
-import { useState } from "react";
-import { Phone, Mail, ArrowRight, Loader2 } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Phone, Mail, ArrowRight, Loader2, Timer } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { apiClient } from "@/services/api-client";
+import { apiClient, ApiClientError } from "@/services/api-client";
 import { useTranslation } from "@/i18n/use-translation";
 import type { ApiResponse, SendOtpResponse, OTPVerifyResponse, LoginEmailResponse, UserProfile } from "@/types";
+
+// ==================== Zod Schemas ====================
+
+const otpSendSchema = z.object({
+  mobile: z
+    .string()
+    .min(1, "Mobile number is required")
+    .regex(/^[6-9]\d{9}$/, "Must be 10 digits starting with 6-9"),
+});
+
+const otpVerifySchema = z.object({
+  mobile: z.string(),
+  otp: z
+    .string()
+    .min(1, "OTP is required")
+    .regex(/^\d{4,6}$/, "OTP must be 4-6 digits"),
+});
+
+const emailLoginSchema = z.object({
+  email: z.string().min(1, "Email is required").email("Enter a valid email"),
+  password: z.string().min(1, "Password is required"),
+});
+
+type OtpSendForm = z.infer<typeof otpSendSchema>;
+type OtpVerifyForm = z.infer<typeof otpVerifySchema>;
+type EmailLoginForm = z.infer<typeof emailLoginSchema>;
 
 // ==================== Types ====================
 
@@ -34,36 +64,99 @@ interface LoginFormProps {
   onSwitchToRegister?: () => void;
 }
 
+// ==================== OTP Timer Hook ====================
+
+function useOtpTimer(initialSeconds: number = 30) {
+  const [secondsLeft, setSecondsLeft] = useState(0);
+  const [isRunning, setIsRunning] = useState(false);
+
+  const start = useCallback(() => {
+    setSecondsLeft(initialSeconds);
+    setIsRunning(true);
+  }, [initialSeconds]);
+
+  useEffect(() => {
+    if (!isRunning || secondsLeft <= 0) {
+      setIsRunning(false);
+      return;
+    }
+    const interval = setInterval(() => {
+      setSecondsLeft((prev) => prev - 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isRunning, secondsLeft]);
+
+  return { secondsLeft, isRunning, start, canResend: !isRunning && secondsLeft === 0 };
+}
+
 // ==================== Component ====================
 
 export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
   const { t } = useTranslation();
   const [tab, setTab] = useState<"otp" | "email">("otp");
-
-  // OTP state
-  const [mobile, setMobile] = useState("");
-  const [otp, setOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [devOtp, setDevOtp] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const otpTimer = useOtpTimer(30);
 
-  // Email state
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  // ===== OTP Send Form =====
+  const otpSendForm = useForm<OtpSendForm>({
+    resolver: zodResolver(otpSendSchema),
+    defaultValues: { mobile: "" },
+    mode: "onChange",
+  });
 
-  // Common state
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // ===== OTP Verify Form =====
+  const otpVerifyForm = useForm<OtpVerifyForm>({
+    resolver: zodResolver(otpVerifySchema),
+    defaultValues: { mobile: "", otp: "" },
+    mode: "onChange",
+  });
 
-  // ==================== OTP Handlers ====================
+  // ===== Email Login Form =====
+  const emailForm = useForm<EmailLoginForm>({
+    resolver: zodResolver(emailLoginSchema),
+    defaultValues: { email: "", password: "" },
+    mode: "onChange",
+  });
 
-  async function handleSendOtp() {
-    setError(null);
-    if (!mobile || mobile.length < 10) {
-      setError(t("common.pleaseEnter") + " " + t("auth.mobileNumber").toLowerCase());
-      return;
+  // When mobile is set from send form, copy to verify form
+  const watchedMobile = otpSendForm.watch("mobile");
+
+  // ===== Handlers =====
+
+  async function handleSendOtp(data: OtpSendForm) {
+    setIsSubmitting(true);
+    try {
+      const res = await apiClient.post<ApiResponse<SendOtpResponse>>(
+        "/auth/send-otp",
+        { mobile: data.mobile, purpose: "LOGIN" }
+      );
+
+      if (res.success) {
+        setOtpSent(true);
+        otpVerifyForm.setValue("mobile", data.mobile);
+        otpTimer.start();
+        if (res.data?.devOtp) {
+          setDevOtp(res.data.devOtp);
+        }
+        toast.success(t("auth.sendOtp"), {
+          description: `OTP sent to ${data.mobile}`,
+        });
+      }
+    } catch (err: unknown) {
+      const message = err instanceof ApiClientError ? err.message : t("common.somethingWrong");
+      toast.error(t("common.error"), { description: message });
+    } finally {
+      setIsSubmitting(false);
     }
+  }
 
-    setLoading(true);
+  async function handleResendOtp() {
+    const mobile = otpVerifyForm.getValues("mobile");
+    if (!mobile || !otpTimer.canResend) return;
+
+    setIsSubmitting(true);
     try {
       const res = await apiClient.post<ApiResponse<SendOtpResponse>>(
         "/auth/send-otp",
@@ -71,34 +164,34 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
       );
 
       if (res.success) {
-        setOtpSent(true);
+        otpTimer.start();
         if (res.data?.devOtp) {
           setDevOtp(res.data.devOtp);
         }
+        toast.success("OTP Resent", {
+          description: `New OTP sent to ${mobile}`,
+        });
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : t("common.somethingWrong");
-      setError(message);
+      const message = err instanceof ApiClientError ? err.message : t("common.somethingWrong");
+      toast.error(t("common.error"), { description: message });
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   }
 
-  async function handleVerifyOtp() {
-    setError(null);
-    if (!otp || otp.length < 4) {
-      setError(t("common.pleaseEnter") + " OTP");
-      return;
-    }
-
-    setLoading(true);
+  async function handleVerifyOtp(data: OtpVerifyForm) {
+    setIsSubmitting(true);
     try {
       const res = await apiClient.post<ApiResponse<OTPVerifyResponse>>(
         "/auth/verify-otp",
-        { mobile, otp, purpose: "LOGIN" }
+        { mobile: data.mobile, otp: data.otp, purpose: "LOGIN" }
       );
 
       if (res.success && res.data) {
+        toast.success(t("common.success"), {
+          description: res.data.isNewUser ? "Welcome! Account created." : "Welcome back!",
+        });
         onSuccess?.({
           user: res.data.user,
           token: res.data.tokens.accessToken,
@@ -106,44 +199,39 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
         });
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : t("common.somethingWrong");
-      setError(message);
+      const message = err instanceof ApiClientError ? err.message : t("common.somethingWrong");
+      toast.error("Verification Failed", { description: message });
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   }
 
-  // ==================== Email Handlers ====================
-
-  async function handleEmailLogin() {
-    setError(null);
-    if (!email || !password) {
-      setError(t("common.pleaseEnter") + " " + t("auth.email").toLowerCase() + " & " + t("auth.password").toLowerCase());
-      return;
-    }
-
-    setLoading(true);
+  async function handleEmailLogin(data: EmailLoginForm) {
+    setIsSubmitting(true);
     try {
       const res = await apiClient.post<ApiResponse<LoginEmailResponse>>(
         "/auth/login-email",
-        { email, password }
+        { email: data.email, password: data.password }
       );
 
       if (res.success && res.data) {
+        toast.success(t("common.success"), {
+          description: "Welcome back!",
+        });
         onSuccess?.({
           user: res.data.user,
           token: res.data.tokens.accessToken,
         });
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : t("common.somethingWrong");
-      setError(message);
+      const message = err instanceof ApiClientError ? err.message : t("common.somethingWrong");
+      toast.error(t("auth.loginTitle") + " Failed", { description: message });
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   }
 
-  // ==================== Render ====================
+  // ===== Render =====
 
   return (
     <Card className="w-full max-w-md mx-auto shadow-lg border-border/50">
@@ -166,18 +254,11 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
           </div>
         )}
 
-        {/* Error */}
-        {error && (
-          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3 text-center">
-            <p className="text-sm text-destructive">{error}</p>
-          </div>
-        )}
-
         {/* Tab Switcher */}
         <div className="flex rounded-lg border overflow-hidden">
           <button
             type="button"
-            onClick={() => { setTab("otp"); setError(null); }}
+            onClick={() => { setTab("otp"); setOtpSent(false); setDevOtp(null); }}
             className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium transition-colors ${
               tab === "otp"
                 ? "bg-primary text-primary-foreground"
@@ -189,7 +270,7 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
           </button>
           <button
             type="button"
-            onClick={() => { setTab("email"); setError(null); }}
+            onClick={() => setTab("email")}
             className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium transition-colors ${
               tab === "email"
                 ? "bg-primary text-primary-foreground"
@@ -202,109 +283,143 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
         </div>
 
         {/* ===== OTP Tab ===== */}
-        {tab === "otp" && (
-          <div className="space-y-3">
+        {tab === "otp" && !otpSent && (
+          <form onSubmit={otpSendForm.handleSubmit(handleSendOtp)} className="space-y-3">
             <div>
               <label className="text-sm font-medium mb-1.5 block">{t("auth.mobileNumber")}</label>
               <Input
                 type="tel"
                 placeholder={t("auth.enterMobile")}
-                value={mobile}
-                onChange={(e) => setMobile(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                disabled={otpSent}
-                className="h-11"
+                {...otpSendForm.register("mobile")}
+                className={`h-11 ${otpSendForm.formState.errors.mobile ? "border-destructive focus-visible:ring-destructive" : ""}`}
               />
+              {otpSendForm.formState.errors.mobile && (
+                <p className="text-xs text-destructive mt-1">
+                  {otpSendForm.formState.errors.mobile.message}
+                </p>
+              )}
             </div>
+            <Button
+              type="submit"
+              className="w-full h-11"
+              disabled={isSubmitting || !otpSendForm.formState.isValid}
+            >
+              {isSubmitting ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <ArrowRight className="h-4 w-4 mr-2" />
+              )}
+              {t("auth.sendOtp")}
+            </Button>
+          </form>
+        )}
 
-            {otpSent && (
-              <div>
-                <label className="text-sm font-medium mb-1.5 block">OTP</label>
-                <Input
-                  type="text"
-                  placeholder={t("auth.enterOtp")}
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  maxLength={6}
-                  className="h-11 text-center text-lg tracking-widest"
-                  autoFocus
-                />
-              </div>
-            )}
-
-            {!otpSent ? (
-              <Button
-                className="w-full h-11"
-                onClick={handleSendOtp}
-                disabled={loading}
+        {tab === "otp" && otpSent && (
+          <form onSubmit={otpVerifyForm.handleSubmit(handleVerifyOtp)} className="space-y-3">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">
+                OTP sent to <span className="font-medium text-foreground">{watchedMobile}</span>
+              </span>
+              <button
+                type="button"
+                className="text-primary text-xs hover:underline"
+                onClick={() => { setOtpSent(false); setDevOtp(null); otpSendForm.reset(); }}
               >
-                {loading ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : (
-                  <ArrowRight className="h-4 w-4 mr-2" />
-                )}
-                {t("auth.sendOtp")}
-              </Button>
-            ) : (
-              <div className="space-y-2">
-                <Button
-                  className="w-full h-11"
-                  onClick={handleVerifyOtp}
-                  disabled={loading}
+                {t("auth.changeNumber")}
+              </button>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-1.5 block">OTP</label>
+              <Input
+                type="text"
+                placeholder={t("auth.enterOtp")}
+                {...otpVerifyForm.register("otp")}
+                maxLength={6}
+                className={`h-11 text-center text-lg tracking-widest ${otpVerifyForm.formState.errors.otp ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                autoFocus
+              />
+              {otpVerifyForm.formState.errors.otp && (
+                <p className="text-xs text-destructive mt-1">
+                  {otpVerifyForm.formState.errors.otp.message}
+                </p>
+              )}
+            </div>
+            <Button
+              type="submit"
+              className="w-full h-11"
+              disabled={isSubmitting || !otpVerifyForm.formState.isValid}
+            >
+              {isSubmitting ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : null}
+              {t("auth.verifyOtp")}
+            </Button>
+
+            {/* Resend OTP with Timer */}
+            <div className="text-center">
+              {otpTimer.isRunning ? (
+                <p className="text-sm text-muted-foreground flex items-center justify-center gap-1.5">
+                  <Timer className="h-3.5 w-3.5" />
+                  Resend in <span className="font-medium text-foreground">{otpTimer.secondsLeft}s</span>
+                </p>
+              ) : (
+                <button
+                  type="button"
+                  className="text-sm text-primary font-medium hover:underline"
+                  onClick={handleResendOtp}
+                  disabled={isSubmitting}
                 >
-                  {loading ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  ) : null}
-                  {t("auth.verifyOtp")}
-                </Button>
-                <Button
-                  variant="ghost"
-                  className="w-full text-sm"
-                  onClick={() => { setOtpSent(false); setOtp(""); setDevOtp(null); }}
-                >
-                  {t("auth.changeNumber")}
-                </Button>
-              </div>
-            )}
-          </div>
+                  Resend OTP
+                </button>
+              )}
+            </div>
+          </form>
         )}
 
         {/* ===== Email Tab ===== */}
         {tab === "email" && (
-          <div className="space-y-3">
+          <form onSubmit={emailForm.handleSubmit(handleEmailLogin)} className="space-y-3">
             <div>
               <label className="text-sm font-medium mb-1.5 block">{t("auth.email")}</label>
               <Input
                 type="email"
                 placeholder="example@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="h-11"
+                {...emailForm.register("email")}
+                className={`h-11 ${emailForm.formState.errors.email ? "border-destructive focus-visible:ring-destructive" : ""}`}
               />
+              {emailForm.formState.errors.email && (
+                <p className="text-xs text-destructive mt-1">
+                  {emailForm.formState.errors.email.message}
+                </p>
+              )}
             </div>
             <div>
               <label className="text-sm font-medium mb-1.5 block">{t("auth.password")}</label>
               <Input
                 type="password"
                 placeholder={t("auth.enterPassword")}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="h-11"
-                onKeyDown={(e) => e.key === "Enter" && handleEmailLogin()}
+                {...emailForm.register("password")}
+                className={`h-11 ${emailForm.formState.errors.password ? "border-destructive focus-visible:ring-destructive" : ""}`}
               />
+              {emailForm.formState.errors.password && (
+                <p className="text-xs text-destructive mt-1">
+                  {emailForm.formState.errors.password.message}
+                </p>
+              )}
             </div>
             <Button
+              type="submit"
               className="w-full h-11"
-              onClick={handleEmailLogin}
-              disabled={loading}
+              disabled={isSubmitting || !emailForm.formState.isValid}
             >
-              {loading ? (
+              {isSubmitting ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : (
                 <ArrowRight className="h-4 w-4 mr-2" />
               )}
               {t("auth.loginButton")}
             </Button>
-          </div>
+          </form>
         )}
 
         {/* Switch to Register */}

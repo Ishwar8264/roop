@@ -13,7 +13,7 @@
 import type { Metadata } from "next";
 import { Noto_Sans_Devanagari, Inter } from "next/font/google";
 import "./globals.css";
-import { Toaster } from "@/components/ui/toaster";
+import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/features/shell/components/theme-provider";
 import { AuthProvider } from "@/features/auth/components/auth-provider";
 

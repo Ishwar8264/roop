@@ -3,9 +3,8 @@
  * Responsibility: First impression — convert visitors to users
  * Important Notes:
  *   - Client component — uses framer-motion animations + auth state + i18n
+ *   - Uses PublicHeader (with Sign In/Up buttons) for unauthenticated visitors
  *   - "Book Now" → /login if not authenticated, /dashboard if authenticated
- *   - "Login" button visible only when not authenticated
- *   - "View Services" → /services
  *   - All text driven by i18n translations
  */
 
@@ -28,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useAuthStore } from "@/stores/auth-store";
 import { useTranslation } from "@/i18n/use-translation";
+import { PublicHeader } from "@/features/shell/components/public-header";
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 30 },
@@ -103,6 +103,9 @@ export default function WelcomePage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
+      {/* ===== PUBLIC NAVBAR ===== */}
+      <PublicHeader />
+
       {/* ===== HERO SECTION ===== */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-rose-50 via-white to-pink-50 dark:from-rose-950/20 dark:via-background dark:to-pink-950/20" />
@@ -233,7 +236,7 @@ export default function WelcomePage() {
       </section>
 
       {/* ===== SERVICES PREVIEW ===== */}
-      <section className="py-16 sm:py-20 bg-card">
+      <section id="services" className="py-16 sm:py-20 bg-card">
         <div className="max-w-6xl mx-auto px-4">
           <motion.div
             initial="hidden"
@@ -295,7 +298,7 @@ export default function WelcomePage() {
       </section>
 
       {/* ===== FEATURES SECTION ===== */}
-      <section className="py-16 sm:py-20 bg-gradient-to-b from-rose-50/50 to-background dark:from-rose-950/10 dark:to-background">
+      <section id="features" className="py-16 sm:py-20 bg-gradient-to-b from-rose-50/50 to-background dark:from-rose-950/10 dark:to-background">
         <div className="max-w-6xl mx-auto px-4">
           <motion.div
             initial="hidden"
@@ -345,7 +348,7 @@ export default function WelcomePage() {
       </section>
 
       {/* ===== OFFER BANNER ===== */}
-      <section className="py-12 sm:py-16">
+      <section id="offer" className="py-12 sm:py-16">
         <div className="max-w-6xl mx-auto px-4">
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
