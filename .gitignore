@@ -1,58 +1,92 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# ============================================
+# Nikharta Roop (निखरता रूप) — .gitignore
+# ============================================
 
-# dependencies
-node_modules
+# Dependencies
+node_modules/
 /.pnp
 .pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
 
-# testing
-/coverage
-
-# next.js
+# Next.js
 /.next/
 /out/
 
-# production
+# Production
 /build
 
-# misc
-.DS_Store
-*.pem
+# Environment files — NEVER commit .env
+.env
+.env.local
+.env.*.local
+!.env.example
 
-# debug
+# Debug & Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
-
-# env files — NEVER commit .env
-.env
-.env.local
-.env.*.local
-# Keep .env.example in git for other developers
-!.env.example
-
-# vercel
-.vercel
-
-
-# typescript
-*.tsbuildinfo
-next-env.d.ts
-local-*
-.claude
-.z-ai-config
 *.log
 dev.log
 dev.out.log
-test
-prompt
-
 server.log
-# Skills directory
-/skills/upload/
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# OS files
+.DS_Store
+Thumbs.db
+*.pem
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Vercel
+.vercel
+
+# Testing
+/coverage
+
+# AI Agent files (local only)
+.claude/
+.z-ai-config
+agent-ctx/
+worklog.md
+.zscripts/
+
+# Skills (platform-specific, not project code)
+/skills/
+
+# Download / screenshots
+/download/
+
+# Database files (local only)
+db/
+.pgsql/
+
+# PM2 / Process management
+ecosystem.config.cjs
+logs/
+
+# Lock files (keep only pnpm-lock.yaml)
+package-lock.json
+bun.lock
+
+# Prisma backup
+prisma/schema.prisma.pg.backup
+prisma/schema-auth.prisma
+
+# Misc dev artifacts
+mini-services/
+examples/
+upload/
+Caddyfile
+setup-db.sh
+start.sh
+test-all-endpoints.sh
+test-api.mjs
+ENGINEERING_GUIDELINES.md

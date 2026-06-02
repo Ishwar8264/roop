@@ -159,5 +159,9 @@ export function validateAuthConfig(): void {
   }
 }
 
-// Run validation on import — crash early if misconfigured
-validateAuthConfig();
+// Run validation on import — but only at runtime (not during build)
+// During `next build`, env vars may not be available but that's fine —
+// validation will run when the app actually starts
+if (process.env.NODE_ENV !== undefined && process.env.NEXT_PHASE !== 'phase-production-build') {
+  validateAuthConfig();
+}

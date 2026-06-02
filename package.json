@@ -3,16 +3,17 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "DATABASE_URL=postgresql://ishwar:IshwarRiverHead@localhost:5432/nikharta_roop?schema=public next dev -p 3000 2>&1 | tee dev.log",
-    "build": "DATABASE_URL=postgresql://ishwar:IshwarRiverHead@localhost:5432/nikharta_roop?schema=public next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/",
-    "start": "NODE_ENV=production bun .next/standalone/server.js 2>&1 | tee server.log",
+    "dev": "next dev --turbopack -p 3000",
+    "build": "next build",
+    "start": "next start -p 3000",
     "lint": "eslint .",
-    "db:push": "DATABASE_URL=postgresql://ishwar:IshwarRiverHead@localhost:5432/nikharta_roop?schema=public prisma db push",
-    "db:generate": "DATABASE_URL=postgresql://ishwar:IshwarRiverHead@localhost:5432/nikharta_roop?schema=public prisma generate",
-    "db:migrate": "DATABASE_URL=postgresql://ishwar:IshwarRiverHead@localhost:5432/nikharta_roop?schema=public prisma migrate dev",
-    "db:reset": "DATABASE_URL=postgresql://ishwar:IshwarRiverHead@localhost:5432/nikharta_roop?schema=public prisma migrate reset",
-    "db:seed": "DATABASE_URL=postgresql://ishwar:IshwarRiverHead@localhost:5432/nikharta_roop?schema=public bun run prisma/seed.ts",
-    "pg:start": "bash /home/z/my-project/start.sh"
+    "db:push": "prisma db push",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:reset": "prisma migrate reset",
+    "db:seed": "npx tsx prisma/seed.ts",
+    "db:studio": "prisma studio",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
