@@ -1,9 +1,10 @@
 /**
  * Purpose: Dashboard client component
- * Responsibility: Display user welcome, quick actions
+ * Responsibility: Display user welcome, quick actions, loyalty points
  * Important Notes:
  *   - Client component — uses auth store
  *   - AppShell already provides header + bottom nav
+ *   - AuthProvider handles redirect if not authenticated — no need for local check
  */
 
 "use client";
@@ -15,32 +16,14 @@ import { useAuthStore } from "@/stores/auth-store";
 
 export function DashboardClient() {
   const router = useRouter();
-  const { user, isAuthenticated } = useAuthStore();
-
-  if (!isAuthenticated || !user) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Card className="max-w-sm mx-auto">
-          <CardContent className="p-6 text-center">
-            <p className="text-muted-foreground mb-4">कृपया लॉगिन करें</p>
-            <button
-              onClick={() => router.push("/login")}
-              className="text-primary hover:underline font-medium"
-            >
-              लॉगिन करें
-            </button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  const { user } = useAuthStore();
 
   return (
     <div className="space-y-6">
       {/* Welcome */}
       <div>
         <h2 className="text-2xl font-bold">
-          नमस्ते{user.name ? `, ${user.name}` : ""}!
+          नमस्ते{user?.name ? `, ${user.name}` : ""}!
         </h2>
         <p className="text-muted-foreground">आज आपके लिए क्या कर सकते हैं?</p>
       </div>
@@ -89,13 +72,13 @@ export function DashboardClient() {
       </div>
 
       {/* Loyalty Points */}
-      {user.loyaltyPoints > 0 && (
+      {(user?.loyaltyPoints ?? 0) > 0 && (
         <Card className="bg-gradient-to-r from-primary to-rose-700 text-white">
           <CardContent className="p-5">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-white/80">लॉयल्टी पॉइंट</p>
-                <p className="text-2xl font-bold">{user.loyaltyPoints}</p>
+                <p className="text-2xl font-bold">{user?.loyaltyPoints}</p>
               </div>
               <Sparkles className="h-8 w-8 text-white/60" />
             </div>

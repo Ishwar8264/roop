@@ -1,18 +1,20 @@
 /**
- * Purpose: Auth initialization provider and React Query wrapper
- * Responsibility: Initialize auth state on mount, provide QueryClient to tree
+ * Purpose: Auth initialization provider, React Query wrapper, and client-side route guard
+ * Responsibility: Initialize auth state on mount, protect authenticated pages, provide QueryClient
  * Important Notes:
- *   - Must be "use client" — uses useEffect, useState
+ *   - Must be "use client" — uses useEffect, useState, useRouter, usePathname
  *   - Wrap this around {children} in root layout — ONE time only
  *   - On mount: restores Zustand state (persist already did sessionStorage restore)
  *   - If token exists but is stale: tries /api/auth/me to validate, then refresh if 401
  *   - Shows loading screen until auth state is determined
  *   - IMPORTANT: Loading screen has timeout (3s) to avoid blocking if API is down
+ *   - Client-side route guard: redirects unauthenticated users from protected pages
  */
 
 "use client";
 
 import { useState, useEffect, type ReactNode } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useAuthStore } from "@/stores/auth-store";
 import { apiClient } from "@/services/api-client";
@@ -45,12 +47,20 @@ function getQueryClient() {
   return browserQueryClient;
 }
 
+// ==================== Route Config ====================
+
+// Pages that DON'T require authentication
+const PUBLIC_PAGES = ["/", "/login", "/register"];
+
 // ==================== Auth Provider ====================
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = getQueryClient();
   const [isReady, setIsReady] = useState(false);
+  const router = useRouter();
+  const pathname = usePathname();
 
+  // Step 1: Initialize auth state on mount
   useEffect(() => {
     let cancelled = false;
 
@@ -97,6 +107,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Step 2: Client-side route guard — redirect based on auth state
+  useEffect(() => {
+    if (!isReady) return;
+
+    const { isAuthenticated } = useAuthStore.getState();
+    const isPublicPage = PUBLIC_PAGES.some(
+      (p) => pathname === p || pathname.startsWith(p + "/")
+    );
+
+    // If authenticated and on login/register → redirect to dashboard
+    if (isAuthenticated && (pathname === "/login" || pathname === "/register")) {
+      router.replace("/dashboard");
+      return;
+    }
+
+    // If NOT authenticated and on a protected page → redirect to login
+    if (!isAuthenticated && !isPublicPage) {
+      router.replace("/login");
+      return;
+    }
+  }, [isReady, pathname, router]);
 
   if (!isReady) {
     return (

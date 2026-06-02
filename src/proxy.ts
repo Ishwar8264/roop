@@ -1,15 +1,12 @@
 /**
- * Purpose: Next.js middleware for route protection and auth checks
- * Responsibility: Intercept requests to protected routes and verify JWT tokens
+ * Purpose: Next.js proxy for route protection and auth checks
+ * Responsibility: Protect API routes by verifying JWT tokens
  * Important Notes:
  *   - Runs on Edge Runtime — must use jose (not jsonwebtoken) for JWT verify
- *   - Public routes: /, /api/auth/*, /services, /about, /api-docs
- *   - Protected routes: /bookings/*, /profile/*, /admin/*
- *   - Admin routes: require role=ADMIN in JWT
- *   - Staff routes: require role=STAFF or ADMIN
- *   - Proxy runs BEFORE page renders and BEFORE API route handlers
- *   - Token read from Authorization header (API) or cookie (future: web pages)
+ *   - ONLY protects API routes — page routes are handled client-side by AuthProvider
+ *   - Token read from Authorization header (primary) or access_token cookie (fallback)
  *   - Uses centralized error codes from @/lib/http and @/lib/api-response
+ *   - Page route auth is handled by AuthProvider + route groups — no server redirects
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -21,19 +18,6 @@ import { HTTP_STATUS, ERROR_CODES, HTTP_MESSAGES } from "@/lib/http";
 const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || "nikharta-roop-jwt-secret-change-in-production-min-32-chars"
 );
-
-// Routes that DON'T require authentication
-const PUBLIC_ROUTES = [
-  "/",                    // Welcome page
-  "/login",               // Login page (public)
-  "/register",            // Register page (public)
-  "/services",            // Service listing (public)
-  "/about",               // About page (public)
-  "/contact",             // Contact page (public)
-  "/blog",                // Blog listing (public)
-  "/offers",              // Public offers page
-  "/api-docs",            // Swagger UI documentation
-];
 
 // API routes that DON'T require authentication (exact match + prefix)
 const PUBLIC_API_ROUTES = [
@@ -61,28 +45,20 @@ const PUBLIC_API_ROUTES = [
   "/api/slots",               // Slot availability (public)
 ];
 
-// Routes that require specific roles
-const ADMIN_ROUTES = ["/admin"];
-const STAFF_ROUTES = ["/staff"];
+// Routes that require specific roles (API only)
+const ADMIN_API_ROUTES = ["/api/admin"];
+const STAFF_API_ROUTES = ["/api/staff"];
 
 // ==================== HELPER ====================
 
-/**
- * Check if a path matches any pattern in the list
- * Supports exact match and prefix match (e.g., "/admin" matches "/admin/dashboard")
- */
 function matchesAny(pathname: string, patterns: string[]): boolean {
   return patterns.some(
     (pattern) => pathname === pattern || pathname.startsWith(pattern + "/")
   );
 }
 
-/**
- * Extract and verify JWT token from request
- * Checks Authorization header first, then cookies (for web page navigation)
- */
 async function getTokenPayload(request: NextRequest) {
-  // Try Authorization header first (API calls)
+  // Try Authorization header first (API calls from client)
   const authHeader = request.headers.get("authorization");
   if (authHeader?.startsWith("Bearer ")) {
     const token = authHeader.split(" ")[1];
@@ -101,7 +77,7 @@ async function getTokenPayload(request: NextRequest) {
     }
   }
 
-  // Try cookie (web page navigation)
+  // Try cookie (fallback for page navigation or when header not set)
   const tokenFromCookie = request.cookies.get("access_token")?.value;
   if (tokenFromCookie) {
     try {
@@ -131,17 +107,18 @@ export async function proxy(request: NextRequest) {
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/favicon") ||
-    pathname.includes(".") // Static files (images, CSS, JS)
+    pathname.includes(".")
   ) {
     return NextResponse.next();
   }
 
-  // 2. Allow public pages without auth
-  if (matchesAny(pathname, PUBLIC_ROUTES)) {
+  // 2. Non-API routes (pages, etc.) — always allow through
+  //    Auth for pages is handled client-side by AuthProvider + route groups
+  if (!pathname.startsWith("/api/")) {
     return NextResponse.next();
   }
 
-  // 3. Allow public API routes without auth (GET requests only for data endpoints)
+  // 3. Allow public API routes without auth
   if (matchesAny(pathname, PUBLIC_API_ROUTES)) {
     // Auth routes allow all methods (POST for login/register)
     if (pathname.startsWith("/api/auth/") || pathname === "/api/api-spec") {
@@ -151,71 +128,54 @@ export async function proxy(request: NextRequest) {
     if (request.method === "GET") {
       return NextResponse.next();
     }
-    // Non-GET on public data endpoints falls through to auth check below
   }
 
-  // 4. For protected routes — verify token
+  // 4. For protected API routes — verify token
   const payload = await getTokenPayload(request);
 
   if (!payload) {
-    // API routes → return 401 JSON (using centralized error codes)
-    if (pathname.startsWith("/api/")) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: ERROR_CODES.AUTH_MISSING_TOKEN,
+        message: HTTP_MESSAGES.AUTH_MISSING_TOKEN.messageEn,
+        statusCode: HTTP_STATUS.UNAUTHORIZED,
+      },
+      { status: HTTP_STATUS.UNAUTHORIZED }
+    );
+  }
+
+  // 5. Role-based access for admin API routes
+  if (matchesAny(pathname, ADMIN_API_ROUTES)) {
+    if (payload.role !== "ADMIN") {
       return NextResponse.json(
         {
           success: false,
-          error: ERROR_CODES.AUTH_MISSING_TOKEN,
-          message: HTTP_MESSAGES.AUTH_MISSING_TOKEN.messageEn,
-          statusCode: HTTP_STATUS.UNAUTHORIZED,
+          error: ERROR_CODES.PERM_ADMIN_REQUIRED,
+          message: HTTP_MESSAGES.PERM_ADMIN_REQUIRED.messageEn,
+          statusCode: HTTP_STATUS.FORBIDDEN,
         },
-        { status: HTTP_STATUS.UNAUTHORIZED }
+        { status: HTTP_STATUS.FORBIDDEN }
       );
     }
-
-    // Web pages → redirect to login (future)
-    const loginUrl = new URL("/", request.url);
-    loginUrl.searchParams.set("redirect", pathname);
-    return NextResponse.redirect(loginUrl);
   }
 
-  // 5. Role-based access control for admin routes
-  if (matchesAny(pathname, ADMIN_ROUTES)) {
-    if (payload.role !== "ADMIN") {
-      if (pathname.startsWith("/api/")) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: ERROR_CODES.PERM_ADMIN_REQUIRED,
-            message: HTTP_MESSAGES.PERM_ADMIN_REQUIRED.messageEn,
-            statusCode: HTTP_STATUS.FORBIDDEN,
-          },
-          { status: HTTP_STATUS.FORBIDDEN }
-        );
-      }
-      // Non-admin trying to access admin pages → redirect home
-      return NextResponse.redirect(new URL("/", request.url));
-    }
-  }
-
-  // 6. Role-based access control for staff routes
-  if (matchesAny(pathname, STAFF_ROUTES)) {
+  // 6. Role-based access for staff API routes
+  if (matchesAny(pathname, STAFF_API_ROUTES)) {
     if (payload.role !== "STAFF" && payload.role !== "ADMIN") {
-      if (pathname.startsWith("/api/")) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: ERROR_CODES.PERM_STAFF_REQUIRED,
-            message: HTTP_MESSAGES.PERM_STAFF_REQUIRED.messageEn,
-            statusCode: HTTP_STATUS.FORBIDDEN,
-          },
-          { status: HTTP_STATUS.FORBIDDEN }
-        );
-      }
-      return NextResponse.redirect(new URL("/", request.url));
+      return NextResponse.json(
+        {
+          success: false,
+          error: ERROR_CODES.PERM_STAFF_REQUIRED,
+          message: HTTP_MESSAGES.PERM_STAFF_REQUIRED.messageEn,
+          statusCode: HTTP_STATUS.FORBIDDEN,
+        },
+        { status: HTTP_STATUS.FORBIDDEN }
+      );
     }
   }
 
   // 7. Token valid and role authorized — proceed
-  // Add user info to request headers for downstream use
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-user-id", payload.userId);
   requestHeaders.set("x-user-role", payload.role);
@@ -232,16 +192,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all paths EXCEPT:
-     * - _next/static (static files)
-     * - _next/image (image optimization)
-     * - favicon.ico
-     *
-     * This ensures middleware runs on:
-     * - All page routes (/bookings, /admin, etc.)
-     * - All API routes (/api/*)
-     */
     "/((?!_next/static|_next/image|favicon.ico).*)",
   ],
 };
