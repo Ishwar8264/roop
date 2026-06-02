@@ -7,6 +7,7 @@
  *   - Toast notifications on success/error (sonner)
  *   - Field-level validation with error messages
  *   - Backend error messages shown via toast
+ *   - AUTH_MOBILE_NOT_REGISTERED → shows "Register First" link
  *   - i18n for all UI strings
  */
 
@@ -16,7 +17,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Phone, Mail, ArrowRight, Loader2, Timer } from "lucide-react";
+import { Phone, Mail, ArrowRight, Loader2, Timer, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,7 +40,7 @@ const otpVerifySchema = z.object({
   otp: z
     .string()
     .min(1, "OTP is required")
-    .regex(/^\d{4,6}$/, "OTP must be 4-6 digits"),
+    .regex(/^\d{6}$/, "OTP must be exactly 6 digits"),
 });
 
 const emailLoginSchema = z.object({
@@ -61,7 +62,7 @@ interface LoginSuccessData {
 
 interface LoginFormProps {
   onSuccess?: (data: LoginSuccessData) => void;
-  onSwitchToRegister?: () => void;
+  onSwitchToRegister?: (mobile?: string) => void;
 }
 
 // ==================== OTP Timer Hook ====================
@@ -97,6 +98,7 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
   const [otpSent, setOtpSent] = useState(false);
   const [devOtp, setDevOtp] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [mobileNotFoundError, setMobileNotFoundError] = useState<string | null>(null);
   const otpTimer = useOtpTimer(30);
 
   // ===== OTP Send Form =====
@@ -123,10 +125,16 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
   // When mobile is set from send form, copy to verify form
   const watchedMobile = otpSendForm.watch("mobile");
 
+  // Clear mobile not found error when user types
+  useEffect(() => {
+    setMobileNotFoundError(null);
+  }, [watchedMobile]);
+
   // ===== Handlers =====
 
   async function handleSendOtp(data: OtpSendForm) {
     setIsSubmitting(true);
+    setMobileNotFoundError(null);
     try {
       const res = await apiClient.post<ApiResponse<SendOtpResponse>>(
         "/auth/send-otp",
@@ -145,8 +153,20 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
         });
       }
     } catch (err: unknown) {
-      const message = err instanceof ApiClientError ? err.message : t("common.somethingWrong");
-      toast.error(t("common.error"), { description: message });
+      if (err instanceof ApiClientError) {
+        // Special handling: mobile not registered → show register prompt
+        if (err.errorCode === "AUTH_MOBILE_NOT_REGISTERED") {
+          setMobileNotFoundError(err.message);
+          toast.error(t("auth.mobileNotRegistered"), {
+            description: err.message,
+            duration: 6000,
+          });
+        } else {
+          toast.error(t("common.error"), { description: err.message });
+        }
+      } else {
+        toast.error(t("common.error"), { description: t("common.somethingWrong") });
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -190,7 +210,7 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
 
       if (res.success && res.data) {
         toast.success(t("common.success"), {
-          description: res.data.isNewUser ? "Welcome! Account created." : "Welcome back!",
+          description: "Welcome back!",
         });
         onSuccess?.({
           user: res.data.user,
@@ -199,8 +219,19 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
         });
       }
     } catch (err: unknown) {
-      const message = err instanceof ApiClientError ? err.message : t("common.somethingWrong");
-      toast.error("Verification Failed", { description: message });
+      if (err instanceof ApiClientError) {
+        if (err.errorCode === "AUTH_MOBILE_NOT_REGISTERED") {
+          setMobileNotFoundError(err.message);
+          toast.error(t("auth.mobileNotRegistered"), {
+            description: err.message,
+            duration: 6000,
+          });
+        } else {
+          toast.error("Verification Failed", { description: err.message });
+        }
+      } else {
+        toast.error("Verification Failed", { description: t("common.somethingWrong") });
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -254,11 +285,33 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
           </div>
         )}
 
+        {/* Mobile Not Registered — Inline Error Banner */}
+        {mobileNotFoundError && (
+          <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3 flex items-start gap-2.5">
+            <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-destructive">
+                {t("auth.mobileNotRegistered")}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {mobileNotFoundError}
+              </p>
+              <button
+                type="button"
+                className="text-xs text-primary font-medium hover:underline mt-1"
+                onClick={() => onSwitchToRegister?.(watchedMobile)}
+              >
+                {t("auth.registerFirst")} →
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Tab Switcher */}
         <div className="flex rounded-lg border overflow-hidden">
           <button
             type="button"
-            onClick={() => { setTab("otp"); setOtpSent(false); setDevOtp(null); }}
+            onClick={() => { setTab("otp"); setOtpSent(false); setDevOtp(null); setMobileNotFoundError(null); }}
             className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium transition-colors ${
               tab === "otp"
                 ? "bg-primary text-primary-foreground"
@@ -429,7 +482,7 @@ export function LoginForm({ onSuccess, onSwitchToRegister }: LoginFormProps) {
             <button
               type="button"
               className="text-primary font-medium hover:underline"
-              onClick={onSwitchToRegister}
+              onClick={() => onSwitchToRegister?.()}
             >
               {t("auth.register")}
             </button>

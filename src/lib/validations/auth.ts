@@ -6,6 +6,7 @@
  *   - Schemas are reusable — same schema for API and future form validation
  *   - Indian mobile validation: 10 digits, starts with 6-9
  *   - OTP validation: exactly 6 digits
+ *   - Purpose field: LOGIN or REGISTER — controls DB checks and auto-registration
  */
 
 import { z } from "zod";
@@ -28,14 +29,23 @@ export const otpSchema = z
   .string()
   .regex(/^\d{6}$/, "OTP must be exactly 6 digits");
 
+/**
+ * OTP purpose enum — LOGIN = only existing users, REGISTER = new user creation
+ */
+export const otpPurposeSchema = z.enum(["LOGIN", "REGISTER"]);
+
 // ==================== SEND OTP ====================
 
 /**
  * POST /api/auth/send-otp
- * Body: { mobile: "9876543210" }
+ * Body: { mobile: "9876543210", purpose: "LOGIN" | "REGISTER" }
+ *
+ * - LOGIN: checks mobile exists in DB (user must be registered)
+ * - REGISTER: checks mobile does NOT exist in DB (must be new)
  */
 export const sendOtpSchema = z.object({
   mobile: indianMobileSchema,
+  purpose: otpPurposeSchema.default("LOGIN"),
 });
 
 export type SendOtpInput = z.infer<typeof sendOtpSchema>;
@@ -44,12 +54,21 @@ export type SendOtpInput = z.infer<typeof sendOtpSchema>;
 
 /**
  * POST /api/auth/verify-otp
- * Body: { mobile: "9876543210", otp: "123456" }
+ * Body: { mobile: "9876543210", otp: "123456", purpose: "LOGIN" | "REGISTER", name?: string }
+ *
+ * - LOGIN: verifies OTP and logs in existing user (no auto-registration)
+ * - REGISTER: verifies OTP, creates new user with provided name, then logs in
+ * - name is required when purpose is REGISTER
  */
 export const verifyOtpSchema = z.object({
   mobile: indianMobileSchema,
   otp: otpSchema,
-});
+  purpose: otpPurposeSchema.default("LOGIN"),
+  name: z.string().min(1, "Name is required").max(100, "Name too long").optional(),
+}).refine(
+  (data) => data.purpose !== "REGISTER" || (data.name && data.name.trim().length > 0),
+  { message: "Name is required for registration", path: ["name"] }
+);
 
 export type VerifyOtpInput = z.infer<typeof verifyOtpSchema>;
 

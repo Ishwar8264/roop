@@ -1,12 +1,14 @@
 /**
  * Purpose: Login page (server component)
- * Responsibility: SEO metadata + render client component
+ * Responsibility: SEO metadata + render client component with Suspense
  * Important Notes:
  *   - Server component — metadata for SEO
  *   - Client logic in ./client.tsx
+ *   - Suspense required because client uses useSearchParams
  */
 
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { LoginClient } from "./client";
 
 export const metadata: Metadata = {
@@ -15,5 +17,9 @@ export const metadata: Metadata = {
 };
 
 export default function LoginPage() {
-  return <LoginClient />;
+  return (
+    <Suspense>
+      <LoginClient />
+    </Suspense>
+  );
 }

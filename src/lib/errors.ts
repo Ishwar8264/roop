@@ -181,6 +181,16 @@ export class AuthMobileExistsError extends AppError {
   }
 }
 
+export class AuthMobileNotRegisteredError extends AppError {
+  constructor() {
+    super(
+      ERROR_CODES.AUTH_MOBILE_NOT_REGISTERED,
+      HTTP_STATUS.NOT_FOUND,
+      HTTP_MESSAGES.AUTH_MOBILE_NOT_REGISTERED.messageEn
+    );
+  }
+}
+
 export class AuthInvalidCredentialsError extends AppError {
   constructor() {
     super(

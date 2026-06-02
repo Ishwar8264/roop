@@ -1,22 +1,27 @@
 /**
  * Purpose: Verify OTP API endpoint for Nikharta Roop auth
- * Responsibility: Validate OTP, login existing user or register new user, issue JWT tokens
+ * Responsibility: Validate OTP, login existing user or register new user based on purpose
  *
  * Endpoint: POST /api/auth/verify-otp
  *
  * OpenAPI Summary: Verify OTP and login/register
- * OpenAPI Description: Verify the OTP sent to mobile. If mobile is new, auto-registers as USER.
+ * OpenAPI Description: Verify the OTP sent to mobile.
+ *   For LOGIN purpose: only logs in existing users (no auto-registration).
+ *   For REGISTER purpose: creates new user with provided name, then logs in.
  *   Returns JWT access + refresh tokens. Max 3 verification attempts per OTP.
  *   Session rotation: new AuthSession created on each login.
  *
  * Request Body:
  *   mobile: string (Indian 10-digit) — required
  *   otp: string (6 digits) — required
+ *   purpose: "LOGIN" | "REGISTER" — required (default: LOGIN)
+ *   name: string (required when purpose is REGISTER)
  *
  * Responses:
  *   200: { success: true, data: { user, tokens, isNewUser } }
  *   400: { success: false, error: "VAL_INVALID_INPUT", message, statusCode: 400 }
  *   401: { success: false, error: "AUTH_OTP_INVALID"|"AUTH_OTP_EXPIRED"|"AUTH_OTP_MAX_ATTEMPTS"|"AUTH_ACCOUNT_SUSPENDED", message, statusCode: 401 }
+ *   404: { success: false, error: "AUTH_MOBILE_NOT_REGISTERED", message, statusCode: 404 }
  */
 
 import { createApiHandler } from "@/lib/api-handler";
@@ -30,12 +35,13 @@ import {
   AuthOtpMaxAttemptsError,
   AuthOtpInvalidError,
   AuthAccountSuspendedError,
+  AuthMobileNotRegisteredError,
 } from "@/lib/errors";
 
 export const POST = createApiHandler({
   schema: verifyOtpSchema,
   handler: async ({ parsedBody, request }) => {
-    const { mobile, otp } = parsedBody;
+    const { mobile, otp, purpose, name } = parsedBody;
 
     // 1. Find the latest valid (unused, not expired) OTP
     const otpRecord = await prisma.authOtp.findFirst({
@@ -85,33 +91,52 @@ export const POST = createApiHandler({
       data: { isUsed: true },
     });
 
-    // 6. Find or create user (auto-registration via mobile)
-    let user = await prisma.user.findUnique({ where: { mobile } });
+    // 6. Handle user based on purpose
+    let user;
     let isNewUser = false;
 
-    if (!user) {
-      user = await prisma.user.create({
-        data: {
-          mobile,
-          role: "USER",
-          authProvider: "MOBILE",
-          isActive: true,
-          loyaltyPoints: 0,
-        },
-      });
-      isNewUser = true;
+    if (purpose === "REGISTER") {
+      // REGISTER: Create new user with provided name and mobile
+      // Double-check mobile is not already registered (race condition safety)
+      const existingUser = await prisma.user.findUnique({ where: { mobile } });
+      if (existingUser) {
+        // Mobile got registered between send-otp and verify-otp — just login instead
+        user = existingUser;
+      } else {
+        user = await prisma.user.create({
+          data: {
+            mobile,
+            name: name || null,
+            role: "USER",
+            authProvider: "MOBILE",
+            isActive: true,
+            loyaltyPoints: 0,
+          },
+        });
+        isNewUser = true;
 
-      // Link OTP to user
-      await prisma.authOtp.update({
-        where: { id: otpRecord.id },
-        data: { userId: user.id },
-      });
-    } else if (!otpRecord.userId) {
-      // Link OTP to existing user
-      await prisma.authOtp.update({
-        where: { id: otpRecord.id },
-        data: { userId: user.id },
-      });
+        // Link OTP to user
+        await prisma.authOtp.update({
+          where: { id: otpRecord.id },
+          data: { userId: user.id },
+        });
+      }
+    } else {
+      // LOGIN: Only login existing users (NO auto-registration)
+      user = await prisma.user.findUnique({ where: { mobile } });
+
+      if (!user) {
+        await logAuthEvent(mobile, "LOGIN_FAILED", request, { reason: "MOBILE_NOT_REGISTERED" });
+        throw new AuthMobileNotRegisteredError();
+      }
+
+      // Link OTP to user if not already linked
+      if (!otpRecord.userId) {
+        await prisma.authOtp.update({
+          where: { id: otpRecord.id },
+          data: { userId: user.id },
+        });
+      }
     }
 
     // 7. Check if user account is active
@@ -126,9 +151,9 @@ export const POST = createApiHandler({
     // 9. Log successful login
     await logAuthEvent(
       mobile,
-      "LOGIN_SUCCESS",
+      isNewUser ? "REGISTER_EMAIL" : "LOGIN_SUCCESS",
       request,
-      { isNewUser, authProvider: "MOBILE" },
+      { isNewUser, authProvider: "MOBILE", purpose },
       user.id
     );
 

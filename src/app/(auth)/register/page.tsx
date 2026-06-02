@@ -1,9 +1,12 @@
 /**
  * Purpose: Register page (server component)
- * Responsibility: SEO metadata + render client component
+ * Responsibility: SEO metadata + render client component with Suspense
+ * Important Notes:
+ *   - Suspense required because client uses useSearchParams
  */
 
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { RegisterClient } from "./client";
 
 export const metadata: Metadata = {
@@ -12,5 +15,9 @@ export const metadata: Metadata = {
 };
 
 export default function RegisterPage() {
-  return <RegisterClient />;
+  return (
+    <Suspense>
+      <RegisterClient />
+    </Suspense>
+  );
 }
