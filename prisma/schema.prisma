@@ -3,7 +3,7 @@
  * Purpose: Complete production-grade database schema for beauty parlour booking platform
  * Responsibility: Define all models, relationships, indexes, enums, and constraints
  * Important Notes:
- * - SQLite compatible — enums stored as String, Json stored as String, arrays stored as String
+ * - PostgreSQL compatible — enums stored as String for flexibility, Json stored as String, arrays stored as String
  * - All monetary values use Decimal — never Float
  * - All time fields use DateTime (SQLite stores as text) for slot scheduling
  * - All date fields use DateTime (SQLite stores as text) for booking/holiday dates
@@ -19,7 +19,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
