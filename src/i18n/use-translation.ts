@@ -10,7 +10,7 @@
 
 "use client";
 
-import { useLocaleStore, type Locale } from "./locale-store";
+import { useLocaleStore } from "./locale-store";
 import { translations } from "./translations";
 
 type NestedObject = { [key: string]: string | NestedObject };

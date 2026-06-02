@@ -87,7 +87,6 @@ export function OtpInput({ value, onChange, length = 6, error, disabled }: OtpIn
       >
         {Array.from({ length }, (_, i) => {
           const hasDigit = Boolean(digits[i] && digits[i] !== " ");
-          const isLastActive = i === (value.length < length ? value.length : length - 1);
 
           return (
             <input

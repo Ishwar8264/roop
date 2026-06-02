@@ -1,7 +1,7 @@
 /**
- * Purpose: Premium registration form with salon-grade design
- * Responsibility: Handle new user registration via mobile + OTP
- * Design: Glassmorphism card, floating labels, gradient buttons, step indicators, premium feel
+ * Purpose: Register form UI — renders form, delegates logic to register-handlers
+ * Responsibility: UI only — no API calls, no toast logic
+ * Lines: ~130
  */
 
 "use client";
@@ -9,44 +9,16 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { ArrowRight, Loader2, Phone, Timer, CheckCircle2, Sparkles, User } from "lucide-react";
-import { toast } from "sonner";
+import { Phone, Loader2, Timer, CheckCircle2, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { apiClient, ApiClientError } from "@/services/api-client";
 import { useTranslation } from "@/i18n/use-translation";
 import { useOtpTimer } from "@/features/auth/hooks/use-otp-timer";
-import { FloatingLabelInput } from "./floating-label-input";
-import { OtpInput } from "./otp-input";
-import type { ApiResponse, SendOtpResponse, OTPVerifyResponse, UserProfile } from "@/types";
-
-// ==================== Zod Schemas ====================
-
-const detailsSchema = z.object({
-  name: z.string().min(1, "Name is required").max(100, "Name too long").trim(),
-  mobile: z
-    .string()
-    .min(1, "Mobile number is required")
-    .regex(/^[6-9]\d{9}$/, "Must be 10 digits starting with 6-9"),
-});
-
-const otpSchema = z.object({
-  mobile: z.string(),
-  otp: z
-    .string()
-    .min(1, "OTP is required")
-    .regex(/^\d{6}$/, "OTP must be exactly 6 digits"),
-});
-
-type DetailsForm = z.infer<typeof detailsSchema>;
-type OtpForm = z.infer<typeof otpSchema>;
-
-// ==================== Types ====================
-
-interface RegisterSuccessData {
-  user: UserProfile;
-  token: string;
-}
+import { useRegisterHandlers } from "@/features/auth/logic/register-handlers";
+import { registerDetailsSchema, registerOtpSchema } from "@/features/auth/logic/auth-schemas";
+import type { RegisterDetailsForm, RegisterOtpForm, RegisterSuccessData } from "@/features/auth/logic/auth-schemas";
+import { GlassmorphismCard } from "./ui/glassmorphism-card";
+import { FloatingLabelInput } from "./ui/floating-label-input";
+import { OtpInput } from "./ui/otp-input";
 
 interface RegisterFormProps {
   onSuccess?: (data: RegisterSuccessData) => void;
@@ -54,289 +26,130 @@ interface RegisterFormProps {
   prefilledMobile?: string;
 }
 
-// ==================== Component ====================
-
 export function RegisterForm({ onSuccess, onSwitchToLogin, prefilledMobile }: RegisterFormProps) {
   const { t } = useTranslation();
+  const handlers = useRegisterHandlers();
+  const otpTimer = useOtpTimer(30);
+
   const [step, setStep] = useState<"details" | "otp">("details");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [devOtp, setDevOtp] = useState<string | null>(null);
-  const otpTimer = useOtpTimer(30);
 
-  // ===== Details Form (Step 1) =====
-  const detailsForm = useForm<DetailsForm>({
-    resolver: zodResolver(detailsSchema),
-    defaultValues: { name: "", mobile: prefilledMobile || "" },
-    mode: "onChange",
-  });
+  const detailsForm = useForm<RegisterDetailsForm>({ resolver: zodResolver(registerDetailsSchema), defaultValues: { name: "", mobile: prefilledMobile || "" }, mode: "onChange" });
+  const otpForm = useForm<RegisterOtpForm>({ resolver: zodResolver(registerOtpSchema), defaultValues: { mobile: "", otp: "" }, mode: "onChange" });
 
-  // ===== OTP Form (Step 2) =====
-  const otpForm = useForm<OtpForm>({
-    resolver: zodResolver(otpSchema),
-    defaultValues: { mobile: "", otp: "" },
-    mode: "onChange",
-  });
+  const watchedMobile = detailsForm.watch("mobile");
+  const nameValue = detailsForm.watch("name");
 
-  // ===== Handlers =====
+  // ===== Handlers (thin wrappers) =====
 
-  async function handleSendOtp(data: DetailsForm) {
+  async function handleSendOtp(data: RegisterDetailsForm) {
     setIsSubmitting(true);
-    try {
-      const res = await apiClient.post<ApiResponse<SendOtpResponse>>(
-        "/auth/send-otp",
-        { mobile: data.mobile, purpose: "REGISTER" }
-      );
-      if (res.success) {
-        setStep("otp");
-        otpForm.setValue("mobile", data.mobile);
-        otpTimer.start();
-        if (res.data?.devOtp) setDevOtp(res.data.devOtp);
-        toast.success(t("auth.sendOtp"), { description: t("auth.otpSentTo", { mobile: data.mobile }) });
-      }
-    } catch (err: unknown) {
-      if (err instanceof ApiClientError) {
-        if (err.errorCode === "AUTH_MOBILE_EXISTS") {
-          toast.error(t("auth.mobileAlreadyRegistered"), { description: err.message, duration: 6000 });
-        } else {
-          toast.error(t("common.error"), { description: err.message });
-        }
-      } else {
-        toast.error(t("common.error"), { description: t("common.somethingWrong") });
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
+    const res = await handlers.sendOtp(data);
+    if (res.success) { setStep("otp"); otpForm.setValue("mobile", data.mobile); otpTimer.start(); }
+    if (res.devOtp) setDevOtp(res.devOtp);
+    setIsSubmitting(false);
   }
 
   async function handleResendOtp() {
     const mobile = otpForm.getValues("mobile");
     if (!mobile || !otpTimer.canResend) return;
     setIsSubmitting(true);
-    try {
-      const res = await apiClient.post<ApiResponse<SendOtpResponse>>(
-        "/auth/send-otp",
-        { mobile, purpose: "REGISTER" }
-      );
-      if (res.success) {
-        otpTimer.start();
-        if (res.data?.devOtp) setDevOtp(res.data.devOtp);
-        toast.success(t("auth.otpResent"), { description: t("auth.newOtpSentTo", { mobile }) });
-      }
-    } catch (err: unknown) {
-      const message = err instanceof ApiClientError ? err.message : t("common.somethingWrong");
-      toast.error(t("common.error"), { description: message });
-    } finally {
-      setIsSubmitting(false);
-    }
+    const res = await handlers.resendOtp(mobile);
+    if (res.success) otpTimer.start();
+    if (res.devOtp) setDevOtp(res.devOtp);
+    setIsSubmitting(false);
   }
 
-  async function handleVerifyOtp(data: OtpForm) {
+  async function handleVerifyOtp(data: RegisterOtpForm) {
     setIsSubmitting(true);
-    try {
-      const name = detailsForm.getValues("name");
-      const res = await apiClient.post<ApiResponse<OTPVerifyResponse>>(
-        "/auth/verify-otp",
-        { mobile: data.mobile, otp: data.otp, purpose: "REGISTER", name }
-      );
-      if (res.success && res.data) {
-        toast.success(t("auth.registerSuccess"), { description: t("auth.welcomeToNr") });
-        onSuccess?.({ user: res.data.user, token: res.data.tokens.accessToken });
-      }
-    } catch (err: unknown) {
-      const message = err instanceof ApiClientError ? err.message : t("common.somethingWrong");
-      toast.error(t("auth.registrationFailed"), { description: message });
-    } finally {
-      setIsSubmitting(false);
-    }
+    const name = detailsForm.getValues("name");
+    const res = await handlers.verifyOtp(data, name);
+    if (res.success && res.data) onSuccess?.(res.data);
+    setIsSubmitting(false);
   }
-
-  const watchedMobile = detailsForm.watch("mobile");
-  const nameValue = detailsForm.watch("name");
 
   // ===== Render =====
 
   return (
-    <div className="w-full">
-      {/* Glassmorphism Card */}
-      <div className="relative backdrop-blur-xl bg-white/70 dark:bg-card/70 rounded-3xl shadow-2xl shadow-rose-500/10 border border-white/50 dark:border-border/50 p-8 overflow-hidden">
-        {/* Decorative corners */}
-        <div className="absolute -top-1 -right-1 w-20 h-20 bg-gradient-to-bl from-primary/20 to-transparent rounded-bl-3xl" />
-        <div className="absolute -bottom-1 -left-1 w-16 h-16 bg-gradient-to-tr from-primary/10 to-transparent rounded-tr-3xl" />
-
-        {/* Header */}
-        <div className="relative text-center mb-6">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-rose-500 to-pink-500 shadow-lg shadow-rose-500/30 mb-4">
-            <User className="h-7 w-7 text-white" />
-          </div>
-          <h2 className="text-2xl font-bold text-foreground tracking-tight">
-            {t("auth.registerTitle")}
-          </h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            {t("auth.registerSubtitle")}
-          </p>
+    <GlassmorphismCard>
+      {/* Header */}
+      <div className="text-center mb-6">
+        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-rose-500 to-pink-500 shadow-lg shadow-rose-500/30 mb-4">
+          <User className="h-7 w-7 text-white" />
         </div>
+        <h2 className="text-2xl font-bold text-foreground tracking-tight">{t("auth.registerTitle")}</h2>
+        <p className="text-sm text-muted-foreground mt-1">{t("auth.registerSubtitle")}</p>
+      </div>
 
-        {/* Step Indicator — Connected Dots */}
-        <div className="flex items-center justify-center gap-0 mb-6">
-          <div className="flex items-center gap-2">
-            <div className={`flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold transition-all duration-300 ${
-              step === "details"
-                ? "bg-gradient-to-br from-rose-500 to-pink-500 text-white shadow-md shadow-rose-500/30"
-                : "bg-green-500 text-white shadow-md shadow-green-500/20"
-            }`}>
-              {step === "otp" ? <CheckCircle2 className="h-4 w-4" /> : "1"}
-            </div>
-            <span className={`text-xs font-medium ${step === "details" ? "text-primary" : "text-green-600 dark:text-green-400"}`}>
-              {t("auth.yourDetails")}
-            </span>
-          </div>
-          <div className={`w-10 h-0.5 mx-2 rounded-full transition-colors duration-300 ${
-            step === "otp" ? "bg-green-400" : "bg-muted"
-          }`} />
-          <div className="flex items-center gap-2">
-            <div className={`flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold transition-all duration-300 ${
-              step === "otp"
-                ? "bg-gradient-to-br from-rose-500 to-pink-500 text-white shadow-md shadow-rose-500/30"
-                : "bg-muted text-muted-foreground"
-            }`}>
-              2
-            </div>
-            <span className={`text-xs font-medium ${step === "otp" ? "text-primary" : "text-muted-foreground"}`}>
-              {t("auth.verifyOtp")}
-            </span>
-          </div>
-        </div>
+      {/* Step Indicator */}
+      <StepIndicator step={step} t={t} />
 
-        {/* Dev OTP Banner */}
-        {devOtp && step === "otp" && (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-center mb-4 dark:bg-amber-900/20 dark:border-amber-800">
-            <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
-              {t("auth.devOtp")}: <span className="font-bold text-lg tracking-wider">{devOtp}</span>
-            </p>
-          </div>
-        )}
+      {/* Dev OTP Banner */}
+      {devOtp && step === "otp" && <DevOtpBanner devOtp={devOtp} t={t} />}
 
-        {/* ===== Step 1: Details ===== */}
-        {step === "details" && (
-          <form onSubmit={detailsForm.handleSubmit(handleSendOtp)} className="space-y-5">
-            <FloatingLabelInput
-              label={t("auth.name")}
-              type="text"
-              icon={<User className="h-4.5 w-4.5" />}
-              error={detailsForm.formState.errors.name?.message}
-              registerProps={detailsForm.register("name")}
-            />
+      {/* Step 1: Details */}
+      {step === "details" && (
+        <form onSubmit={detailsForm.handleSubmit(handleSendOtp)} className="space-y-5">
+          <FloatingLabelInput label={t("auth.name")} type="text" icon={<User className="h-4.5 w-4.5" />} error={detailsForm.formState.errors.name?.message} registerProps={detailsForm.register("name")} />
+          <FloatingLabelInput label={t("auth.mobileNumber")} type="tel" icon={<Phone className="h-4.5 w-4.5" />} error={detailsForm.formState.errors.mobile?.message} registerProps={detailsForm.register("mobile")} />
+          <GradientButton loading={isSubmitting} disabled={!detailsForm.formState.isValid}><Phone className="mr-2 h-4 w-4" />{t("auth.sendOtp")}</GradientButton>
+        </form>
+      )}
 
-            <FloatingLabelInput
-              label={t("auth.mobileNumber")}
-              type="tel"
-              icon={<Phone className="h-4.5 w-4.5" />}
-              error={detailsForm.formState.errors.mobile?.message}
-              registerProps={detailsForm.register("mobile")}
-            />
+      {/* Step 2: OTP Verify */}
+      {step === "otp" && (
+        <form onSubmit={otpForm.handleSubmit(handleVerifyOtp)} className="space-y-5">
+          <DetailsSummary name={nameValue} mobile={watchedMobile} onChangeDetails={() => { setStep("details"); setDevOtp(null); otpForm.reset(); otpForm.setValue("otp", ""); }} t={t} />
+          <OtpInput value={otpForm.watch("otp") || ""} onChange={(val) => otpForm.setValue("otp", val, { shouldValidate: true })} error={otpForm.formState.errors.otp?.message} disabled={isSubmitting} />
+          <GradientButton loading={isSubmitting} disabled={!otpForm.formState.isValid}><CheckCircle2 className="mr-2 h-4 w-4" />{t("auth.verifyAndRegister")}</GradientButton>
+          <ResendTimer timer={otpTimer} onResend={handleResendOtp} disabled={isSubmitting} t={t} />
+        </form>
+      )}
 
-            <Button
-              type="submit"
-              className="w-full h-12 rounded-xl bg-gradient-to-r from-rose-600 to-pink-500 hover:from-rose-700 hover:to-pink-600 text-white font-semibold shadow-lg shadow-rose-500/25 hover:shadow-rose-500/40 transition-all duration-300 disabled:opacity-50"
-              disabled={isSubmitting || !detailsForm.formState.isValid}
-            >
-              {isSubmitting ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : (
-                <>
-                  <Phone className="mr-2 h-4 w-4" />
-                  {t("auth.sendOtp")}
-                </>
-              )}
-            </Button>
-          </form>
-        )}
+      {/* Footer */}
+      <div className="flex items-center gap-3 mt-6"><div className="flex-1 h-px bg-gradient-to-r from-transparent via-muted to-transparent" /></div>
+      <div className="text-center mt-5"><p className="text-sm text-muted-foreground">{t("auth.hasAccount")}{" "}<button type="button" className="text-primary font-semibold hover:underline underline-offset-2" onClick={onSwitchToLogin}>{t("auth.login")}</button></p></div>
+    </GlassmorphismCard>
+  );
+}
 
-        {/* ===== Step 2: OTP Verification ===== */}
-        {step === "otp" && (
-          <form onSubmit={otpForm.handleSubmit(handleVerifyOtp)} className="space-y-5">
-            {/* Summary of details */}
-            <div className="bg-gradient-to-r from-rose-50 to-pink-50 dark:from-rose-950/20 dark:to-pink-950/20 rounded-xl p-4 space-y-2 border border-rose-100 dark:border-rose-900/30">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">{t("auth.name")}:</span>
-                <span className="font-semibold text-foreground">{nameValue}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">{t("auth.mobileNumber")}:</span>
-                <span className="font-semibold text-foreground">{watchedMobile}</span>
-              </div>
-              <button
-                type="button"
-                className="text-xs text-primary font-medium hover:underline"
-                onClick={() => { setStep("details"); setDevOtp(null); otpForm.reset(); otpForm.setValue("otp", ""); }}
-              >
-                {t("auth.changeDetails")}
-              </button>
-            </div>
+// ==================== Sub-components ====================
 
-            {/* OTP Digit Boxes */}
-            <OtpInput
-              value={otpForm.watch("otp") || ""}
-              onChange={(val) => otpForm.setValue("otp", val, { shouldValidate: true })}
-              error={otpForm.formState.errors.otp?.message}
-              disabled={isSubmitting}
-            />
+function GradientButton({ loading, disabled, children }: { loading: boolean; disabled: boolean; children: React.ReactNode }) {
+  return <Button type="submit" className="w-full h-12 rounded-xl bg-gradient-to-r from-rose-600 to-pink-500 hover:from-rose-700 hover:to-pink-600 text-white font-semibold shadow-lg shadow-rose-500/25 hover:shadow-rose-500/40 transition-all duration-300 disabled:opacity-50" disabled={loading || disabled}>{loading ? <Loader2 className="h-5 w-5 animate-spin" /> : children}</Button>;
+}
 
-            <Button
-              type="submit"
-              className="w-full h-12 rounded-xl bg-gradient-to-r from-rose-600 to-pink-500 hover:from-rose-700 hover:to-pink-600 text-white font-semibold shadow-lg shadow-rose-500/25 hover:shadow-rose-500/40 transition-all duration-300 disabled:opacity-50"
-              disabled={isSubmitting || !otpForm.formState.isValid}
-            >
-              {isSubmitting ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : (
-                <>
-                  <CheckCircle2 className="mr-2 h-4 w-4" />
-                  {t("auth.verifyAndRegister")}
-                </>
-              )}
-            </Button>
-
-            {/* Resend OTP with Timer */}
-            <div className="text-center pt-1">
-              {otpTimer.isRunning ? (
-                <p className="text-sm text-muted-foreground flex items-center justify-center gap-1.5">
-                  <Timer className="h-3.5 w-3.5 animate-pulse" />
-                  {t("auth.resendIn")} <span className="font-semibold text-foreground tabular-nums">{otpTimer.secondsLeft}s</span>
-                </p>
-              ) : (
-                <button
-                  type="button"
-                  className="text-sm text-primary font-medium hover:underline"
-                  onClick={handleResendOtp}
-                  disabled={isSubmitting}
-                >
-                  {t("auth.resendOtp")}
-                </button>
-              )}
-            </div>
-          </form>
-        )}
-
-        {/* Divider */}
-        <div className="flex items-center gap-3 mt-6">
-          <div className="flex-1 h-px bg-gradient-to-r from-transparent via-muted to-transparent" />
-        </div>
-
-        {/* Switch to Login */}
-        <div className="text-center mt-5">
-          <p className="text-sm text-muted-foreground">
-            {t("auth.hasAccount")}{" "}
-            <button
-              type="button"
-              className="text-primary font-semibold hover:underline underline-offset-2"
-              onClick={onSwitchToLogin}
-            >
-              {t("auth.login")}
-            </button>
-          </p>
-        </div>
+function StepIndicator({ step, t }: { step: "details" | "otp"; t: (k: string) => string }) {
+  return (
+    <div className="flex items-center justify-center gap-0 mb-6">
+      <div className="flex items-center gap-2">
+        <div className={`flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold transition-all duration-300 ${step === "details" ? "bg-gradient-to-br from-rose-500 to-pink-500 text-white shadow-md shadow-rose-500/30" : "bg-green-500 text-white shadow-md shadow-green-500/20"}`}>{step === "otp" ? <CheckCircle2 className="h-4 w-4" /> : "1"}</div>
+        <span className={`text-xs font-medium ${step === "details" ? "text-primary" : "text-green-600 dark:text-green-400"}`}>{t("auth.yourDetails")}</span>
+      </div>
+      <div className={`w-10 h-0.5 mx-2 rounded-full transition-colors duration-300 ${step === "otp" ? "bg-green-400" : "bg-muted"}`} />
+      <div className="flex items-center gap-2">
+        <div className={`flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold transition-all duration-300 ${step === "otp" ? "bg-gradient-to-br from-rose-500 to-pink-500 text-white shadow-md shadow-rose-500/30" : "bg-muted text-muted-foreground"}`}>2</div>
+        <span className={`text-xs font-medium ${step === "otp" ? "text-primary" : "text-muted-foreground"}`}>{t("auth.verifyOtp")}</span>
       </div>
     </div>
   );
+}
+
+function DevOtpBanner({ devOtp, t }: { devOtp: string; t: (k: string) => string }) {
+  return <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-center mb-4 dark:bg-amber-900/20 dark:border-amber-800"><p className="text-sm font-medium text-amber-800 dark:text-amber-200">{t("auth.devOtp")}: <span className="font-bold text-lg tracking-wider">{devOtp}</span></p></div>;
+}
+
+function DetailsSummary({ name, mobile, onChangeDetails, t }: { name: string; mobile: string; onChangeDetails: () => void; t: (k: string) => string }) {
+  return (
+    <div className="bg-gradient-to-r from-rose-50 to-pink-50 dark:from-rose-950/20 dark:to-pink-950/20 rounded-xl p-4 space-y-2 border border-rose-100 dark:border-rose-900/30">
+      <div className="flex justify-between text-sm"><span className="text-muted-foreground">{t("auth.name")}:</span><span className="font-semibold text-foreground">{name}</span></div>
+      <div className="flex justify-between text-sm"><span className="text-muted-foreground">{t("auth.mobileNumber")}:</span><span className="font-semibold text-foreground">{mobile}</span></div>
+      <button type="button" className="text-xs text-primary font-medium hover:underline" onClick={onChangeDetails}>{t("auth.changeDetails")}</button>
+    </div>
+  );
+}
+
+function ResendTimer({ timer, onResend, disabled, t }: { timer: { isRunning: boolean; secondsLeft: number; canResend: boolean }; onResend: () => void; disabled: boolean; t: (k: string) => string }) {
+  return <div className="text-center pt-1">{timer.isRunning ? <p className="text-sm text-muted-foreground flex items-center justify-center gap-1.5"><Timer className="h-3.5 w-3.5 animate-pulse" />{t("auth.resendIn")} <span className="font-semibold text-foreground tabular-nums">{timer.secondsLeft}s</span></p> : <button type="button" className="text-sm text-primary font-medium hover:underline" onClick={onResend} disabled={disabled}>{t("auth.resendOtp")}</button>}</div>;
 }
