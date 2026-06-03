@@ -1,5 +1,13 @@
+/**
+ * Purpose: Profile page — server component
+ * Responsibility: Set metadata and render ProfileClient
+ * Important Notes:
+ *   - Server component — no hooks, no state
+ *   - Metadata: title "Profile — Nikharta Roop"
+ */
+
 import type { Metadata } from "next";
-import { ComingSoon } from "@/features/shell/components/coming-soon";
+import { ProfileClient } from "./client";
 
 export const metadata: Metadata = {
   title: "Profile — Nikharta Roop",
@@ -7,5 +15,5 @@ export const metadata: Metadata = {
 };
 
 export default function ProfilePage() {
-  return <ComingSoon title="Profile" />;
+  return <ProfileClient />;
 }

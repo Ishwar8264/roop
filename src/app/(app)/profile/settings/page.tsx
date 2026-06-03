@@ -1,5 +1,13 @@
+/**
+ * Purpose: Settings page — server component
+ * Responsibility: Set metadata and render SettingsClient
+ * Important Notes:
+ *   - Server component — no hooks, no state
+ *   - Metadata: title "Settings — Nikharta Roop"
+ */
+
 import type { Metadata } from "next";
-import { ComingSoon } from "@/features/shell/components/coming-soon";
+import { SettingsClient } from "./client";
 
 export const metadata: Metadata = {
   title: "Settings — Nikharta Roop",
@@ -7,5 +15,5 @@ export const metadata: Metadata = {
 };
 
 export default function SettingsPage() {
-  return <ComingSoon title="Settings" />;
+  return <SettingsClient />;
 }
