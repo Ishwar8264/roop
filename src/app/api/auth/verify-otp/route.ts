@@ -36,12 +36,13 @@ import {
   AuthOtpInvalidError,
   AuthAccountSuspendedError,
   AuthMobileNotRegisteredError,
+  AuthEmailExistsError,
 } from "@/lib/errors";
 
 export const POST = createApiHandler({
   schema: verifyOtpSchema,
   handler: async ({ parsedBody, request }) => {
-    const { mobile, otp, purpose, name } = parsedBody;
+    const { mobile, otp, purpose, name, email } = parsedBody;
 
     // 1. Find the latest valid (unused, not expired) OTP
     const otpRecord = await prisma.authOtp.findFirst({
@@ -96,17 +97,25 @@ export const POST = createApiHandler({
     let isNewUser = false;
 
     if (purpose === "REGISTER") {
-      // REGISTER: Create new user with provided name and mobile
+      // REGISTER: Create new user with provided name, email and mobile
       // Double-check mobile is not already registered (race condition safety)
       const existingUser = await prisma.user.findUnique({ where: { mobile } });
       if (existingUser) {
         // Mobile got registered between send-otp and verify-otp — just login instead
         user = existingUser;
       } else {
+        // Check if email is already taken by another user
+        if (email) {
+          const existingEmail = await prisma.user.findUnique({ where: { email } });
+          if (existingEmail) {
+            throw new AuthEmailExistsError();
+          }
+        }
         user = await prisma.user.create({
           data: {
             mobile,
             name: name || null,
+            email: email || null,
             role: "USER",
             authProvider: "MOBILE",
             isActive: true,

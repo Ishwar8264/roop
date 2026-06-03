@@ -18,7 +18,7 @@
 
 "use client";
 
-import { Phone, User, CheckCircle2 } from "lucide-react";
+import { Phone, User, Mail, CheckCircle2 } from "lucide-react";
 import { useTranslation } from "@/i18n/use-translation";
 import { useRegisterForm } from "@/features/auth/hooks/use-register-form";
 import type { RegisterSuccessData } from "@/features/auth/logic/auth-schemas";
@@ -62,6 +62,7 @@ export function RegisterForm({ onSuccess, onSwitchToLogin, prefilledMobile }: Re
       {form.step === "details" && (
         <form onSubmit={form.detailsForm.handleSubmit(form.handleSendOtp)} className="space-y-5">
           <FloatingLabelInput label={t("auth.name")} type="text" icon={<User className="h-4.5 w-4.5" />} error={form.detailsForm.formState.errors.name?.message} registerProps={form.detailsForm.register("name")} />
+          <FloatingLabelInput label={t("auth.email")} type="email" icon={<Mail className="h-4.5 w-4.5" />} error={form.detailsForm.formState.errors.email?.message} registerProps={form.detailsForm.register("email")} />
           <FloatingLabelInput label={t("auth.mobileNumber")} type="tel" icon={<Phone className="h-4.5 w-4.5" />} error={form.detailsForm.formState.errors.mobile?.message} registerProps={form.detailsForm.register("mobile")} />
           <GradientButton loading={form.isSubmitting} disabled={!form.detailsForm.formState.isValid}><Phone className="mr-2 h-4 w-4" />{t("auth.sendOtp")}</GradientButton>
         </form>
@@ -70,7 +71,7 @@ export function RegisterForm({ onSuccess, onSwitchToLogin, prefilledMobile }: Re
       {/* ── Step 2: OTP Verification ── */}
       {form.step === "otp" && (
         <form onSubmit={form.otpForm.handleSubmit(form.handleVerifyOtp)} className="space-y-5">
-          <DetailsSummary name={form.nameValue} mobile={form.watchedMobile} onChangeDetails={form.handleChangeDetails} t={t} />
+          <DetailsSummary name={form.nameValue} email={form.emailValue} mobile={form.watchedMobile} onChangeDetails={form.handleChangeDetails} t={t} />
           <OtpInput value={form.otpForm.watch("otp") || ""} onChange={(val) => form.otpForm.setValue("otp", val, { shouldValidate: true })} error={form.otpForm.formState.errors.otp?.message} disabled={form.isSubmitting} />
           <GradientButton loading={form.isSubmitting} disabled={!form.otpForm.formState.isValid}><CheckCircle2 className="mr-2 h-4 w-4" />{t("auth.verifyAndRegister")}</GradientButton>
           <ResendTimer timer={form.otpTimer} onResend={form.handleResendOtp} disabled={form.isSubmitting} t={t} />

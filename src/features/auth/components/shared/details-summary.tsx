@@ -20,6 +20,8 @@
 interface DetailsSummaryProps {
   /** User's full name from step 1 */
   name: string;
+  /** User's email from step 1 */
+  email: string;
   /** User's mobile number from step 1 */
   mobile: string;
   /** Navigate back to step 1 to edit details */
@@ -28,12 +30,16 @@ interface DetailsSummaryProps {
   t: (key: string) => string;
 }
 
-export function DetailsSummary({ name, mobile, onChangeDetails, t }: DetailsSummaryProps) {
+export function DetailsSummary({ name, email, mobile, onChangeDetails, t }: DetailsSummaryProps) {
   return (
     <div className="bg-gradient-to-r from-rose-50 to-pink-50 dark:from-rose-950/20 dark:to-pink-950/20 rounded-xl p-4 space-y-2 border border-rose-100 dark:border-rose-900/30">
       <div className="flex justify-between text-sm">
         <span className="text-muted-foreground">{t("auth.name")}:</span>
         <span className="font-semibold text-foreground">{name}</span>
+      </div>
+      <div className="flex justify-between text-sm">
+        <span className="text-muted-foreground">{t("auth.email")}:</span>
+        <span className="font-semibold text-foreground">{email}</span>
       </div>
       <div className="flex justify-between text-sm">
         <span className="text-muted-foreground">{t("auth.mobileNumber")}:</span>

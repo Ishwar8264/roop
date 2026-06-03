@@ -53,6 +53,7 @@ export const emailLoginSchema = z.object({
 
 export const registerDetailsSchema = z.object({
   name: fullName,
+  email: emailField,
   mobile: indianMobile,
 });
 

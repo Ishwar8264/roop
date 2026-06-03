@@ -65,6 +65,7 @@ export const verifyOtpSchema = z.object({
   otp: otpSchema,
   purpose: otpPurposeSchema.default("LOGIN"),
   name: z.string().min(1, "Name is required").max(100, "Name too long").optional(),
+  email: z.string().email("Valid email is required").optional(),
 }).refine(
   (data) => data.purpose !== "REGISTER" || (data.name && data.name.trim().length > 0),
   { message: "Name is required for registration", path: ["name"] }

@@ -57,6 +57,7 @@ export interface RegisterFormState {
   isSubmitting: boolean;
   devOtp: string | null;
   nameValue: string;
+  emailValue: string;
   watchedMobile: string;
 
   // ── Form instances ──
@@ -95,7 +96,7 @@ export function useRegisterForm(options: UseRegisterFormOptions): RegisterFormSt
   // ── Form instances (react-hook-form + Zod validation) ──
   const detailsForm = useForm<RegisterDetailsForm>({
     resolver: zodResolver(registerDetailsSchema),
-    defaultValues: { name: "", mobile: prefilledMobile || "" },
+    defaultValues: { name: "", email: "", mobile: prefilledMobile || "" },
     mode: "onChange",
   });
 
@@ -108,6 +109,7 @@ export function useRegisterForm(options: UseRegisterFormOptions): RegisterFormSt
   /** Watch values for the "details summary" section in OTP step */
   const watchedMobile = detailsForm.watch("mobile");
   const nameValue = detailsForm.watch("name");
+  const emailValue = detailsForm.watch("email");
 
   /**
    * Send OTP after user fills in name + mobile.
@@ -167,7 +169,8 @@ export function useRegisterForm(options: UseRegisterFormOptions): RegisterFormSt
     setIsSubmitting(true);
 
     const name = detailsForm.getValues("name");
-    const res = await handlers.verifyOtp(data, name);
+    const email = detailsForm.getValues("email");
+    const res = await handlers.verifyOtp(data, name, email);
 
     if (res.success && res.data) onSuccess?.(res.data);
 
@@ -183,7 +186,7 @@ export function useRegisterForm(options: UseRegisterFormOptions): RegisterFormSt
   }, [otpForm]);
 
   return {
-    step, isSubmitting, devOtp, nameValue, watchedMobile,
+    step, isSubmitting, devOtp, nameValue, emailValue, watchedMobile,
     detailsForm, otpForm,
     otpTimer,
     handleSendOtp, handleResendOtp, handleVerifyOtp, handleChangeDetails,
