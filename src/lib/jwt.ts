@@ -4,10 +4,11 @@
  * Important Notes:
  *   - Uses jose library (not jsonwebtoken) — works in Edge Runtime + Node.js
  *   - HS256 algorithm — symmetric, fast, single-server setup
- *   - Access token: 15 min expiry (short-lived, used in API calls)
- *   - Refresh token: 7 days expiry (long-lived, used to get new access token)
+ *   - Access token: 15 min expiry (short-lived, used in API calls) — signed with JWT_SECRET
+ *   - Refresh token: 30 days expiry (long-lived, stored in HttpOnly cookie) — signed with JWT_REFRESH_SECRET
  *   - Tokens stored in AuthSession model for logout/invalidation
- *   - JWT_SECRET must be set in .env (at least 32 chars)
+ *   - JWT_SECRET + JWT_REFRESH_SECRET must be set in .env (at least 32 chars each)
+ *   - CRITICAL: Refresh tokens MUST use JWT_REFRESH_SECRET — proxy.ts verifies with it
  */
 
 import { SignJWT, jwtVerify } from "jose";
@@ -19,8 +20,12 @@ const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || "nikharta-roop-jwt-secret-change-in-production-min-32-chars"
 );
 
+const JWT_REFRESH_SECRET = new TextEncoder().encode(
+  process.env.JWT_REFRESH_SECRET || "nikharta-roop-jwt-refresh-secret-change-in-production-min-32-chars"
+);
+
 const ACCESS_TOKEN_EXPIRY = "15m"; // Short-lived — 15 minutes
-const REFRESH_TOKEN_EXPIRY = "7d"; // Long-lived — 7 days
+const REFRESH_TOKEN_EXPIRY = "30d"; // Long-lived — 30 days (matches SESSION_CONFIG.REFRESH_TOKEN_DAYS)
 
 // ==================== TYPES ====================
 
@@ -66,8 +71,12 @@ export async function signAccessToken(payload: TokenPayload): Promise<string> {
 }
 
 /**
- * Sign a new refresh token (7 days expiry)
+ * Sign a new refresh token (30 days expiry)
  * Used to get new access tokens without re-login
+ *
+ * CRITICAL: Uses JWT_REFRESH_SECRET (NOT JWT_SECRET)
+ * proxy.ts verifies refresh tokens with JWT_REFRESH_SECRET.
+ * If you change this to JWT_SECRET, proxy.ts will reject authenticated page requests!
  */
 export async function signRefreshToken(payload: TokenPayload): Promise<string> {
   return new SignJWT({
@@ -83,7 +92,7 @@ export async function signRefreshToken(payload: TokenPayload): Promise<string> {
     .setAudience("nikharta-roop-refresh")
     .setExpirationTime(REFRESH_TOKEN_EXPIRY)
     .setSubject(payload.userId)
-    .sign(JWT_SECRET);
+    .sign(JWT_REFRESH_SECRET);
 }
 
 /**
@@ -115,12 +124,14 @@ export async function verifyAccessToken(
 /**
  * Verify a refresh token
  * Returns payload if valid, null if expired/invalid
+ *
+ * CRITICAL: Uses JWT_REFRESH_SECRET (NOT JWT_SECRET) — must match signRefreshToken
  */
 export async function verifyRefreshToken(
   token: string
 ): Promise<TokenPayload | null> {
   try {
-    const { payload } = await jwtVerify(token, JWT_SECRET, {
+    const { payload } = await jwtVerify(token, JWT_REFRESH_SECRET, {
       issuer: "nikharta-roop",
       audience: "nikharta-roop-refresh",
     });
