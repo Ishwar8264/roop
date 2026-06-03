@@ -45,6 +45,7 @@ export const ERROR_CODES = {
   AUTH_MOBILE_EXISTS: "AUTH_MOBILE_EXISTS",
   AUTH_USERNAME_EXISTS: "AUTH_USERNAME_EXISTS",
   AUTH_MOBILE_NOT_REGISTERED: "AUTH_MOBILE_NOT_REGISTERED",
+  AUTH_EMAIL_NOT_REGISTERED: "AUTH_EMAIL_NOT_REGISTERED",
   AUTH_INVALID_CREDENTIALS: "AUTH_INVALID_CREDENTIALS",
   AUTH_GOOGLE_TOKEN_INVALID: "AUTH_GOOGLE_TOKEN_INVALID",
   AUTH_EMAIL_NOT_VERIFIED: "AUTH_EMAIL_NOT_VERIFIED",
@@ -166,6 +167,10 @@ export const HTTP_MESSAGES = {
   AUTH_MOBILE_NOT_REGISTERED: {
     messageHi: "Yeh mobile number registered nahi hai. Kripya pehle register karein.",
     messageEn: "This mobile number is not registered. Please register first.",
+  },
+  AUTH_EMAIL_NOT_REGISTERED: {
+    messageHi: "Yeh email registered nahi hai. Kripya pehle register karein.",
+    messageEn: "This email is not registered. Please register first.",
   },
   AUTH_INVALID_CREDENTIALS: {
     messageHi: "Email ya password galat hai. Kripya dobara prayas karein.",

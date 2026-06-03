@@ -35,6 +35,7 @@ import {
   AuthOtpInvalidError,
   AuthAccountSuspendedError,
   AuthMobileNotRegisteredError,
+  AuthEmailNotRegisteredError,
   AuthEmailExistsError,
   AuthUsernameExistsError,
 } from "@/lib/errors";
@@ -135,7 +136,7 @@ export const POST = createApiHandler({
         user = await prisma.user.create({
           data: {
             mobile: mobile || null,
-            email: email || parsedBody.email || null,
+            email: email || null,
             username: username || null,
             name: name || null,
             password: hashedPassword || null,
@@ -163,6 +164,9 @@ export const POST = createApiHandler({
 
       if (!user) {
         await logAuthEvent(identifier, "LOGIN_FAILED", request, { reason: "NOT_REGISTERED" });
+        if (email && !mobile) {
+          throw new AuthEmailNotRegisteredError();
+        }
         throw new AuthMobileNotRegisteredError();
       }
 

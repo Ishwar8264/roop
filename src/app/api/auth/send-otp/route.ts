@@ -37,6 +37,7 @@ import {
   AuthHourlyLimitError,
   AuthSmsFailedError,
   AuthMobileNotRegisteredError,
+  AuthEmailNotRegisteredError,
   AuthMobileExistsError,
   AuthEmailExistsError,
 } from "@/lib/errors";
@@ -64,8 +65,7 @@ export const POST = createApiHandler({
       // LOGIN: user MUST be registered
       if (!existingUser) {
         if (isEmailOtp) {
-          // For email OTP login, user must be registered with this email
-          throw new AuthMobileNotRegisteredError(); // Reuse error class, frontend handles
+          throw new AuthEmailNotRegisteredError();
         }
         throw new AuthMobileNotRegisteredError();
       }

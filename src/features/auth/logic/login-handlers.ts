@@ -124,8 +124,8 @@ export function useLoginHandlers() {
       }
       return { success: false };
     } catch (err: unknown) {
-      if (err instanceof ApiClientError && err.errorCode === "AUTH_MOBILE_NOT_REGISTERED") {
-        toast.error(t("auth.mobileNotRegistered"), { description: err.message, duration: 6000 });
+      if (err instanceof ApiClientError && (err.errorCode === "AUTH_MOBILE_NOT_REGISTERED" || err.errorCode === "AUTH_EMAIL_NOT_REGISTERED")) {
+        toast.error(t("auth.verificationFailed"), { description: err.message, duration: 6000 });
         return { success: false, mobileNotFoundError: err.message };
       }
       const message = err instanceof ApiClientError ? err.message : t("common.somethingWrong");
@@ -158,6 +158,10 @@ export function useLoginHandlers() {
     if (err instanceof ApiClientError) {
       if (err.errorCode === "AUTH_MOBILE_NOT_REGISTERED") {
         toast.error(t("auth.mobileNotRegistered"), { description: err.message, duration: 6000 });
+        return { success: false, mobileNotFoundError: err.message };
+      }
+      if (err.errorCode === "AUTH_EMAIL_NOT_REGISTERED") {
+        toast.error(t("auth.emailNotRegistered"), { description: err.message, duration: 6000 });
         return { success: false, mobileNotFoundError: err.message };
       }
       toast.error(t("common.error"), { description: err.message });

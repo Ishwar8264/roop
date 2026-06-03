@@ -64,6 +64,9 @@ export const otpVerifySchema = z.object({
   mobile: z.string().optional(),
   email: z.string().optional(),
   otp: otp6,
+}).refine((data) => data.mobile || data.email, {
+  message: "Either mobile or email is required",
+  path: ["mobile"],
 });
 
 export const emailLoginSchema = z.object({

@@ -201,6 +201,16 @@ export class AuthMobileNotRegisteredError extends AppError {
   }
 }
 
+export class AuthEmailNotRegisteredError extends AppError {
+  constructor() {
+    super(
+      ERROR_CODES.AUTH_EMAIL_NOT_REGISTERED,
+      HTTP_STATUS.NOT_FOUND,
+      HTTP_MESSAGES.AUTH_EMAIL_NOT_REGISTERED.messageEn
+    );
+  }
+}
+
 export class AuthInvalidCredentialsError extends AppError {
   constructor() {
     super(
