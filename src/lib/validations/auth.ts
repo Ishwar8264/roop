@@ -87,10 +87,11 @@ export type VerifyOtpInput = z.infer<typeof verifyOtpSchema>;
 
 /**
  * POST /api/auth/refresh
- * Body: { refreshToken: "eyJhbGciOi..." }
+ * Body: { refreshToken?: "eyJhbGciOi..." }
+ * Fallback: reads from HttpOnly cookie (nr_refresh_token) if body is empty
  */
 export const refreshTokenSchema = z.object({
-  refreshToken: z.string().min(1, "Refresh token is required"),
+  refreshToken: z.string().min(1, "Refresh token is required").optional(),
 });
 
 export type RefreshTokenInput = z.infer<typeof refreshTokenSchema>;

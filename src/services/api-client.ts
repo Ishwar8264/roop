@@ -64,9 +64,13 @@ async function refreshAccessToken(): Promise<boolean> {
   isRefreshing = true;
   refreshPromise = (async () => {
     try {
+      // Send empty JSON body — the refresh token is read from the HttpOnly cookie (nr_refresh_token)
+      // on the server side. Body is {} so request.json() doesn't throw on the server.
       const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+        credentials: "same-origin", // Ensure HttpOnly cookie is included
       });
 
       if (!response.ok) return false;

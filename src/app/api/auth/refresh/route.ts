@@ -10,7 +10,7 @@
  *   If user is suspended, all sessions are invalidated.
  *
  * Request Body:
- *   refreshToken: string — required
+ *   refreshToken: string — optional (fallback: read from HttpOnly cookie)
  *
  * Responses:
  *   200: { success: true, data: { tokens }, message }
@@ -25,17 +25,29 @@ import { hashTokenSha256 } from "@/lib/crypto";
 import { logAuthEvent, extractClientIp, extractUserAgent } from "@/lib/auth-helpers";
 import { refreshTokenSchema } from "@/lib/validations/auth";
 import { HTTP_MESSAGES } from "@/lib/http";
+import { getRefreshTokenFromCookie, setRefreshTokenCookie } from "@/lib/server/cookies";
 import {
   AuthInvalidTokenError,
   AuthSessionInvalidError,
   AuthAccountSuspendedError,
 } from "@/lib/errors";
+import { NextResponse } from "next/server";
 
 export const POST = createApiHandler({
   schema: refreshTokenSchema,
   successMessage: HTTP_MESSAGES.AUTH_TOKEN_REFRESHED.messageEn,
   handler: async ({ parsedBody, request }) => {
-    const { refreshToken } = parsedBody;
+    // Read refresh token from body OR HttpOnly cookie (cookie takes precedence for security)
+    let refreshToken = parsedBody.refreshToken;
+
+    if (!refreshToken) {
+      // Fallback: read from HttpOnly cookie (browser auto-includes it)
+      refreshToken = getRefreshTokenFromCookie(request) ?? "";
+    }
+
+    if (!refreshToken) {
+      throw new AuthInvalidTokenError();
+    }
 
     // 1. Verify refresh token
     const payload = await verifyRefreshToken(refreshToken);
@@ -113,5 +125,29 @@ export const POST = createApiHandler({
         refreshToken: tokens.refreshToken,
       },
     };
+  },
+  // Custom response builder: set new refresh token as HttpOnly cookie on rotation
+  responseBuilder: (data) => {
+    const tokenData = (data as Record<string, unknown>)?.tokens as { accessToken: string; refreshToken: string } | undefined;
+
+    const response = NextResponse.json(
+      {
+        success: true,
+        data: {
+          tokens: tokenData
+            ? { accessToken: tokenData.accessToken }
+            : undefined,
+        },
+        message: HTTP_MESSAGES.AUTH_TOKEN_REFRESHED.messageEn,
+      },
+      { status: 200 }
+    );
+
+    // Rotate the refresh token cookie on every refresh
+    if (tokenData?.refreshToken) {
+      setRefreshTokenCookie(response, tokenData.refreshToken);
+    }
+
+    return response;
   },
 });

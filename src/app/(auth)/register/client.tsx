@@ -2,35 +2,38 @@
  * Purpose: Register client component
  * Responsibility: Wire RegisterForm with auth store and router
  * Important Notes:
- *   - Client component — uses router, auth store, searchParams
+ *   - Client component — uses auth store, searchParams
  *   - On register success → store token + user → redirect to dashboard
+ *   - Uses window.location.href for FULL page navigation — guarantees cookies are sent
  *   - On "login" click → navigate to /login
  *   - Reads ?mobile= from URL to prefill mobile from login page
  */
 
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { RegisterForm } from "@/features/auth/components/register-form";
 import { useAuthStore } from "@/stores/auth-store";
-import type { UserProfile } from "@/types";
+import type { RegisterSuccessData } from "@/features/auth/logic/auth-schemas";
 
 export function RegisterClient() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const { login } = useAuthStore();
 
   const prefilledMobile = searchParams.get("mobile") || undefined;
 
-  function handleSuccess(data: { user: UserProfile; token: string }) {
+  function handleSuccess(data: RegisterSuccessData) {
     login(data.user, data.token);
-    router.push("/dashboard");
+    // Full page navigation — guarantees the HttpOnly cookie (nr_refresh_token)
+    // is included in the next request to /dashboard.
+    const redirectTo = searchParams.get("redirect") || "/dashboard";
+    window.location.href = redirectTo;
   }
 
   return (
     <RegisterForm
       onSuccess={handleSuccess}
-      onSwitchToLogin={() => router.push("/login")}
+      onSwitchToLogin={() => { window.location.href = "/login"; }}
       prefilledMobile={prefilledMobile}
     />
   );
