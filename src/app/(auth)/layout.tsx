@@ -15,6 +15,11 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       <div className="w-full max-w-md">
         {/* Brand */}
         <div className="text-center mb-8">
+          <img
+            src="/logo.png"
+            alt="Nikharta Roop"
+            className="h-20 w-20 mx-auto rounded-2xl object-contain shadow-lg shadow-rose-200/50 dark:shadow-rose-900/30 mb-3"
+          />
           <h1 className="text-3xl font-bold text-rose-600 dark:text-rose-400">
             निखरता रूप
           </h1>

@@ -1,12 +1,18 @@
 {
   "name": "Nikharta Roop",
-  "short_name": "NR",
+  "short_name": "निखरता रूप",
   "description": "India's most trusted beauty parlour",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#C2185B",
   "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
     {
       "src": "/android-chrome-192x192.png",
       "sizes": "192x192",

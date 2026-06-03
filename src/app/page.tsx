@@ -142,10 +142,11 @@ export default function WelcomePage() {
               transition={{ duration: 0.8, ease: "easeOut" }}
               className="mb-6"
             >
-              <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium mb-6">
-                <Sparkles className="h-4 w-4" />
-                {t("landing.trusted")}
-              </div>
+              <img
+                src="/logo.png"
+                alt="Nikharta Roop"
+                className="h-24 w-24 sm:h-28 sm:w-28 mx-auto rounded-2xl object-contain shadow-xl shadow-rose-200/50 dark:shadow-rose-900/30 mb-6"
+              />
             </motion.div>
 
             <motion.h1
@@ -387,6 +388,11 @@ export default function WelcomePage() {
       {/* ===== FOOTER ===== */}
       <footer className="mt-auto bg-foreground text-white/80 py-8">
         <div className="max-w-6xl mx-auto px-4 text-center">
+          <img
+            src="/logo.png"
+            alt="Nikharta Roop"
+            className="h-12 w-12 mx-auto rounded-xl object-contain mb-3"
+          />
           <h3 className="text-xl font-bold text-white mb-2">
             {t("appNameHi")}
           </h3>
