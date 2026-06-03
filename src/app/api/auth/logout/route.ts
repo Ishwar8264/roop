@@ -1,67 +1,54 @@
 /**
  * Purpose: Logout API endpoint for Nikharta Roop auth
- * Responsibility: Invalidate JWT session by deleting AuthSession record, clear auth cookies
+ * Responsibility: Invalidate JWT session by deleting Session record, clear auth cookies
  *
  * Endpoint: POST /api/auth/logout
  *
- * OpenAPI Summary: Logout and invalidate session
- * OpenAPI Description: Invalidate the current JWT session by deleting the AuthSession record.
- *   Requires Bearer token in Authorization header.
- *   Also clears both auth cookies (nr_refresh_token + nr_access_token).
- *
- * Security: BearerAuth (JWT access token)
- *
- * Responses:
- *   200: { success: true, data: { sessionId }, message }
- *   401: { success: false, error: "AUTH_MISSING_TOKEN"|"AUTH_INVALID_TOKEN", message, statusCode: 401 }
+ * Flow:
+ *   1. Extract and verify Bearer token
+ *   2. Delete session record from DB
+ *   3. Clean up Redis family key
+ *   4. Log logout event
+ *   5. Clear both auth cookies
  */
 
-import { createApiHandler } from "@/lib/api-handler";
-import { prisma } from "@/lib/prisma";
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/database/prisma";
 import { requireAuth, logAuthEvent } from "@/lib/auth-helpers";
-import { HTTP_MESSAGES } from "@/lib/http";
 import { clearRefreshTokenCookie, clearAccessTokenCookie } from "@/lib/server/cookies";
-import { NextResponse } from "next/server";
+import { redis } from "@/lib/config/redis";
+import { REDIS_KEYS } from "@/lib/config/auth";
+import { isAppError, toAppError } from "@/lib/server/errors";
+import { HTTP_STATUS } from "@/shared/constants";
 
-export const POST = createApiHandler({
-  schema: null, // No body — token from Authorization header
-  successMessage: HTTP_MESSAGES.AUTH_LOGOUT_SUCCESS.messageEn,
-  handler: async ({ request }) => {
-    // 1. Extract and verify token (using centralized auth helper)
+export async function POST(request: NextRequest) {
+  try {
+    // 1. Extract and verify token
     const payload = await requireAuth(request);
 
-    // 2. Delete auth session record
-    const deletedSession = await prisma.authSession.deleteMany({
+    // 2. Delete session record
+    const deletedSession = await prisma.session.deleteMany({
       where: {
         id: payload.sessionId,
         userId: payload.userId,
       },
     });
 
-    // 3. Log logout event (using centralized logAuthEvent)
-    await logAuthEvent(
-      payload.mobile,
-      "LOGOUT",
-      request,
-      {
-        sessionId: payload.sessionId,
-        sessionDeleted: deletedSession.count > 0,
-      },
-      payload.userId
-    );
+    // 3. Clean up Redis family key
+    await redis.del(`${REDIS_KEYS.REFRESH_FAMILY_PREFIX}${payload.sessionId}`).catch(() => {});
 
-    return {
+    // 4. Log logout event
+    await logAuthEvent(null, "LOGOUT", request, {
       sessionId: payload.sessionId,
-    };
-  },
-  // Clear both auth cookies on logout
-  responseBuilder: (data) => {
-    const responseData = data as Record<string, unknown>;
+      sessionDeleted: deletedSession.count > 0,
+    }, payload.userId);
+
+    // 5. Build response and clear cookies
     const response = NextResponse.json(
       {
         success: true,
-        data: responseData,
-        message: HTTP_MESSAGES.AUTH_LOGOUT_SUCCESS.messageEn,
+        data: { sessionId: payload.sessionId },
+        message: "Logged out successfully.",
       },
       { status: 200 }
     );
@@ -70,5 +57,19 @@ export const POST = createApiHandler({
     clearAccessTokenCookie(response);
 
     return response;
-  },
-});
+  } catch (error: unknown) {
+    if (isAppError(error)) {
+      return NextResponse.json(
+        { success: false, error: error.code, message: error.message, statusCode: error.statusCode },
+        { status: error.statusCode }
+      );
+    }
+
+    const appError = toAppError(error);
+    console.error("[UNHANDLED_ERROR_LOGOUT]", error);
+    return NextResponse.json(
+      { success: false, error: appError.code, message: appError.message, statusCode: appError.statusCode },
+      { status: appError.statusCode }
+    );
+  }
+}

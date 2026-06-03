@@ -61,10 +61,10 @@ export function ProfileHeader({ profile }: ProfileHeaderProps) {
             </div>
           )}
 
-          {displayUser?.mobile && (
+          {(displayUser?.phone || displayUser?.mobile) && (
             <div className="flex items-center justify-center gap-2">
               <span className="text-sm text-muted-foreground">
-                {displayUser.mobile}
+                {displayUser?.phone || displayUser?.mobile}
               </span>
               <Badge
                 variant="outline"

@@ -4,59 +4,52 @@
  *
  * Endpoint: POST /api/auth/refresh
  *
- * OpenAPI Summary: Refresh JWT tokens
- * OpenAPI Description: Exchange a valid refresh token for new access + refresh tokens.
- *   Session rotation: old session is deleted and a new one is created.
- *   If user is suspended, all sessions are invalidated.
- *
- * Request Body:
- *   refreshToken: string — optional (fallback: read from HttpOnly cookie)
- *
- * Responses:
- *   200: { success: true, data: { tokens }, message }
- *   400: { success: false, error: "VAL_INVALID_INPUT", message, statusCode: 400 }
- *   401: { success: false, error: "AUTH_INVALID_TOKEN"|"AUTH_SESSION_INVALID"|"AUTH_ACCOUNT_SUSPENDED", message, statusCode: 401 }
+ * Flow:
+ *   1. Read refresh token from HttpOnly cookie
+ *   2. Verify refresh token JWT
+ *   3. Verify session exists in DB
+ *   4. Verify user is still active
+ *   5. Delete old session (session rotation)
+ *   6. Create new session with device info from old session
+ *   7. Generate new token pair
+ *   8. Set new refresh token cookie
+ *   9. Log token refresh event
  */
 
-import { createApiHandler } from "@/lib/api-handler";
-import { prisma } from "@/lib/prisma";
-import { verifyRefreshToken, generateTokenPair } from "@/lib/jwt";
-import { hashTokenSha256 } from "@/lib/crypto";
-import { logAuthEvent, extractClientIp, extractUserAgent } from "@/lib/auth-helpers";
-import { refreshTokenSchema } from "@/lib/validations/auth";
-import { HTTP_MESSAGES } from "@/lib/http";
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/database/prisma";
+import { verifyRefreshToken, generateTokenPair, signAccessToken } from "@/lib/server/jwt";
+import { hashTokenSha256, generateTokenFamily } from "@/lib/server/crypto";
+import { logAuthEvent } from "@/lib/auth-helpers";
 import { getRefreshTokenFromCookie, setRefreshTokenCookie, setAccessTokenCookie } from "@/lib/server/cookies";
+import { SESSION_CONFIG, REDIS_KEYS } from "@/lib/config/auth";
+import { redis } from "@/lib/config/redis";
 import {
   AuthInvalidTokenError,
   AuthSessionInvalidError,
   AuthAccountSuspendedError,
-} from "@/lib/errors";
-import { NextResponse } from "next/server";
+  isAppError,
+  toAppError,
+} from "@/lib/server/errors";
+import { HTTP_STATUS, ERROR_CODES } from "@/shared/constants";
+import type { UserRole } from "@/shared/types/enums";
 
-export const POST = createApiHandler({
-  schema: refreshTokenSchema,
-  successMessage: HTTP_MESSAGES.AUTH_TOKEN_REFRESHED.messageEn,
-  handler: async ({ parsedBody, request }) => {
-    // Read refresh token from body OR HttpOnly cookie (cookie takes precedence for security)
-    let refreshToken = parsedBody.refreshToken;
-
-    if (!refreshToken) {
-      // Fallback: read from HttpOnly cookie (browser auto-includes it)
-      refreshToken = getRefreshTokenFromCookie(request) ?? "";
-    }
-
+export async function POST(request: NextRequest) {
+  try {
+    // 1. Read refresh token from HttpOnly cookie
+    const refreshToken = getRefreshTokenFromCookie(request);
     if (!refreshToken) {
       throw new AuthInvalidTokenError();
     }
 
-    // 1. Verify refresh token
+    // 2. Verify refresh token JWT
     const payload = await verifyRefreshToken(refreshToken);
     if (!payload) {
       throw new AuthInvalidTokenError();
     }
 
-    // 2. Verify session still exists
-    const session = await prisma.authSession.findUnique({
+    // 3. Verify session exists
+    const session = await prisma.session.findUnique({
       where: { id: payload.sessionId },
     });
 
@@ -64,95 +57,109 @@ export const POST = createApiHandler({
       throw new AuthSessionInvalidError();
     }
 
-    // 3. Verify user still exists and is active
+    // 4. Verify refresh token hash matches (reuse detection)
+    const currentHash = await hashTokenSha256(refreshToken);
+    if (session.refreshTokenHash !== currentHash) {
+      // Token reuse detected — revoke all sessions
+      await prisma.session.deleteMany({ where: { userId: payload.userId } });
+      throw new AuthSessionInvalidError();
+    }
+
+    // 5. Verify user is still active
     const user = await prisma.user.findUnique({
       where: { id: payload.userId },
+      select: { id: true, isActive: true, role: true },
     });
 
     if (!user || !user.isActive) {
-      // Delete all sessions — force re-login
-      await prisma.authSession.deleteMany({
-        where: { userId: payload.userId },
-      });
+      await prisma.session.deleteMany({ where: { userId: payload.userId } });
       throw new AuthAccountSuspendedError();
     }
 
-    // 4. Delete old session (session rotation)
-    await prisma.authSession.delete({
-      where: { id: payload.sessionId },
-    });
+    // 6. Delete old session (rotation)
+    await prisma.session.delete({ where: { id: session.id } });
 
-    // 5. Create new session and tokens
-    const newSession = await prisma.authSession.create({
+    // 7. Create new session (with device info from old session)
+    const family = generateTokenFamily();
+    const newSession = await prisma.session.create({
       data: {
         userId: user.id,
-        token: "placeholder",
-        device: session.device,
-        ip: extractClientIp(request),
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        refreshTokenHash: "placeholder",
+        deviceName: session.deviceName,
+        deviceType: session.deviceType,
+        browser: session.browser,
+        os: session.os,
+        ip: session.ip,
+        country: session.country,
+        city: session.city,
+        userAgent: session.userAgent,
+        lastActiveAt: new Date(),
+        expiresAt: new Date(
+          Date.now() + SESSION_CONFIG.REFRESH_TOKEN_DAYS * 24 * 60 * 60 * 1000
+        ),
       },
     });
 
-    const tokens = await generateTokenPair({
-      userId: user.id,
-      mobile: user.mobile,
-      role: user.role,
-      sessionId: newSession.id,
-    });
-
-    // Update session with token hash (using centralized crypto utility)
-    const tokenHash = await hashTokenSha256(tokens.accessToken);
-    await prisma.authSession.update({
-      where: { id: newSession.id },
-      data: { token: tokenHash },
-    });
-
-    // 6. Log token refresh event (using centralized logAuthEvent)
-    await logAuthEvent(
-      user.mobile,
-      "TOKEN_REFRESHED",
-      request,
+    // 8. Generate new token pair
+    const tokens = await generateTokenPair(
       {
-        oldSessionId: payload.sessionId,
-        newSessionId: newSession.id,
+        userId: user.id,
+        role: user.role as UserRole,
+        sessionId: newSession.id,
       },
-      user.id
+      family
     );
 
-    return {
-      tokens: {
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
-      },
-    };
-  },
-  // Custom response builder: set new refresh token as HttpOnly cookie on rotation
-  responseBuilder: (data) => {
-    const tokenData = (data as Record<string, unknown>)?.tokens as { accessToken: string; refreshToken: string } | undefined;
+    // 9. Update session with refresh token hash
+    const refreshTokenHash = await hashTokenSha256(tokens.refreshToken);
+    await prisma.session.update({
+      where: { id: newSession.id },
+      data: { refreshTokenHash },
+    });
 
+    // 10. Store token family in Redis for reuse detection
+    await redis.set(
+      `${REDIS_KEYS.REFRESH_FAMILY_PREFIX}${newSession.id}`,
+      JSON.stringify({ family, tokens: [refreshTokenHash] }),
+      "EX",
+      SESSION_CONFIG.REFRESH_TOKEN_DAYS * 24 * 60 * 60
+    );
+
+    // 11. Log token refresh event
+    await logAuthEvent(null, "TOKEN_REFRESHED", request, {
+      oldSessionId: payload.sessionId,
+      newSessionId: newSession.id,
+    }, user.id);
+
+    // 12. Build response with new cookies
     const response = NextResponse.json(
       {
         success: true,
         data: {
-          tokens: tokenData
-            ? { accessToken: tokenData.accessToken }
-            : undefined,
+          tokens: { accessToken: tokens.accessToken },
         },
-        message: HTTP_MESSAGES.AUTH_TOKEN_REFRESHED.messageEn,
+        message: "Token refreshed successfully.",
       },
       { status: 200 }
     );
 
-    // Rotate the refresh token cookie on every refresh
-    if (tokenData?.refreshToken) {
-      setRefreshTokenCookie(response, tokenData.refreshToken);
-    }
-
-    // Also refresh the access token cookie
-    if (tokenData?.accessToken) {
-      setAccessTokenCookie(response, tokenData.accessToken);
-    }
+    setRefreshTokenCookie(response, tokens.refreshToken);
+    setAccessTokenCookie(response, tokens.accessToken);
 
     return response;
-  },
-});
+  } catch (error: unknown) {
+    if (isAppError(error)) {
+      return NextResponse.json(
+        { success: false, error: error.code, message: error.message, statusCode: error.statusCode },
+        { status: error.statusCode }
+      );
+    }
+
+    const appError = toAppError(error);
+    console.error("[UNHANDLED_ERROR_REFRESH]", error);
+    return NextResponse.json(
+      { success: false, error: appError.code, message: appError.message, statusCode: appError.statusCode },
+      { status: appError.statusCode }
+    );
+  }
+}

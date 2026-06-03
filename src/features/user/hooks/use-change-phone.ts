@@ -50,7 +50,7 @@ export function useChangePhone() {
     onSuccess: (_data, variables) => {
       // Update Zustand store with new phone
       const { setUser } = useAuthStore.getState();
-      setUser({ mobile: variables.newPhone } as Partial<UserProfile>);
+      setUser({ phone: variables.newPhone, mobile: variables.newPhone } as Partial<UserProfile>);
 
       toast.success(t("profile.phoneChanged"));
     },

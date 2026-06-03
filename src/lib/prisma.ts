@@ -1,28 +1,10 @@
 /**
- * Purpose: Prisma Client singleton for Nikharta Roop
- * Responsibility: Prevent multiple Prisma Client instances in development (hot reload)
+ * Purpose: Re-export of Prisma Client singleton from the canonical location
+ * Responsibility: Backward compatibility — many routes still import from "@/lib/prisma"
  * Important Notes:
- *   - In development, Next.js hot reloads modules — without singleton,
- *     every hot reload creates a new PrismaClient → connection pool exhaustion
- *   - In production, a single instance is created and reused
- *   - Always import from here: import { prisma } from "@/lib/prisma"
+ *   - The actual singleton is in "@/lib/database/prisma"
+ *   - This file re-exports it so existing imports continue to work
+ *   - New code should import from "@/lib/database/prisma" directly
  */
 
-import { PrismaClient } from "@prisma/client";
-
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
-};
-
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
-    log:
-      process.env.NODE_ENV === "development"
-        ? ["error", "warn"]
-        : ["error"],
-  });
-
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = prisma;
-}
+export { prisma } from "./database/prisma";

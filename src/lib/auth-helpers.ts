@@ -10,14 +10,15 @@
 
 import { NextRequest } from "next/server";
 import { prisma } from "./prisma";
-import { verifyAccessToken } from "./jwt";
+import { verifyAccessToken } from "@/lib/server/jwt";
 import {
   AuthMissingTokenError,
   AuthInvalidTokenError,
   AuthSessionInvalidError,
   AuthAccountSuspendedError,
-} from "./errors";
-import type { JwtPayload } from "@/types/auth";
+} from "@/lib/server/errors";
+import { extractClientIp as extractClientIpUtil, extractGeoFromIp } from "@/lib/server/device";
+import type { AccessTokenPayload } from "@/shared/types/auth";
 
 // ==================== TOKEN EXTRACTION ====================
 
@@ -38,7 +39,7 @@ export function extractTokenFromHeader(request: NextRequest): string | null {
  * Checks x-forwarded-for (proxy) then falls back to x-real-ip
  */
 export function extractClientIp(request: NextRequest): string | null {
-  return request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || null;
+  return extractClientIpUtil(request);
 }
 
 /**
@@ -61,16 +62,28 @@ export async function logAuthEvent(
   metadata?: Record<string, unknown>,
   userId?: string
 ): Promise<void> {
-  await prisma.authEvent.create({
-    data: {
-      userId: userId || null,
-      mobile: mobile || null,
-      event,
-      ip: extractClientIp(request),
-      device: extractUserAgent(request),
-      metadata: metadata ? JSON.stringify(metadata) : undefined,
-    },
-  });
+  try {
+    const ip = extractClientIp(request);
+    const geo = extractGeoFromIp(ip);
+    const ua = request.headers.get("user-agent") || null;
+
+    await prisma.authEvent.create({
+      data: {
+        userId: userId || null,
+        identifier: mobile || null,
+        mobile: mobile || null,
+        event,
+        ip,
+        device: ua, // legacy compat
+        userAgent: ua,
+        country: geo.country,
+        metadata: metadata ? JSON.stringify(metadata) : undefined,
+      },
+    });
+  } catch (error) {
+    // Audit logging should NEVER break the auth flow
+    console.error("[AUTH_EVENT_LOG_FAILED]", error);
+  }
 }
 
 // ==================== AUTH VERIFICATION (REQUIRE AUTH) ====================
@@ -78,13 +91,13 @@ export async function logAuthEvent(
 /**
  * Require authenticated user — extract token, verify, check session + user active
  * Throws AppError subclasses if anything fails
- * @returns Verified JWT payload
+ * @returns Verified JWT payload (AccessTokenPayload)
  *
  * Usage in API routes:
  *   const payload = await requireAuth(request);
  *   // payload.userId, payload.role, payload.sessionId
  */
-export async function requireAuth(request: NextRequest): Promise<JwtPayload> {
+export async function requireAuth(request: NextRequest): Promise<AccessTokenPayload> {
   // 1. Extract token
   const token = extractTokenFromHeader(request);
   if (!token) {
@@ -97,30 +110,45 @@ export async function requireAuth(request: NextRequest): Promise<JwtPayload> {
     throw new AuthInvalidTokenError();
   }
 
-  return payload as JwtPayload;
+  return payload;
 }
 
 /**
- * Require authenticated user + verify session still exists in DB
+ * Require authenticated user + verify session still exists in DB + user is active
  * Use this for routes where session invalidation matters (logout, me, etc.)
- * @returns Verified JWT payload
+ * @returns Verified JWT payload + user record
  */
 export async function requireAuthWithSession(request: NextRequest): Promise<{
-  payload: JwtPayload;
-  session: { id: string; userId: string; token: string; expiresAt: Date };
+  payload: AccessTokenPayload;
+  user: { id: string; isActive: boolean; role: string };
 }> {
   const payload = await requireAuth(request);
 
+  // Verify user exists and is active
+  const user = await prisma.user.findUnique({
+    where: { id: payload.userId },
+    select: { id: true, isActive: true, role: true },
+  });
+
+  if (!user) {
+    throw new AuthInvalidTokenError();
+  }
+
+  if (!user.isActive) {
+    throw new AuthAccountSuspendedError();
+  }
+
   // Verify session exists in DB
-  const session = await prisma.authSession.findUnique({
+  const session = await prisma.session.findUnique({
     where: { id: payload.sessionId },
+    select: { id: true },
   });
 
   if (!session) {
     throw new AuthSessionInvalidError();
   }
 
-  return { payload, session };
+  return { payload, user };
 }
 
 /**
@@ -129,10 +157,11 @@ export async function requireAuthWithSession(request: NextRequest): Promise<{
  * @returns Verified JWT payload + user record
  */
 export async function requireActiveUser(request: NextRequest): Promise<{
-  payload: JwtPayload;
+  payload: AccessTokenPayload;
   user: {
     id: string;
-    mobile: string;
+    mobile: string | null;
+    phone: string | null;
     name: string | null;
     email: string | null;
     role: string;
@@ -151,6 +180,7 @@ export async function requireActiveUser(request: NextRequest): Promise<{
     select: {
       id: true,
       mobile: true,
+      phone: true,
       name: true,
       email: true,
       role: true,

@@ -243,7 +243,7 @@ export function PersonalInfoCard({ profile, onVerifyEmail, onChangePhone }: Pers
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <p className="text-xs text-muted-foreground">{t("profile.phone")}</p>
-                {displayUser?.mobile && (
+                {(displayUser?.phone || displayUser?.mobile) && (
                   <Badge
                     variant="outline"
                     className="text-[9px] gap-0.5 px-1 py-0 border-green-200 text-green-700 dark:border-green-800 dark:text-green-400"
@@ -254,7 +254,7 @@ export function PersonalInfoCard({ profile, onVerifyEmail, onChangePhone }: Pers
                 )}
               </div>
               <p className="text-sm font-medium truncate">
-                {displayUser?.mobile || "—"}
+                {displayUser?.phone || displayUser?.mobile || "—"}
               </p>
             </div>
           </div>

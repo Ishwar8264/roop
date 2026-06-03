@@ -81,9 +81,11 @@ model User {
   id            String   @id @default(cuid())
   username      String?  @unique // Unique username for profile URL & login — nullable for Google users
   mobile        String?  @unique // Indian 10-digit mobile — nullable for Google/email-only users. Unique when present.
+  phone         String?  @unique // Alias for mobile — used by profile API. Nullable, unique when present.
   name          String? // Full name (optional at registration)
   email         String?  @unique // Email for email login + Google — unique when present
   emailVerified Boolean  @default(false) // Whether email has been verified
+  phoneVerified Boolean  @default(false) // Whether phone has been verified
   password      String? // Hashed password (bcrypt) — for email login only
   googleId      String?  @unique // Google OAuth sub ID — unique when present
   authProvider  String   @default("MOBILE") // Primary auth method: MOBILE | EMAIL | GOOGLE
@@ -97,7 +99,8 @@ model User {
   updatedAt     DateTime @updatedAt
 
   // Relations
-  authSessions        AuthSession[]
+  sessions            Session[]
+  accounts            Account[]
   authOtps            AuthOtp[]
   authEvents          AuthEvent[]
   bookings            Booking[]
@@ -112,6 +115,7 @@ model User {
 
   // Indexes
   @@index([mobile])
+  @@index([phone])
   @@index([email])
   @@index([googleId])
   @@index([role])
@@ -121,23 +125,31 @@ model User {
   @@map("users")
 }
 
-/// Active auth sessions — JWT token tracking for logout/invalidation
-model AuthSession {
-  id        String   @id @default(cuid())
-  userId    String // Which user owns this session
-  token     String   @unique // JWT token hash — unique for lookup
-  device    String? // "Chrome / Android" — device info
-  ip        String? // IP address at login
-  expiresAt DateTime // Token expiry time
-  createdAt DateTime @default(now())
+/// Active auth sessions — JWT token tracking with refresh token rotation & device info
+model Session {
+  id              String   @id @default(cuid())
+  userId          String // Which user owns this session
+  refreshTokenHash String  @unique // SHA-256 hash of the refresh token — for rotation + reuse detection
+  deviceName      String? // "Chrome / Android" — parsed device name
+  deviceType      String? // mobile | desktop | tablet | unknown
+  browser         String? // Chrome, Firefox, Safari, etc.
+  os              String? // Windows, macOS, Android, iOS, etc.
+  ip              String? // IP address at login
+  country         String? // Country from IP geo
+  city            String? // City from IP geo
+  userAgent       String? // Raw User-Agent header
+  lastActiveAt    DateTime @default(now()) // Last time session was used
+  expiresAt       DateTime // Session expiry time (same as refresh token expiry)
+  createdAt       DateTime @default(now())
 
   // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
-  @@index([token])
+  @@index([refreshTokenHash])
   @@index([expiresAt])
-  @@map("auth_sessions")
+  @@index([lastActiveAt])
+  @@map("sessions")
 }
 
 /// OTP storage and verification tracking — replaces Redis for PostgreSQL
@@ -165,23 +177,44 @@ model AuthOtp {
 
 /// Auth event audit trail — every login, OTP, logout event logged
 model AuthEvent {
-  id        String   @id @default(cuid())
-  userId    String? // null if event happened before user was found
-  mobile    String? // Mobile number involved (nullable for email/Google logins)
-  event     String // LOGIN_SUCCESS | LOGIN_FAILED | REGISTER_EMAIL | etc.
-  ip        String? // IP address
-  device    String? // Device/browser info
-  metadata  String? // Extra event data (error reason, auth provider, etc.)
-  createdAt DateTime @default(now())
+  id         String   @id @default(cuid())
+  userId     String? // null if event happened before user was found
+  identifier String? // Phone or email involved (nullable for anonymous events)
+  mobile     String? // Mobile number involved (nullable for email/Google logins) — kept for backward compat
+  event      String // LOGIN_SUCCESS | LOGIN_FAILED | REGISTER_EMAIL | PASSWORD_CHANGED | ACCOUNT_DEACTIVATED | etc.
+  ip         String? // IP address
+  device     String? // Device/browser info (legacy field)
+  userAgent  String? // Raw User-Agent header
+  country    String? // Country from IP geo
+  metadata   String? // Extra event data (error reason, auth provider, etc.)
+  createdAt  DateTime @default(now())
 
   // Relations
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([userId])
+  @@index([identifier])
   @@index([mobile])
   @@index([event])
   @@index([createdAt])
   @@map("auth_events")
+}
+
+/// Auth accounts — links user to their auth providers (email, mobile, google)
+/// Used for profile updates (when email/phone changes, update providerAccountId)
+model Account {
+  id                String @id @default(cuid())
+  userId            String // FK → Users
+  provider          String // EMAIL | MOBILE | GOOGLE
+  providerAccountId String // The user's email, phone, or Google sub ID
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@index([provider])
+  @@map("accounts")
 }
 
 // ==================== SERVICE CATALOG ====================

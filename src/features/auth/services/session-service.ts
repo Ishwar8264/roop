@@ -378,7 +378,7 @@ export async function getUserWithProviders(userId: string) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
-      id: true, name: true, email: true, phone: true, avatarUrl: true,
+      id: true, name: true, email: true, phone: true, mobile: true, avatarUrl: true,
       emailVerified: true, phoneVerified: true, role: true, branchId: true, loyaltyPoints: true,
       accounts: { select: { provider: true } },
     },
@@ -388,6 +388,8 @@ export async function getUserWithProviders(userId: string) {
 
   return {
     ...user,
+    // Use phone if available, fall back to mobile
+    phone: user.phone || user.mobile,
     providers: user.accounts.map((a) => a.provider),
   };
 }

@@ -2,18 +2,20 @@
  * Purpose: Shared helper for creating auth sessions and returning token responses
  * Responsibility: DRY — same session+token logic used by verify-otp, register-email, login-email, google
  * Important Notes:
- *   - Creates AuthSession in DB
- *   - Generates JWT access + refresh token pair
- *   - Stores token hash in session
+ *   - Creates Session in DB (with device info, refresh token hash)
+ *   - Generates JWT access + refresh token pair using the new jwt module
+ *   - Stores refresh token hash in session (for rotation + reuse detection)
  *   - Updates user's lastLoginAt
  *   - Returns standardized auth response
  */
 
 import { NextRequest } from "next/server";
-import { prisma } from "./prisma";
-import { generateTokenPair } from "./jwt";
-import { hashTokenSha256 } from "./crypto";
-import type { UserRole, AuthProvider } from "@prisma/client";
+import { prisma } from "@/lib/database/prisma";
+import { generateTokenPair } from "@/lib/server/jwt";
+import { hashTokenSha256, generateTokenFamily } from "@/lib/server/crypto";
+import { SESSION_CONFIG, REDIS_KEYS } from "@/lib/config/auth";
+import { redis } from "@/lib/config/redis";
+import { parseUserAgent, extractClientIp, extractGeoFromIp } from "@/lib/server/device";
 
 // ==================== TYPES ====================
 
@@ -22,8 +24,8 @@ interface UserForAuth {
   mobile: string | null;
   email: string | null;
   name: string | null;
-  role: UserRole;
-  authProvider: AuthProvider;
+  role: string;
+  authProvider: string;
   avatarUrl: string | null;
   loyaltyPoints: number;
   isActive: boolean;
@@ -43,43 +45,67 @@ export async function createAuthSessionAndTokens(
   user: UserForAuth,
   request: NextRequest
 ) {
-  // 1. Create auth session
-  const session = await prisma.authSession.create({
+  // 1. Parse device info
+  const ua = request.headers.get("user-agent") || "";
+  const device = parseUserAgent(ua);
+  const ip = extractClientIp(request);
+  const geo = extractGeoFromIp(ip);
+
+  // 2. Generate token family (for reuse detection)
+  const family = generateTokenFamily();
+
+  // 3. Create session with placeholder refresh token hash
+  const session = await prisma.session.create({
     data: {
       userId: user.id,
-      token: "placeholder", // Will update after token generation
-      device: request.headers.get("user-agent") || null,
-      ip:
-        request.headers.get("x-forwarded-for") ||
-        request.headers.get("x-real-ip") ||
-        null,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+      refreshTokenHash: "placeholder",
+      deviceName: device.deviceName,
+      deviceType: device.deviceType,
+      browser: device.browser,
+      os: device.os,
+      ip,
+      country: geo.country,
+      city: geo.city,
+      userAgent: ua,
+      lastActiveAt: new Date(),
+      expiresAt: new Date(
+        Date.now() + SESSION_CONFIG.REFRESH_TOKEN_DAYS * 24 * 60 * 60 * 1000
+      ),
     },
   });
 
-  // 2. Generate JWT token pair
-  const tokens = await generateTokenPair({
-    userId: user.id,
-    mobile: user.mobile,
-    email: user.email,
-    role: user.role,
-    sessionId: session.id,
-  });
+  // 4. Generate JWT token pair
+  const tokens = await generateTokenPair(
+    {
+      userId: user.id,
+      role: user.role as "USER" | "STAFF" | "ADMIN",
+      sessionId: session.id,
+    },
+    family
+  );
 
-  // 3. Update session with token hash
-  const tokenHash = await hashTokenSha256(tokens.accessToken);
-  await prisma.authSession.update({
+  // 5. Update session with refresh token hash
+  const refreshTokenHash = await hashTokenSha256(tokens.refreshToken);
+  await prisma.session.update({
     where: { id: session.id },
-    data: { token: tokenHash },
+    data: { refreshTokenHash },
   });
 
-  // 4. Update user's lastLoginAt
+  // 6. Store token family in Redis for reuse detection
+  await redis.set(
+    `${REDIS_KEYS.REFRESH_FAMILY_PREFIX}${session.id}`,
+    JSON.stringify({ family, tokens: [refreshTokenHash] }),
+    "EX",
+    SESSION_CONFIG.REFRESH_TOKEN_DAYS * 24 * 60 * 60
+  );
+
+  // 7. Update user's lastLoginAt
   await prisma.user.update({
     where: { id: user.id },
     data: { lastLoginAt: new Date() },
   });
 
-  // 5. Return standardized response
+  // 8. Return standardized response
   return {
     user: {
       id: user.id,
