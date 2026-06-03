@@ -25,7 +25,7 @@ import { hashTokenSha256 } from "@/lib/crypto";
 import { logAuthEvent, extractClientIp, extractUserAgent } from "@/lib/auth-helpers";
 import { refreshTokenSchema } from "@/lib/validations/auth";
 import { HTTP_MESSAGES } from "@/lib/http";
-import { getRefreshTokenFromCookie, setRefreshTokenCookie } from "@/lib/server/cookies";
+import { getRefreshTokenFromCookie, setRefreshTokenCookie, setAccessTokenCookie } from "@/lib/server/cookies";
 import {
   AuthInvalidTokenError,
   AuthSessionInvalidError,
@@ -146,6 +146,11 @@ export const POST = createApiHandler({
     // Rotate the refresh token cookie on every refresh
     if (tokenData?.refreshToken) {
       setRefreshTokenCookie(response, tokenData.refreshToken);
+    }
+
+    // Also refresh the access token cookie
+    if (tokenData?.accessToken) {
+      setAccessTokenCookie(response, tokenData.accessToken);
     }
 
     return response;

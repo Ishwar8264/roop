@@ -19,7 +19,7 @@
 import { createApiHandler } from "@/lib/server/api-handler";
 import { hashTokenSha256 } from "@/lib/server/crypto";
 import { redis } from "@/lib/config/redis";
-import { setRefreshTokenCookie } from "@/lib/server/cookies";
+import { setRefreshTokenCookie, setAccessTokenCookie } from "@/lib/server/cookies";
 import { AuthMagicLinkInvalidError } from "@/lib/server/errors";
 import { createSession, getUserWithProviders } from "@/features/auth/services/session-service";
 import { logAuthEvent } from "@/features/auth/services/auth-event-service";
@@ -124,7 +124,7 @@ export const POST = createApiHandler<ExchangeCodeInput, { accessToken: string; i
     throw new AuthMagicLinkInvalidError();
   },
   responseBuilder: (data) => {
-    const { _refreshToken, ...publicData } = data as Record<string, unknown>;
+    const { _refreshToken, accessToken, ...publicData } = data as Record<string, unknown>;
     const response = NextResponse.json({
       success: true,
       data: publicData,
@@ -133,6 +133,11 @@ export const POST = createApiHandler<ExchangeCodeInput, { accessToken: string; i
 
     if (_refreshToken && typeof _refreshToken === "string") {
       setRefreshTokenCookie(response, _refreshToken);
+    }
+
+    // Also set access token as short-lived cookie for page route auth
+    if (accessToken && typeof accessToken === "string") {
+      setAccessTokenCookie(response, accessToken);
     }
 
     return response;

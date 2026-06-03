@@ -5,6 +5,7 @@
  *   - Client component — uses auth store, searchParams
  *   - On register success → store token + user → redirect to dashboard
  *   - Uses window.location.href for FULL page navigation — guarantees cookies are sent
+ *   - Small delay (100ms) before redirect to ensure browser processes Set-Cookie headers
  *   - On "login" click → navigate to /login
  *   - Reads ?mobile= from URL to prefill mobile from login page
  */
@@ -24,10 +25,11 @@ export function RegisterClient() {
 
   function handleSuccess(data: RegisterSuccessData) {
     login(data.user, data.token);
-    // Full page navigation — guarantees the HttpOnly cookie (nr_refresh_token)
-    // is included in the next request to /dashboard.
+    // Small delay to ensure browser has processed the Set-Cookie headers
     const redirectTo = searchParams.get("redirect") || "/dashboard";
-    window.location.href = redirectTo;
+    setTimeout(() => {
+      window.location.href = redirectTo;
+    }, 100);
   }
 
   return (

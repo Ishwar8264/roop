@@ -112,6 +112,7 @@ async function request<T>(
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     ...options,
     headers,
+    credentials: "same-origin", // Ensure cookies are sent AND received (Set-Cookie processed)
   });
 
   // Auto-refresh on 401 — token expired

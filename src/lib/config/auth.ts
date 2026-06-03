@@ -77,11 +77,17 @@ export const SESSION_CONFIG = {
   /** Cookie name for refresh token */
   REFRESH_TOKEN_COOKIE: "nr_refresh_token",
 
+  /** Cookie name for access token (short-lived backup for page route auth) */
+  ACCESS_TOKEN_COOKIE: "nr_access_token",
+
+  /** Access token cookie expiry in seconds — 15 minutes (matches JWT expiry) */
+  ACCESS_TOKEN_COOKIE_MAX_AGE: 15 * 60,
+
   /** Cookie path — "/" so proxy.ts can read it on ALL routes (pages + API) */
   COOKIE_PATH: "/",
 
-  /** Cookie same-site policy */
-  COOKIE_SAME_SITE: "strict" as const,
+  /** Cookie same-site policy — "lax" for broad browser compatibility (still blocks CSRF on sub-requests) */
+  COOKIE_SAME_SITE: "lax" as const,
 
   /** Whether cookie is HTTP only — ALWAYS true in production */
   COOKIE_HTTP_ONLY: true,

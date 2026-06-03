@@ -4,7 +4,7 @@
  * Important Notes:
  *   - Runs on Edge Runtime — must use jose (not jsonwebtoken) for JWT verify
  *   - Protects API routes via Authorization header / access_token cookie
- *   - Protects page routes via refresh token cookie (HttpOnly) for server-side redirects
+ *   - Protects page routes via refresh token cookie OR access token cookie (dual check)
  *   - Uses centralized error codes from @/lib/http and @/lib/api-response
  *   - Page route auth redirects replace client-side useEffect redirects (no more hydration flash)
  */
@@ -12,6 +12,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
 import { HTTP_STATUS, ERROR_CODES, HTTP_MESSAGES } from "@/lib/http";
+import { SESSION_CONFIG } from "@/lib/config/auth";
 
 // ==================== CONFIG ====================
 
@@ -89,8 +90,8 @@ async function getTokenPayload(request: NextRequest) {
     }
   }
 
-  // Try cookie (fallback for page navigation or when header not set)
-  const tokenFromCookie = request.cookies.get("access_token")?.value;
+  // Try access_token cookie (fallback for page navigation or when header not set)
+  const tokenFromCookie = request.cookies.get(SESSION_CONFIG.ACCESS_TOKEN_COOKIE)?.value;
   if (tokenFromCookie) {
     try {
       const { payload } = await jwtVerify(tokenFromCookie, JWT_SECRET, {
@@ -111,22 +112,52 @@ async function getTokenPayload(request: NextRequest) {
 }
 
 /**
- * Check if user is authenticated by verifying the refresh token cookie
+ * Check if user is authenticated by verifying cookies
  * Used for page route protection (server-side redirects)
+ *
+ * Checks TWO cookies as fallback:
+ * 1. nr_refresh_token — long-lived (30 days), primary auth signal
+ * 2. nr_access_token — short-lived (15 min), backup when refresh cookie isn't stored
+ *
+ * Some browsers don't reliably store cookies set via fetch() Set-Cookie headers.
+ * The access token cookie serves as a backup for page route authentication.
  */
 async function isPageAuthenticated(request: NextRequest): Promise<boolean> {
-  const refreshToken = request.cookies.get("nr_refresh_token")?.value;
-  if (!refreshToken) return false;
-
-  try {
-    await jwtVerify(refreshToken, JWT_REFRESH_SECRET, {
-      issuer: "nikharta-roop",
-      audience: "nikharta-roop-refresh",
-    });
-    return true;
-  } catch {
-    return false;
+  // 1. Check refresh token cookie (primary — long-lived)
+  const refreshToken = request.cookies.get(SESSION_CONFIG.REFRESH_TOKEN_COOKIE)?.value;
+  if (refreshToken) {
+    try {
+      await jwtVerify(refreshToken, JWT_REFRESH_SECRET, {
+        issuer: "nikharta-roop",
+        audience: "nikharta-roop-refresh",
+      });
+      return true;
+    } catch {
+      // Token invalid — continue to fallback
+    }
   }
+
+  // 2. Check access token cookie (fallback — short-lived)
+  const accessToken = request.cookies.get(SESSION_CONFIG.ACCESS_TOKEN_COOKIE)?.value;
+  if (accessToken) {
+    try {
+      await jwtVerify(accessToken, JWT_SECRET, {
+        issuer: "nikharta-roop",
+        audience: "nikharta-roop-api",
+      });
+      return true;
+    } catch {
+      // Token invalid — not authenticated
+    }
+  }
+
+  // Debug: log which cookies are present when auth fails (dev only)
+  if (process.env.NODE_ENV === "development") {
+    const allCookies = request.cookies.getAll().map(c => c.name);
+    console.log(`[PROXY] Page auth FAILED for ${request.nextUrl.pathname}. Cookies present: [${allCookies.join(", ")}]`);
+  }
+
+  return false;
 }
 
 // ==================== PROXY ====================

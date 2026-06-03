@@ -29,7 +29,7 @@ import { createAuthSessionAndTokens } from "@/lib/create-auth-session";
 import { logAuthEvent } from "@/lib/auth-helpers";
 import { verifyOtpSchema } from "@/lib/validations/auth";
 import { hashPassword } from "@/lib/server/crypto";
-import { setRefreshTokenCookie } from "@/lib/server/cookies";
+import { setRefreshTokenCookie, setAccessTokenCookie } from "@/lib/server/cookies";
 import {
   AuthNoValidOtpError,
   AuthOtpMaxAttemptsError,
@@ -224,6 +224,12 @@ export const POST = createApiHandler({
 
     if (tokenData?.refreshToken) {
       setRefreshTokenCookie(response, tokenData.refreshToken);
+    }
+
+    // Also set access token as short-lived cookie — backup for page route auth
+    // Some browsers don't store cookies from fetch() Set-Cookie reliably
+    if (tokenData?.accessToken) {
+      setAccessTokenCookie(response, tokenData.accessToken);
     }
 
     return response;

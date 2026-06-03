@@ -22,7 +22,7 @@ import { prisma } from "@/lib/prisma";
 import { registerEmailSchema } from "@/lib/validations/auth";
 import { createAuthSessionAndTokens } from "@/lib/create-auth-session";
 import { logAuthEvent } from "@/lib/auth-helpers";
-import { setRefreshTokenCookie } from "@/lib/server/cookies";
+import { setRefreshTokenCookie, setAccessTokenCookie } from "@/lib/server/cookies";
 import { AuthEmailExistsError, AuthMobileExistsError } from "@/lib/errors";
 import { HTTP_STATUS } from "@/lib/http";
 import { NextResponse } from "next/server";
@@ -105,6 +105,10 @@ export const POST = createApiHandler({
 
     if (tokenData?.refreshToken) {
       setRefreshTokenCookie(response, tokenData.refreshToken);
+    }
+
+    if (tokenData?.accessToken) {
+      setAccessTokenCookie(response, tokenData.accessToken);
     }
 
     return response;

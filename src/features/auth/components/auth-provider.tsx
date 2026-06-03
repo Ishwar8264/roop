@@ -8,13 +8,15 @@
  *   - If token exists but is stale: tries /api/auth/me to validate, then refresh if 401
  *   - Shows loading screen until auth state is determined
  *   - IMPORTANT: Loading screen has timeout (3s) to avoid blocking if API is down
- *   - Route protection is handled by src/middleware.ts (server-side)
- *   - This component ONLY syncs auth state — no client-side redirects
+ *   - Route protection is PRIMARILY handled by src/proxy.ts (server-side)
+ *   - This component ALSO handles client-side redirects as a FALLBACK for when
+ *     proxy.ts cookies aren't available (e.g., fetch() Set-Cookie not processed yet)
  */
 
 "use client";
 
 import { useState, useEffect, useCallback, type ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useAuthStore } from "@/stores/auth-store";
 import { apiClient } from "@/services/api-client";
@@ -47,10 +49,21 @@ function getQueryClient() {
   return browserQueryClient;
 }
 
+// ==================== Auth Pages ====================
+
+const AUTH_PAGES = ["/login", "/register", "/auth/callback"];
+
+function isAuthPage(pathname: string): boolean {
+  return AUTH_PAGES.some(
+    (p) => pathname === p || pathname.startsWith(p + "/")
+  );
+}
+
 // ==================== Auth Provider ====================
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = getQueryClient();
+  const pathname = usePathname();
   const [isReady, setIsReady] = useState(false);
 
   // Initialize auth state on mount — sync Zustand with backend
@@ -97,6 +110,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearTimeout(timeout);
     };
   }, [initAuth]);
+
+  // Client-side redirect fallback: if user is authenticated but stuck on auth page,
+  // redirect them to dashboard. This handles the case where proxy.ts cookies
+  // aren't available (e.g., fetch() Set-Cookie not processed by browser yet)
+  useEffect(() => {
+    if (!isReady) return;
+
+    const { isAuthenticated } = useAuthStore.getState();
+    if (isAuthenticated && isAuthPage(pathname)) {
+      // Use window.location.href for full page navigation — ensures cookies are sent
+      window.location.href = "/dashboard";
+    }
+  }, [isReady, pathname]);
 
   if (!isReady) {
     return (

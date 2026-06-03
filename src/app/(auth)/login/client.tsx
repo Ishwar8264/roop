@@ -5,7 +5,7 @@
  *   - Client component — uses auth store, searchParams
  *   - On login success → store token + user → redirect to dashboard (or ?redirect= param)
  *   - Uses window.location.href for FULL page navigation — guarantees cookies are sent
- *   - router.replace() uses client-side RSC navigation which can lose HttpOnly cookies
+ *   - Small delay (100ms) before redirect to ensure browser processes Set-Cookie headers
  *   - On "register" click → navigate to /register with optional mobile prefilled
  */
 
@@ -22,12 +22,12 @@ export function LoginClient() {
 
   function handleSuccess(data: LoginSuccessData) {
     login(data.user, data.token);
-    // Full page navigation — guarantees the HttpOnly cookie (nr_refresh_token)
-    // is included in the next request to /dashboard (or redirect target).
-    // router.replace() uses RSC client navigation which may not carry cookies
-    // through proxy.ts correctly on the first hop after Set-Cookie.
+    // Small delay to ensure browser has processed the Set-Cookie headers
+    // from the verify-otp response before navigating
     const redirectTo = searchParams.get("redirect") || "/dashboard";
-    window.location.href = redirectTo;
+    setTimeout(() => {
+      window.location.href = redirectTo;
+    }, 100);
   }
 
   function handleSwitchToRegister(mobile?: string) {
