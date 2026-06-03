@@ -1,26 +1,8 @@
 /**
- * @file Generic password input with show/hide toggle — reusable across the entire app
+ * @file Premium password input with eye toggle — reusable across the entire app
  *
- * PURPOSE:
- *   Wraps `FloatingLabelInput` and adds an eye/eye-off toggle button
- *   so the user can reveal or hide their password.
- *
- * WHY A SEPARATE COMPONENT?
- *   - Password fields with visibility toggle are needed in: login, register,
- *     change-password, reset-password, admin settings, etc.
- *   - Duplicating the eye-toggle logic everywhere is error-prone and messy.
- *   - This component encapsulates the toggle state + icon switch ONCE.
- *
- * USAGE:
- *   <PasswordInput
- *     label="Password"
- *     registerProps={form.register("password")}
- *     error={errors.password?.message}
- *   />
- *
- * REUSABILITY:
- *   Fully generic — no auth-specific logic. The `label` prop makes it work
- *   for "Password", "Confirm Password", "New Password", "Admin Key", etc.
+ * PURPOSE: Wraps FloatingLabelInput and adds show/hide password toggle.
+ * Reusable in login, register, change-password, reset-password, etc.
  */
 
 "use client";
@@ -30,9 +12,9 @@ import { Eye, EyeOff } from "lucide-react";
 import { FloatingLabelInput } from "@/components/ui/floating-label-input";
 
 interface PasswordInputProps {
-  /** Label text (e.g. "Password", "Confirm Password", "New Password") */
+  /** Label text */
   label: string;
-  /** Validation error message from react-hook-form */
+  /** Validation error message */
   error?: string;
   /** react-hook-form register() return value */
   registerProps?: Record<string, unknown>;
@@ -41,14 +23,13 @@ interface PasswordInputProps {
 }
 
 export function PasswordInput({ label, error, registerProps, disabled }: PasswordInputProps) {
-  /** Whether the password text is currently visible to the user */
   const [visible, setVisible] = useState(false);
 
   return (
     <FloatingLabelInput
       label={label}
       type={visible ? "text" : "password"}
-      icon={<Eye className="h-4.5 w-4.5" />}
+      icon={<Eye className="h-[18px] w-[18px]" />}
       error={error}
       registerProps={registerProps}
       disabled={disabled}
@@ -56,7 +37,7 @@ export function PasswordInput({ label, error, registerProps, disabled }: Passwor
         <button
           type="button"
           onClick={() => setVisible((v) => !v)}
-          className="text-muted-foreground hover:text-foreground transition-colors p-1"
+          className="text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 transition-colors p-1 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-800"
           tabIndex={-1}
           aria-label={visible ? "Hide password" : "Show password"}
         >
