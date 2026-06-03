@@ -77,8 +77,8 @@ export const SESSION_CONFIG = {
   /** Cookie name for refresh token */
   REFRESH_TOKEN_COOKIE: "nr_refresh_token",
 
-  /** Cookie path */
-  COOKIE_PATH: "/api/auth",
+  /** Cookie path — "/" so proxy.ts can read it on ALL routes (pages + API) */
+  COOKIE_PATH: "/",
 
   /** Cookie same-site policy */
   COOKIE_SAME_SITE: "strict" as const,

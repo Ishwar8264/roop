@@ -40,6 +40,9 @@ export type ApiHandler<T = unknown, R = unknown> = (
   ctx: ApiContext<T>
 ) => Promise<R>;
 
+/** Custom response builder — allows routes to modify the NextResponse (e.g., set cookies) */
+export type ApiResponseBuilder<R = unknown> = (data: R) => NextResponse;
+
 /** Configuration for creating an API route handler */
 export interface ApiRouteConfig<T = unknown, R = unknown> {
   /** Zod schema for request body validation — set to null if no body needed */
@@ -50,6 +53,8 @@ export interface ApiRouteConfig<T = unknown, R = unknown> {
   successMessage?: string;
   /** Success HTTP status code (default: 200) */
   successStatus?: number;
+  /** Custom response builder — override default JSON response (e.g., to set cookies) */
+  responseBuilder?: ApiResponseBuilder<R>;
 }
 
 // ==================== API HANDLER FACTORY ====================
@@ -131,6 +136,10 @@ export function createApiHandler<T = unknown, R = unknown>(
       });
 
       // 3. Return success response
+      if (config.responseBuilder) {
+        return config.responseBuilder(data);
+      }
+
       return NextResponse.json(
         {
           success: true,

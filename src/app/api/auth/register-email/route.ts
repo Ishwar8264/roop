@@ -22,8 +22,10 @@ import { prisma } from "@/lib/prisma";
 import { registerEmailSchema } from "@/lib/validations/auth";
 import { createAuthSessionAndTokens } from "@/lib/create-auth-session";
 import { logAuthEvent } from "@/lib/auth-helpers";
+import { setRefreshTokenCookie } from "@/lib/server/cookies";
 import { AuthEmailExistsError, AuthMobileExistsError } from "@/lib/errors";
 import { HTTP_STATUS } from "@/lib/http";
+import { NextResponse } from "next/server";
 
 const PASSWORD_SALT_ROUNDS = 12;
 
@@ -83,5 +85,28 @@ export const POST = createApiHandler({
     );
 
     return authResult;
+  },
+  // Custom response builder to set refresh token as HttpOnly cookie
+  responseBuilder: (data) => {
+    const { tokens, ...publicData } = data as Record<string, unknown>;
+    const tokenData = tokens as { accessToken: string; refreshToken: string } | undefined;
+
+    const response = NextResponse.json(
+      {
+        success: true,
+        data: {
+          ...publicData,
+          tokens: tokenData ? { accessToken: tokenData.accessToken } : undefined,
+        },
+        message: "Registration successful! Welcome to Nikharta Roop.",
+      },
+      { status: HTTP_STATUS.CREATED }
+    );
+
+    if (tokenData?.refreshToken) {
+      setRefreshTokenCookie(response, tokenData.refreshToken);
+    }
+
+    return response;
   },
 });

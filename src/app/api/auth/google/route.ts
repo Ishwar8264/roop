@@ -27,10 +27,12 @@ import { prisma } from "@/lib/prisma";
 import { googleAuthSchema } from "@/lib/validations/auth";
 import { createAuthSessionAndTokens } from "@/lib/create-auth-session";
 import { logAuthEvent } from "@/lib/auth-helpers";
+import { setRefreshTokenCookie } from "@/lib/server/cookies";
 import {
   AuthGoogleTokenInvalidError,
   AuthAccountSuspendedError,
 } from "@/lib/errors";
+import { NextResponse } from "next/server";
 
 // ==================== GOOGLE CLIENT ====================
 
@@ -154,5 +156,28 @@ export const POST = createApiHandler({
       ...authResult,
       isNewUser,
     };
+  },
+  // Custom response builder to set refresh token as HttpOnly cookie
+  responseBuilder: (data) => {
+    const { tokens, ...publicData } = data as Record<string, unknown>;
+    const tokenData = tokens as { accessToken: string; refreshToken: string } | undefined;
+
+    const response = NextResponse.json(
+      {
+        success: true,
+        data: {
+          ...publicData,
+          tokens: tokenData ? { accessToken: tokenData.accessToken } : undefined,
+        },
+        message: "Google login successful!",
+      },
+      { status: 200 }
+    );
+
+    if (tokenData?.refreshToken) {
+      setRefreshTokenCookie(response, tokenData.refreshToken);
+    }
+
+    return response;
   },
 });

@@ -20,10 +20,12 @@ import { prisma } from "@/lib/prisma";
 import { loginEmailSchema } from "@/lib/validations/auth";
 import { createAuthSessionAndTokens } from "@/lib/create-auth-session";
 import { logAuthEvent } from "@/lib/auth-helpers";
+import { setRefreshTokenCookie } from "@/lib/server/cookies";
 import {
   AuthInvalidCredentialsError,
   AuthAccountSuspendedError,
 } from "@/lib/errors";
+import { NextResponse } from "next/server";
 
 export const POST = createApiHandler({
   schema: loginEmailSchema,
@@ -74,5 +76,28 @@ export const POST = createApiHandler({
     }, user.id);
 
     return authResult;
+  },
+  // Custom response builder to set refresh token as HttpOnly cookie
+  responseBuilder: (data) => {
+    const { tokens, ...publicData } = data as Record<string, unknown>;
+    const tokenData = tokens as { accessToken: string; refreshToken: string } | undefined;
+
+    const response = NextResponse.json(
+      {
+        success: true,
+        data: {
+          ...publicData,
+          tokens: tokenData ? { accessToken: tokenData.accessToken } : undefined,
+        },
+        message: "Login successful!",
+      },
+      { status: 200 }
+    );
+
+    if (tokenData?.refreshToken) {
+      setRefreshTokenCookie(response, tokenData.refreshToken);
+    }
+
+    return response;
   },
 });
