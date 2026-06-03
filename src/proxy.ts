@@ -1,12 +1,12 @@
 /**
  * Purpose: Next.js proxy for route protection and auth checks
- * Responsibility: Protect API routes by verifying JWT tokens
+ * Responsibility: Protect API routes by verifying JWT tokens, protect page routes via server-side redirects
  * Important Notes:
  *   - Runs on Edge Runtime — must use jose (not jsonwebtoken) for JWT verify
- *   - ONLY protects API routes — page routes are handled client-side by AuthProvider
- *   - Token read from Authorization header (primary) or access_token cookie (fallback)
+ *   - Protects API routes via Authorization header / access_token cookie
+ *   - Protects page routes via refresh token cookie (HttpOnly) for server-side redirects
  *   - Uses centralized error codes from @/lib/http and @/lib/api-response
- *   - Page route auth is handled by AuthProvider + route groups — no server redirects
+ *   - Page route auth redirects replace client-side useEffect redirects (no more hydration flash)
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -19,6 +19,10 @@ const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || "nikharta-roop-jwt-secret-change-in-production-min-32-chars"
 );
 
+const JWT_REFRESH_SECRET = new TextEncoder().encode(
+  process.env.JWT_REFRESH_SECRET || "nikharta-roop-jwt-refresh-secret-change-in-production-min-32-chars"
+);
+
 // API routes that DON'T require authentication (exact match + prefix)
 const PUBLIC_API_ROUTES = [
   // Auth
@@ -28,6 +32,11 @@ const PUBLIC_API_ROUTES = [
   "/api/auth/register-email",
   "/api/auth/login-email",
   "/api/auth/google",
+  "/api/auth/magic-link",
+  "/api/auth/verify-magic-link",
+  "/api/auth/exchange-code",
+  "/api/auth/forgot-password",
+  "/api/auth/reset-password",
   "/api/api-spec",            // OpenAPI spec JSON
   // Public GET endpoints — listing & detail views
   "/api/branches",            // Branch listing & detail (public)
@@ -48,6 +57,9 @@ const PUBLIC_API_ROUTES = [
 // Routes that require specific roles (API only)
 const ADMIN_API_ROUTES = ["/api/admin"];
 const STAFF_API_ROUTES = ["/api/staff"];
+
+// Pages that DON'T require authentication
+const PUBLIC_PAGES = ["/", "/login", "/register", "/services", "/auth/callback"];
 
 // ==================== HELPER ====================
 
@@ -98,6 +110,25 @@ async function getTokenPayload(request: NextRequest) {
   return null;
 }
 
+/**
+ * Check if user is authenticated by verifying the refresh token cookie
+ * Used for page route protection (server-side redirects)
+ */
+async function isPageAuthenticated(request: NextRequest): Promise<boolean> {
+  const refreshToken = request.cookies.get("nr_refresh_token")?.value;
+  if (!refreshToken) return false;
+
+  try {
+    await jwtVerify(refreshToken, JWT_REFRESH_SECRET, {
+      issuer: "nikharta-roop",
+      audience: "nikharta-roop-refresh",
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // ==================== PROXY ====================
 
 export async function proxy(request: NextRequest) {
@@ -112,86 +143,102 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 2. Non-API routes (pages, etc.) — always allow through
-  //    Auth for pages is handled client-side by AuthProvider + route groups
-  if (!pathname.startsWith("/api/")) {
-    return NextResponse.next();
-  }
-
-  // 3. Allow public API routes without auth
-  if (matchesAny(pathname, PUBLIC_API_ROUTES)) {
-    // Auth routes allow all methods (POST for login/register)
-    if (pathname.startsWith("/api/auth/") || pathname === "/api/api-spec") {
-      return NextResponse.next();
+  // 2. API route protection
+  if (pathname.startsWith("/api/")) {
+    // 2a. Allow public API routes without auth
+    if (matchesAny(pathname, PUBLIC_API_ROUTES)) {
+      // Auth routes allow all methods (POST for login/register)
+      if (pathname.startsWith("/api/auth/") || pathname === "/api/api-spec") {
+        return NextResponse.next();
+      }
+      // Data endpoints: only GET is public, POST/PATCH/DELETE require auth
+      if (request.method === "GET") {
+        return NextResponse.next();
+      }
     }
-    // Data endpoints: only GET is public, POST/PATCH/DELETE require auth
-    if (request.method === "GET") {
-      return NextResponse.next();
+
+    // 2b. For protected API routes — verify token
+    const payload = await getTokenPayload(request);
+
+    if (!payload) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: ERROR_CODES.AUTH_MISSING_TOKEN,
+          message: HTTP_MESSAGES.AUTH_MISSING_TOKEN.messageEn,
+          statusCode: HTTP_STATUS.UNAUTHORIZED,
+        },
+        { status: HTTP_STATUS.UNAUTHORIZED }
+      );
     }
-  }
 
-  // 4. For protected API routes — verify token
-  const payload = await getTokenPayload(request);
+    // 2c. Role-based access for admin API routes
+    if (matchesAny(pathname, ADMIN_API_ROUTES)) {
+      if (payload.role !== "ADMIN") {
+        return NextResponse.json(
+          {
+            success: false,
+            error: ERROR_CODES.PERM_ADMIN_REQUIRED,
+            message: HTTP_MESSAGES.PERM_ADMIN_REQUIRED.messageEn,
+            statusCode: HTTP_STATUS.FORBIDDEN,
+          },
+          { status: HTTP_STATUS.FORBIDDEN }
+        );
+      }
+    }
 
-  if (!payload) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: ERROR_CODES.AUTH_MISSING_TOKEN,
-        message: HTTP_MESSAGES.AUTH_MISSING_TOKEN.messageEn,
-        statusCode: HTTP_STATUS.UNAUTHORIZED,
+    // 2d. Role-based access for staff API routes
+    if (matchesAny(pathname, STAFF_API_ROUTES)) {
+      if (payload.role !== "STAFF" && payload.role !== "ADMIN") {
+        return NextResponse.json(
+          {
+            success: false,
+            error: ERROR_CODES.PERM_STAFF_REQUIRED,
+            message: HTTP_MESSAGES.PERM_STAFF_REQUIRED.messageEn,
+            statusCode: HTTP_STATUS.FORBIDDEN,
+          },
+          { status: HTTP_STATUS.FORBIDDEN }
+        );
+      }
+    }
+
+    // 2e. Token valid and role authorized — proceed
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set("x-user-id", payload.userId);
+    requestHeaders.set("x-user-role", payload.role);
+    requestHeaders.set("x-session-id", payload.sessionId);
+
+    return NextResponse.next({
+      request: {
+        headers: requestHeaders,
       },
-      { status: HTTP_STATUS.UNAUTHORIZED }
-    );
+    });
   }
 
-  // 5. Role-based access for admin API routes
-  if (matchesAny(pathname, ADMIN_API_ROUTES)) {
-    if (payload.role !== "ADMIN") {
-      return NextResponse.json(
-        {
-          success: false,
-          error: ERROR_CODES.PERM_ADMIN_REQUIRED,
-          message: HTTP_MESSAGES.PERM_ADMIN_REQUIRED.messageEn,
-          statusCode: HTTP_STATUS.FORBIDDEN,
-        },
-        { status: HTTP_STATUS.FORBIDDEN }
-      );
-    }
+  // 3. Page route protection (server-side redirects — no client-side flash)
+  const authenticated = await isPageAuthenticated(request);
+  const isPublicPage = matchesAny(pathname, PUBLIC_PAGES);
+  const isAuthPage = pathname === "/login" || pathname === "/register";
+
+  // If authenticated and trying to access login/register → redirect to dashboard
+  if (authenticated && isAuthPage) {
+    return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
-  // 6. Role-based access for staff API routes
-  if (matchesAny(pathname, STAFF_API_ROUTES)) {
-    if (payload.role !== "STAFF" && payload.role !== "ADMIN") {
-      return NextResponse.json(
-        {
-          success: false,
-          error: ERROR_CODES.PERM_STAFF_REQUIRED,
-          message: HTTP_MESSAGES.PERM_STAFF_REQUIRED.messageEn,
-          statusCode: HTTP_STATUS.FORBIDDEN,
-        },
-        { status: HTTP_STATUS.FORBIDDEN }
-      );
-    }
+  // If NOT authenticated and trying to access a protected page → redirect to login
+  if (!authenticated && !isPublicPage) {
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("redirect", pathname);
+    return NextResponse.redirect(loginUrl);
   }
 
-  // 7. Token valid and role authorized — proceed
-  const requestHeaders = new Headers(request.headers);
-  requestHeaders.set("x-user-id", payload.userId);
-  requestHeaders.set("x-user-role", payload.role);
-  requestHeaders.set("x-session-id", payload.sessionId);
-
-  return NextResponse.next({
-    request: {
-      headers: requestHeaders,
-    },
-  });
+  return NextResponse.next();
 }
 
 // ==================== MATCHER CONFIG ====================
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico).*)",
+    "/((?!_next/static|_next/image|favicon.ico|logo\\.png).*)",
   ],
 };

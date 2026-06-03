@@ -6,11 +6,12 @@
  *   - Click toggles between English and Hindi
  *   - SSR-safe — uses useLocaleStore (Zustand + localStorage)
  *   - Compact design for navbar
+ *   - Uses useSyncExternalStore for SSR-safe mounted detection (no hydration flicker)
  */
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { Languages } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,13 +22,19 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useLocaleStore, type Locale } from "@/i18n/locale-store";
 
+// SSR-safe mounted detection using useSyncExternalStore
+const emptySubscribe = () => () => {};
+function useMounted() {
+  return useSyncExternalStore(
+    emptySubscribe,
+    () => true,  // Client: always mounted
+    () => false  // Server: never mounted
+  );
+}
+
 export function LanguageToggle() {
   const { locale, setLocale } = useLocaleStore();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useMounted();
 
   if (!mounted) {
     return (

@@ -11,7 +11,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import {
   Sparkles,
   Scissors,
@@ -46,6 +46,14 @@ export default function WelcomePage() {
   const router = useRouter();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const { t } = useTranslation();
+  const prefersReducedMotion = useReducedMotion();
+
+  // When user prefers reduced motion, disable all framer-motion animations
+  // framer-motion auto-skips when useReducedMotion returns true,
+  // but we also use this to conditionally render simpler elements
+  const motionProps = prefersReducedMotion
+    ? { initial: false, animate: false }
+    : {};
 
   const handleBookNow = () => {
     router.push(isAuthenticated ? "/dashboard" : "/login");
@@ -112,27 +120,32 @@ export default function WelcomePage() {
         <div className="absolute top-0 right-0 w-72 h-72 bg-primary/5 rounded-full blur-3xl" />
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-accent/10 rounded-full blur-3xl" />
 
-        <motion.div
-          className="absolute top-20 left-10 text-primary/20"
-          animate={{ y: [-10, 10, -10], rotate: [0, 10, 0] }}
-          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-        >
-          <Flower2 className="h-12 w-12" />
-        </motion.div>
-        <motion.div
-          className="absolute top-40 right-16 text-accent/30"
-          animate={{ y: [10, -10, 10], rotate: [0, -15, 0] }}
-          transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-        >
-          <Sparkles className="h-10 w-10" />
-        </motion.div>
-        <motion.div
-          className="absolute bottom-20 left-20 text-primary/15"
-          animate={{ y: [-8, 8, -8] }}
-          transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
-        >
-          <Heart className="h-8 w-8" />
-        </motion.div>
+        {/* Floating decorations — hidden when user prefers reduced motion */}
+        {!prefersReducedMotion && (
+          <>
+            <motion.div
+              className="absolute top-20 left-10 text-primary/20"
+              animate={{ y: [-10, 10, -10], rotate: [0, 10, 0] }}
+              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+            >
+              <Flower2 className="h-12 w-12" />
+            </motion.div>
+            <motion.div
+              className="absolute top-40 right-16 text-accent/30"
+              animate={{ y: [10, -10, 10], rotate: [0, -15, 0] }}
+              transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+            >
+              <Sparkles className="h-10 w-10" />
+            </motion.div>
+            <motion.div
+              className="absolute bottom-20 left-20 text-primary/15"
+              animate={{ y: [-8, 8, -8] }}
+              transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
+            >
+              <Heart className="h-8 w-8" />
+            </motion.div>
+          </>
+        )}
 
         <div className="relative max-w-6xl mx-auto px-4 pt-12 pb-16 sm:pt-20 sm:pb-24">
           <div className="text-center">
@@ -140,6 +153,7 @@ export default function WelcomePage() {
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.8, ease: "easeOut" }}
+              {...motionProps}
               className="mb-6"
             >
               <img
@@ -153,6 +167,7 @@ export default function WelcomePage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, duration: 0.8 }}
+              {...motionProps}
               className="text-4xl sm:text-5xl md:text-6xl font-bold text-foreground mb-2"
               style={{ fontFamily: "'Noto Sans Devanagari', sans-serif" }}
             >
@@ -164,6 +179,7 @@ export default function WelcomePage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.35, duration: 0.8 }}
+              {...motionProps}
               className="text-lg sm:text-xl text-muted-foreground mb-4"
             >
               Nikharta Roop
@@ -173,6 +189,7 @@ export default function WelcomePage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5, duration: 0.8 }}
+              {...motionProps}
               className="text-base sm:text-lg text-muted-foreground max-w-xl mx-auto mb-8 leading-relaxed"
             >
               {t("appTagline")}
@@ -182,6 +199,7 @@ export default function WelcomePage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.65, duration: 0.8 }}
+              {...motionProps}
               className="flex flex-col sm:flex-row items-center justify-center gap-4"
             >
               <Button
@@ -217,6 +235,7 @@ export default function WelcomePage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 1, duration: 0.8 }}
+              {...motionProps}
               className="flex flex-wrap items-center justify-center gap-6 mt-10 text-sm text-muted-foreground"
             >
               <div className="flex items-center gap-1.5">
@@ -244,9 +263,10 @@ export default function WelcomePage() {
             whileInView="visible"
             viewport={{ once: true, margin: "-100px" }}
             variants={stagger}
+            {...motionProps}
             className="text-center mb-12"
           >
-            <motion.div variants={fadeInUp} custom={0}>
+            <motion.div variants={fadeInUp} custom={0} {...motionProps}>
               <span className="inline-block bg-primary/10 text-primary px-4 py-1.5 rounded-full text-sm font-medium mb-4">
                 {t("landing.ourServices")}
               </span>
@@ -254,6 +274,7 @@ export default function WelcomePage() {
             <motion.h2
               variants={fadeInUp}
               custom={1}
+              {...motionProps}
               className="text-2xl sm:text-3xl font-bold text-foreground mb-3"
             >
               {t("landing.everyShade")}
@@ -261,6 +282,7 @@ export default function WelcomePage() {
             <motion.p
               variants={fadeInUp}
               custom={2}
+              {...motionProps}
               className="text-muted-foreground max-w-md mx-auto"
             >
               {t("landing.professionalBeauticians")}
@@ -272,10 +294,11 @@ export default function WelcomePage() {
             whileInView="visible"
             viewport={{ once: true, margin: "-100px" }}
             variants={stagger}
+            {...motionProps}
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
           >
             {services.map((service, i) => (
-              <motion.div key={i} variants={fadeInUp} custom={i}>
+              <motion.div key={i} variants={fadeInUp} custom={i} {...motionProps}>
                 <Card className="group hover:shadow-lg hover:shadow-primary/10 transition-all duration-300 border-border/50 hover:border-primary/30 rounded-xl overflow-hidden">
                   <CardContent className="p-6 text-center">
                     <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 text-primary mb-4 group-hover:bg-primary group-hover:text-white transition-colors duration-300">
@@ -306,9 +329,10 @@ export default function WelcomePage() {
             whileInView="visible"
             viewport={{ once: true, margin: "-100px" }}
             variants={stagger}
+            {...motionProps}
             className="text-center mb-12"
           >
-            <motion.div variants={fadeInUp} custom={0}>
+            <motion.div variants={fadeInUp} custom={0} {...motionProps}>
               <span className="inline-block bg-primary/10 text-primary px-4 py-1.5 rounded-full text-sm font-medium mb-4">
                 {t("landing.whyChooseUs")}
               </span>
@@ -316,6 +340,7 @@ export default function WelcomePage() {
             <motion.h2
               variants={fadeInUp}
               custom={1}
+              {...motionProps}
               className="text-2xl sm:text-3xl font-bold text-foreground mb-3"
             >
               {t("landing.easyFastReliable")}
@@ -327,10 +352,11 @@ export default function WelcomePage() {
             whileInView="visible"
             viewport={{ once: true, margin: "-100px" }}
             variants={stagger}
+            {...motionProps}
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
           >
             {features.map((feature, i) => (
-              <motion.div key={i} variants={fadeInUp} custom={i}>
+              <motion.div key={i} variants={fadeInUp} custom={i} {...motionProps}>
                 <div className="text-center p-6 rounded-xl hover:bg-card hover:shadow-md transition-all duration-300">
                   <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-secondary text-primary mb-4">
                     {feature.icon}
@@ -356,6 +382,7 @@ export default function WelcomePage() {
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6 }}
+            {...motionProps}
           >
             <div className="bg-gradient-to-r from-primary to-rose-700 rounded-2xl p-8 sm:p-12 text-center text-white relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />

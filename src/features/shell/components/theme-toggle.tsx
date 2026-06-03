@@ -6,12 +6,13 @@
  *   - Shows Sun/Moon/Monitor icon based on current theme
  *   - Dropdown with Light/Dark/System options
  *   - Compact design for navbar
+ *   - Uses useSyncExternalStore for SSR-safe mounted detection (no hydration flicker)
  */
 
 "use client";
 
 import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { Sun, Moon, Monitor } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,14 +22,19 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+// SSR-safe mounted detection using useSyncExternalStore
+const emptySubscribe = () => () => {};
+function useMounted() {
+  return useSyncExternalStore(
+    emptySubscribe,
+    () => true,  // Client: always mounted
+    () => false  // Server: never mounted
+  );
+}
+
 export function ThemeToggle() {
   const { setTheme, theme, resolvedTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-
-  // Prevent hydration mismatch
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useMounted();
 
   if (!mounted) {
     return (

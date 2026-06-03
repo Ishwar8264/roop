@@ -11,7 +11,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { Construction, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/i18n/use-translation";
@@ -23,6 +23,10 @@ interface ComingSoonProps {
 export function ComingSoon({ title }: ComingSoonProps) {
   const router = useRouter();
   const { t } = useTranslation();
+  const prefersReducedMotion = useReducedMotion();
+
+  // When user prefers reduced motion, skip all animations
+  const animateProps = prefersReducedMotion ? { initial: false, animate: false } : {};
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
@@ -30,6 +34,7 @@ export function ComingSoon({ title }: ComingSoonProps) {
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
+        {...animateProps}
         className="mb-6"
       >
         <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-primary/10 text-primary">
@@ -41,6 +46,7 @@ export function ComingSoon({ title }: ComingSoonProps) {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2, duration: 0.5 }}
+        {...animateProps}
       >
         {title && (
           <h1 className="text-2xl font-bold text-foreground mb-2">{title}</h1>
@@ -57,6 +63,7 @@ export function ComingSoon({ title }: ComingSoonProps) {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4, duration: 0.5 }}
+        {...animateProps}
       >
         <Button
           onClick={() => router.push("/dashboard")}
