@@ -1,6 +1,6 @@
 /**
  * Purpose: Login form API handlers — pure logic, no UI
- * Responsibility: Handle OTP send/resend/verify + email login
+ * Responsibility: Handle OTP send/resend/verify (phone + email) + email login
  * Important Notes:
  *   - Returns structured results — form component decides UI behavior
  *   - All toast notifications handled here (side effect)
@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { apiClient, ApiClientError } from "@/services/api-client";
 import { useTranslation } from "@/i18n/use-translation";
 import type { ApiResponse, SendOtpResponse, OTPVerifyResponse, LoginEmailResponse } from "@/types";
-import type { OtpSendForm, OtpVerifyForm, EmailLoginForm, LoginSuccessData } from "./auth-schemas";
+import type { OtpSendForm, EmailOtpSendForm, OtpVerifyForm, EmailLoginForm, LoginSuccessData } from "./auth-schemas";
 
 // ==================== Result Types ====================
 
@@ -54,6 +54,22 @@ export function useLoginHandlers() {
     }
   }
 
+  async function sendEmailOtp(data: EmailOtpSendForm): Promise<OtpSendResult> {
+    try {
+      const res = await apiClient.post<ApiResponse<SendOtpResponse>>(
+        "/auth/send-otp",
+        { email: data.email, purpose: "LOGIN" }
+      );
+      if (res.success) {
+        toast.success(t("auth.sendCodeToEmail"), { description: data.email });
+        return { success: true, devOtp: res.data?.devOtp };
+      }
+      return { success: false };
+    } catch (err: unknown) {
+      return handleOtpError(err);
+    }
+  }
+
   async function resendOtp(mobile: string): Promise<OtpSendResult> {
     try {
       const res = await apiClient.post<ApiResponse<SendOtpResponse>>(
@@ -70,11 +86,34 @@ export function useLoginHandlers() {
     }
   }
 
+  async function resendEmailOtp(email: string): Promise<OtpSendResult> {
+    try {
+      const res = await apiClient.post<ApiResponse<SendOtpResponse>>(
+        "/auth/send-otp",
+        { email, purpose: "LOGIN" }
+      );
+      if (res.success) {
+        toast.success(t("auth.otpResent"), { description: email });
+        return { success: true, devOtp: res.data?.devOtp };
+      }
+      return { success: false };
+    } catch (err: unknown) {
+      return handleOtpError(err);
+    }
+  }
+
   async function verifyOtp(data: OtpVerifyForm): Promise<OtpVerifyResult> {
     try {
+      const payload: Record<string, string> = {
+        otp: data.otp,
+        purpose: "LOGIN",
+      };
+      if (data.mobile) payload.mobile = data.mobile;
+      if (data.email) payload.email = data.email;
+
       const res = await apiClient.post<ApiResponse<OTPVerifyResponse>>(
         "/auth/verify-otp",
-        { mobile: data.mobile, otp: data.otp, purpose: "LOGIN" }
+        payload
       );
       if (res.success && res.data) {
         toast.success(t("common.success"), { description: t("auth.welcomeBack") });
@@ -128,5 +167,5 @@ export function useLoginHandlers() {
     return { success: false };
   }
 
-  return { sendOtp, resendOtp, verifyOtp, emailLogin };
+  return { sendOtp, sendEmailOtp, resendOtp, resendEmailOtp, verifyOtp, emailLogin };
 }

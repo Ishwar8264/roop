@@ -54,8 +54,15 @@ export const otpSendSchema = z.object({
   mobile: indianMobile,
 });
 
+/** Email OTP send schema — for login via email OTP */
+export const emailOtpSendSchema = z.object({
+  email: emailField,
+});
+
+/** OTP verify schema — works for both mobile & email OTP */
 export const otpVerifySchema = z.object({
-  mobile: z.string(),
+  mobile: z.string().optional(),
+  email: z.string().optional(),
   otp: otp6,
 });
 
@@ -84,6 +91,7 @@ export const registerOtpSchema = z.object({
 // ==================== Inferred Types ====================
 
 export type OtpSendForm = z.infer<typeof otpSendSchema>;
+export type EmailOtpSendForm = z.infer<typeof emailOtpSendSchema>;
 export type OtpVerifyForm = z.infer<typeof otpVerifySchema>;
 export type EmailLoginForm = z.infer<typeof emailLoginSchema>;
 export type RegisterDetailsForm = z.infer<typeof registerDetailsSchema>;

@@ -4,18 +4,16 @@
  *
  * Endpoint: POST /api/auth/verify-otp
  *
- * OpenAPI Summary: Verify OTP and login/register
- * OpenAPI Description: Verify the OTP sent to mobile.
- *   For LOGIN purpose: only logs in existing users (no auto-registration).
- *   For REGISTER purpose: creates new user with provided name, then logs in.
- *   Returns JWT access + refresh tokens. Max 3 verification attempts per OTP.
- *   Session rotation: new AuthSession created on each login.
- *
  * Request Body:
- *   mobile: string (Indian 10-digit) — required
+ *   mobile?: string (Indian 10-digit) — for phone OTP
+ *   email?: string (valid email) — for email OTP
  *   otp: string (6 digits) — required
  *   purpose: "LOGIN" | "REGISTER" — required (default: LOGIN)
- *   name: string (required when purpose is REGISTER)
+ *   name?: string (required when purpose is REGISTER)
+ *   username?: string
+ *   email?: string
+ *   password?: string
+ *   At least one of mobile or email must be provided
  *
  * Responses:
  *   200: { success: true, data: { user, tokens, isNewUser } }
@@ -44,12 +42,15 @@ import {
 export const POST = createApiHandler({
   schema: verifyOtpSchema,
   handler: async ({ parsedBody, request }) => {
-    const { mobile, otp, purpose, name, username, email, password } = parsedBody;
+    const { mobile, email, otp, purpose, name, username, password } = parsedBody;
+
+    // Determine identifier for OTP lookup
+    const identifier = mobile || email!;
 
     // 1. Find the latest valid (unused, not expired) OTP
     const otpRecord = await prisma.authOtp.findFirst({
       where: {
-        mobile,
+        mobile: identifier,
         isUsed: false,
         expiresAt: { gt: new Date() },
       },
@@ -57,7 +58,7 @@ export const POST = createApiHandler({
     });
 
     if (!otpRecord) {
-      await logAuthEvent(mobile, "LOGIN_FAILED", request, { reason: "NO_VALID_OTP" });
+      await logAuthEvent(identifier, "LOGIN_FAILED", request, { reason: "NO_VALID_OTP" });
       throw new AuthNoValidOtpError();
     }
 
@@ -67,7 +68,7 @@ export const POST = createApiHandler({
         where: { id: otpRecord.id },
         data: { isUsed: true },
       });
-      await logAuthEvent(mobile, "LOGIN_FAILED", request, { reason: "MAX_ATTEMPTS_EXCEEDED" });
+      await logAuthEvent(identifier, "LOGIN_FAILED", request, { reason: "MAX_ATTEMPTS_EXCEEDED" });
       throw new AuthOtpMaxAttemptsError();
     }
 
@@ -81,7 +82,7 @@ export const POST = createApiHandler({
     const isValidOtp = await verifyOtp(otp, otpRecord.otp);
     if (!isValidOtp) {
       const attemptsRemaining = getMaxAttempts() - otpRecord.attempts - 1;
-      await logAuthEvent(mobile, "LOGIN_FAILED", request, {
+      await logAuthEvent(identifier, "LOGIN_FAILED", request, {
         reason: "INVALID_OTP",
         attemptsRemaining,
       });
@@ -99,13 +100,24 @@ export const POST = createApiHandler({
     let isNewUser = false;
 
     if (purpose === "REGISTER") {
-      // REGISTER: Create new user with provided name, email and mobile
-      // Double-check mobile is not already registered (race condition safety)
-      const existingUser = await prisma.user.findUnique({ where: { mobile } });
-      if (existingUser) {
-        // Mobile got registered between send-otp and verify-otp — just login instead
-        user = existingUser;
-      } else {
+      // REGISTER: Create new user with provided details
+      // Double-check identifier is not already registered (race condition safety)
+      if (mobile) {
+        const existingByMobile = await prisma.user.findUnique({ where: { mobile } });
+        if (existingByMobile) {
+          // Mobile got registered between send-otp and verify-otp — just login instead
+          user = existingByMobile;
+        }
+      }
+
+      if (!user && email) {
+        const existingByEmail = await prisma.user.findUnique({ where: { email } });
+        if (existingByEmail) {
+          throw new AuthEmailExistsError();
+        }
+      }
+
+      if (!user) {
         // Check if username is already taken
         if (username) {
           const existingUsername = await prisma.user.findUnique({ where: { username } });
@@ -113,24 +125,22 @@ export const POST = createApiHandler({
             throw new AuthUsernameExistsError();
           }
         }
-        // Check if email is already taken by another user
-        if (email) {
-          const existingEmail = await prisma.user.findUnique({ where: { email } });
-          if (existingEmail) {
-            throw new AuthEmailExistsError();
-          }
-        }
+
         // Hash password if provided
         const hashedPassword = password ? await hashPassword(password) : undefined;
+
+        // Determine auth provider
+        const authProvider = mobile ? "MOBILE" : "EMAIL";
+
         user = await prisma.user.create({
           data: {
-            mobile,
+            mobile: mobile || null,
+            email: email || parsedBody.email || null,
             username: username || null,
             name: name || null,
-            email: email || null,
             password: hashedPassword || null,
             role: "USER",
-            authProvider: "MOBILE",
+            authProvider,
             isActive: true,
             loyaltyPoints: 0,
           },
@@ -145,10 +155,14 @@ export const POST = createApiHandler({
       }
     } else {
       // LOGIN: Only login existing users (NO auto-registration)
-      user = await prisma.user.findUnique({ where: { mobile } });
+      if (mobile) {
+        user = await prisma.user.findUnique({ where: { mobile } });
+      } else if (email) {
+        user = await prisma.user.findUnique({ where: { email } });
+      }
 
       if (!user) {
-        await logAuthEvent(mobile, "LOGIN_FAILED", request, { reason: "MOBILE_NOT_REGISTERED" });
+        await logAuthEvent(identifier, "LOGIN_FAILED", request, { reason: "NOT_REGISTERED" });
         throw new AuthMobileNotRegisteredError();
       }
 
@@ -163,7 +177,7 @@ export const POST = createApiHandler({
 
     // 7. Check if user account is active
     if (!user.isActive) {
-      await logAuthEvent(mobile, "LOGIN_FAILED", request, { reason: "ACCOUNT_SUSPENDED" }, user.id);
+      await logAuthEvent(identifier, "LOGIN_FAILED", request, { reason: "ACCOUNT_SUSPENDED" }, user.id);
       throw new AuthAccountSuspendedError();
     }
 
@@ -172,10 +186,10 @@ export const POST = createApiHandler({
 
     // 9. Log successful login
     await logAuthEvent(
-      mobile,
+      identifier,
       isNewUser ? "REGISTER_EMAIL" : "LOGIN_SUCCESS",
       request,
-      { isNewUser, authProvider: "MOBILE", purpose },
+      { isNewUser, authProvider: user.authProvider, purpose },
       user.id
     );
 

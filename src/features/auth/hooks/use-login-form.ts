@@ -6,25 +6,15 @@
  *   API handlers, OTP timer) into a single hook. The UI component just
  *   calls this hook and renders the returned data.
  *
- * WHY SEPARATE LOGIC FROM UI?
- *   - Easier to test: you can unit-test the hook without rendering DOM
- *   - Cleaner code: UI file stays under 100 lines, logic file stays focused
- *   - Reusability: if we build a mobile app with React Native, same hook works
- *   - Debugging: all state transitions are in one place
+ * LOGIN METHODS SUPPORTED:
+ *   1. Phone OTP — Send OTP to mobile, verify
+ *   2. Email OTP — Send OTP to email, verify
+ *   3. Email + Password — Traditional login
  *
- * WHAT THIS HOOK MANAGES:
- *   - Tab state: "otp" vs "email" login method
- *   - OTP flow state: whether OTP is sent, dev OTP display
- *   - Submission loading state
- *   - Mobile-not-registered error banner state
- *   - Three react-hook-form instances (otpSend, otpVerify, emailLogin)
- *   - OTP timer (cooldown before resend)
- *   - All handler functions (sendOtp, resendOtp, verifyOtp, emailLogin)
- *
- * WHAT THE UI COMPONENT DOES:
- *   - Calls useLoginForm()
- *   - Renders JSX using the hook's return values
- *   - NOTHING else — no useState, no useForm, no API calls
+ * VIEW STRUCTURE:
+ *   view: "otp" | "password"
+ *     OTP view has sub-methods: otpMethod "phone" | "email"
+ *     Password view: email + password form
  */
 
 import { useState, useCallback } from "react";
@@ -34,17 +24,19 @@ import { useOtpTimer } from "@/features/auth/hooks/use-otp-timer";
 import { useLoginHandlers } from "@/features/auth/logic/login-handlers";
 import {
   otpSendSchema,
+  emailOtpSendSchema,
   otpVerifySchema,
   emailLoginSchema,
 } from "@/features/auth/logic/auth-schemas";
 import type {
   OtpSendForm,
+  EmailOtpSendForm,
   OtpVerifyForm,
   EmailLoginForm,
   LoginSuccessData,
 } from "@/features/auth/logic/auth-schemas";
 
-/** Props accepted by the hook (same as LoginFormProps) */
+/** Props accepted by the hook */
 interface UseLoginFormOptions {
   /** Called when login succeeds — receives user + token data */
   onSuccess?: (data: LoginSuccessData) => void;
@@ -54,9 +46,11 @@ interface UseLoginFormOptions {
 
 /** Return type of useLoginForm — everything the UI needs */
 export interface LoginFormState {
-  // ── Tab state ──
-  tab: "otp" | "email";
-  setTab: (tab: "otp" | "email") => void;
+  // ── View state ──
+  view: "otp" | "password";
+  setView: (view: "otp" | "password") => void;
+  otpMethod: "phone" | "email";
+  setOtpMethod: (method: "phone" | "email") => void;
 
   // ── OTP flow state ──
   otpSent: boolean;
@@ -64,9 +58,11 @@ export interface LoginFormState {
   mobileNotFoundError: string | null;
   isSubmitting: boolean;
   watchedMobile: string;
+  watchedEmail: string;
 
   // ── Form instances ──
   otpSendForm: ReturnType<typeof useForm<OtpSendForm>>;
+  emailOtpSendForm: ReturnType<typeof useForm<EmailOtpSendForm>>;
   otpVerifyForm: ReturnType<typeof useForm<OtpVerifyForm>>;
   emailForm: ReturnType<typeof useForm<EmailLoginForm>>;
 
@@ -80,6 +76,7 @@ export interface LoginFormState {
 
   // ── Handlers ──
   handleSendOtp: (data: OtpSendForm) => Promise<void>;
+  handleSendEmailOtp: (data: EmailOtpSendForm) => Promise<void>;
   handleResendOtp: () => Promise<void>;
   handleVerifyOtp: (data: OtpVerifyForm) => Promise<void>;
   handleEmailLogin: (data: EmailLoginForm) => Promise<void>;
@@ -97,7 +94,8 @@ export function useLoginForm(options: UseLoginFormOptions): LoginFormState {
   const otpTimer = useOtpTimer(30);
 
   // ── Local UI state ──
-  const [tab, setTab] = useState<"otp" | "email">("otp");
+  const [view, setView] = useState<"otp" | "password">("otp");
+  const [otpMethod, setOtpMethod] = useState<"phone" | "email">("phone");
   const [otpSent, setOtpSent] = useState(false);
   const [devOtp, setDevOtp] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -110,9 +108,15 @@ export function useLoginForm(options: UseLoginFormOptions): LoginFormState {
     mode: "onChange",
   });
 
+  const emailOtpSendForm = useForm<EmailOtpSendForm>({
+    resolver: zodResolver(emailOtpSendSchema),
+    defaultValues: { email: "" },
+    mode: "onChange",
+  });
+
   const otpVerifyForm = useForm<OtpVerifyForm>({
     resolver: zodResolver(otpVerifySchema),
-    defaultValues: { mobile: "", otp: "" },
+    defaultValues: { mobile: "", email: "", otp: "" },
     mode: "onChange",
   });
 
@@ -122,18 +126,12 @@ export function useLoginForm(options: UseLoginFormOptions): LoginFormState {
     mode: "onChange",
   });
 
-  /** Watch mobile for display in "OTP sent to 98XXX" text */
+  /** Watch values for display */
   const watchedMobile = otpSendForm.watch("mobile");
+  const watchedEmail = emailOtpSendForm.watch("email");
 
   /**
-   * Send OTP to the user's mobile number.
-   *
-   * FLOW:
-   *   1. Set loading state
-   *   2. Call API via handlers.sendOtp()
-   *   3. On success: mark OTP as sent, copy mobile to verify form, start timer
-   *   4. On "not registered" error: show banner with register link
-   *   5. In dev mode: display the OTP on screen for testing
+   * Send OTP to the user's mobile number (Phone OTP method).
    */
   const handleSendOtp = useCallback(async (data: OtpSendForm) => {
     setIsSubmitting(true);
@@ -153,30 +151,53 @@ export function useLoginForm(options: UseLoginFormOptions): LoginFormState {
   }, [handlers, otpTimer, otpVerifyForm]);
 
   /**
-   * Resend OTP after the cooldown timer expires.
-   *
-   * GUARDS:
-   *   - Won't send if no mobile number is available
-   *   - Won't send if the timer hasn't expired (otpTimer.canResend)
+   * Send OTP to the user's email address (Email OTP method).
    */
-  const handleResendOtp = useCallback(async () => {
-    const mobile = otpVerifyForm.getValues("mobile");
-    if (!mobile || !otpTimer.canResend) return;
-
+  const handleSendEmailOtp = useCallback(async (data: EmailOtpSendForm) => {
     setIsSubmitting(true);
-    const res = await handlers.resendOtp(mobile);
+    setMobileNotFoundError(null);
 
-    if (res.success) otpTimer.start();
+    const res = await handlers.sendEmailOtp(data);
+
+    if (res.success) {
+      setOtpSent(true);
+      otpVerifyForm.setValue("email", data.email);
+      otpTimer.start();
+    }
     if (res.devOtp) setDevOtp(res.devOtp);
 
     setIsSubmitting(false);
   }, [handlers, otpTimer, otpVerifyForm]);
 
   /**
+   * Resend OTP after the cooldown timer expires.
+   */
+  const handleResendOtp = useCallback(async () => {
+    if (!otpTimer.canResend) return;
+
+    setIsSubmitting(true);
+
+    if (otpMethod === "phone") {
+      const mobile = otpVerifyForm.getValues("mobile");
+      if (mobile) {
+        const res = await handlers.resendOtp(mobile);
+        if (res.success) otpTimer.start();
+        if (res.devOtp) setDevOtp(res.devOtp);
+      }
+    } else {
+      const email = otpVerifyForm.getValues("email");
+      if (email) {
+        const res = await handlers.resendEmailOtp(email);
+        if (res.success) otpTimer.start();
+        if (res.devOtp) setDevOtp(res.devOtp);
+      }
+    }
+
+    setIsSubmitting(false);
+  }, [handlers, otpTimer, otpVerifyForm, otpMethod]);
+
+  /**
    * Verify the OTP the user entered.
-   *
-   * On success: calls onSuccess callback → auth store + redirect handled by parent
-   * On "not registered" error: shows the mobile-not-registered banner
    */
   const handleVerifyOtp = useCallback(async (data: OtpVerifyForm) => {
     setIsSubmitting(true);
@@ -191,8 +212,6 @@ export function useLoginForm(options: UseLoginFormOptions): LoginFormState {
 
   /**
    * Login via email + password (alternative to OTP).
-   *
-   * On success: calls onSuccess callback → auth store + redirect handled by parent
    */
   const handleEmailLogin = useCallback(async (data: EmailLoginForm) => {
     setIsSubmitting(true);
@@ -204,27 +223,33 @@ export function useLoginForm(options: UseLoginFormOptions): LoginFormState {
     setIsSubmitting(false);
   }, [handlers, onSuccess]);
 
-  /** Reset the OTP flow back to "enter mobile" step */
+  /** Reset the OTP flow back to "enter mobile/email" step */
   const resetOtpFlow = useCallback(() => {
     setOtpSent(false);
     setDevOtp(null);
     setMobileNotFoundError(null);
   }, []);
 
-  /** Go back to mobile entry from OTP verification step */
+  /** Go back to mobile/email entry from OTP verification step */
   const handleChangeNumber = useCallback(() => {
     setOtpSent(false);
     setDevOtp(null);
-    otpSendForm.reset();
+    if (otpMethod === "phone") {
+      otpSendForm.reset();
+    } else {
+      emailOtpSendForm.reset();
+    }
     otpVerifyForm.setValue("otp", "");
-  }, [otpSendForm, otpVerifyForm]);
+  }, [otpSendForm, emailOtpSendForm, otpVerifyForm, otpMethod]);
 
   return {
-    tab, setTab,
-    otpSent, devOtp, mobileNotFoundError, isSubmitting, watchedMobile,
-    otpSendForm, otpVerifyForm, emailForm,
+    view, setView,
+    otpMethod, setOtpMethod,
+    otpSent, devOtp, mobileNotFoundError, isSubmitting,
+    watchedMobile, watchedEmail,
+    otpSendForm, emailOtpSendForm, otpVerifyForm, emailForm,
     otpTimer,
-    handleSendOtp, handleResendOtp, handleVerifyOtp, handleEmailLogin,
+    handleSendOtp, handleSendEmailOtp, handleResendOtp, handleVerifyOtp, handleEmailLogin,
     resetOtpFlow, handleChangeNumber,
   };
 }

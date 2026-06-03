@@ -38,15 +38,20 @@ export const otpPurposeSchema = z.enum(["LOGIN", "REGISTER"]);
 
 /**
  * POST /api/auth/send-otp
- * Body: { mobile: "9876543210", purpose: "LOGIN" | "REGISTER" }
+ * Body: { mobile?: "9876543210", email?: "user@example.com", purpose: "LOGIN" | "REGISTER" }
  *
- * - LOGIN: checks mobile exists in DB (user must be registered)
+ * - At least one of mobile or email must be provided
+ * - LOGIN: checks mobile/email exists in DB (user must be registered)
  * - REGISTER: checks mobile does NOT exist in DB (must be new)
  */
 export const sendOtpSchema = z.object({
-  mobile: indianMobileSchema,
+  mobile: indianMobileSchema.optional(),
+  email: z.string().email("Valid email is required").optional(),
   purpose: otpPurposeSchema.default("LOGIN"),
-});
+}).refine(
+  (data) => data.mobile || data.email,
+  { message: "Either mobile or email is required", path: ["mobile"] }
+);
 
 export type SendOtpInput = z.infer<typeof sendOtpSchema>;
 
@@ -61,14 +66,17 @@ export type SendOtpInput = z.infer<typeof sendOtpSchema>;
  * - name is required when purpose is REGISTER
  */
 export const verifyOtpSchema = z.object({
-  mobile: indianMobileSchema,
+  mobile: indianMobileSchema.optional(),
+  email: z.string().email("Valid email is required").optional(),
   otp: otpSchema,
   purpose: otpPurposeSchema.default("LOGIN"),
   name: z.string().min(1, "Name is required").max(100, "Name too long").optional(),
   username: z.string().min(3, "Username must be at least 3 characters").max(30, "Username too long").regex(/^[a-zA-Z0-9_]+$/, "Only letters, numbers, and underscores").optional(),
-  email: z.string().email("Valid email is required").optional(),
   password: z.string().min(8, "Password must be at least 8 characters").optional(),
 }).refine(
+  (data) => data.mobile || data.email,
+  { message: "Either mobile or email is required", path: ["mobile"] }
+).refine(
   (data) => data.purpose !== "REGISTER" || (data.name && data.name.trim().length > 0),
   { message: "Name is required for registration", path: ["name"] }
 );
