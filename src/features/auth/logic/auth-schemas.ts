@@ -35,6 +35,19 @@ export const passwordField = z
   .string()
   .min(1, "Password is required");
 
+export const usernameField = z
+  .string()
+  .min(3, "Username must be at least 3 characters")
+  .max(30, "Username too long")
+  .regex(/^[a-zA-Z0-9_]+$/, "Only letters, numbers, and underscores");
+
+export const registerPassword = z
+  .string()
+  .min(8, "Password must be at least 8 characters")
+  .regex(/[A-Z]/, "Must contain at least 1 uppercase letter")
+  .regex(/[a-z]/, "Must contain at least 1 lowercase letter")
+  .regex(/\d/, "Must contain at least 1 digit");
+
 // ==================== Form Schemas ====================
 
 export const otpSendSchema = z.object({
@@ -53,8 +66,14 @@ export const emailLoginSchema = z.object({
 
 export const registerDetailsSchema = z.object({
   name: fullName,
+  username: usernameField,
   email: emailField,
+  password: registerPassword,
+  confirmPassword: z.string().min(1, "Confirm password is required"),
   mobile: indianMobile,
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
 });
 
 export const registerOtpSchema = z.object({

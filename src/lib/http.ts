@@ -43,6 +43,7 @@ export const ERROR_CODES = {
   AUTH_HOURLY_LIMIT: "AUTH_HOURLY_LIMIT",
   AUTH_EMAIL_EXISTS: "AUTH_EMAIL_EXISTS",
   AUTH_MOBILE_EXISTS: "AUTH_MOBILE_EXISTS",
+  AUTH_USERNAME_EXISTS: "AUTH_USERNAME_EXISTS",
   AUTH_MOBILE_NOT_REGISTERED: "AUTH_MOBILE_NOT_REGISTERED",
   AUTH_INVALID_CREDENTIALS: "AUTH_INVALID_CREDENTIALS",
   AUTH_GOOGLE_TOKEN_INVALID: "AUTH_GOOGLE_TOKEN_INVALID",
@@ -157,6 +158,10 @@ export const HTTP_MESSAGES = {
   AUTH_MOBILE_EXISTS: {
     messageHi: "Yeh mobile number pehle se registered hai. Kripya login karein.",
     messageEn: "This mobile number is already registered. Please login instead.",
+  },
+  AUTH_USERNAME_EXISTS: {
+    messageHi: "Yeh username pehle se liya hua hai. Kripya doosra choose karein.",
+    messageEn: "This username is already taken. Please choose another one.",
   },
   AUTH_MOBILE_NOT_REGISTERED: {
     messageHi: "Yeh mobile number registered nahi hai. Kripya pehle register karein.",

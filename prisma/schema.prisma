@@ -79,6 +79,7 @@ model BranchHoliday {
 /// All platform users — customers, staff, and admins
 model User {
   id            String   @id @default(cuid())
+  username      String?  @unique // Unique username for profile URL & login — nullable for Google users
   mobile        String?  @unique // Indian 10-digit mobile — nullable for Google/email-only users. Unique when present.
   name          String? // Full name (optional at registration)
   email         String?  @unique // Email for email login + Google — unique when present

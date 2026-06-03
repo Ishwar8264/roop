@@ -50,6 +50,10 @@ export function useRegisterHandlers() {
         toast.error(t("auth.emailAlreadyRegistered"), { description: err.message, duration: 6000 });
         return { success: false };
       }
+      if (err instanceof ApiClientError && err.errorCode === "AUTH_USERNAME_EXISTS") {
+        toast.error(t("auth.usernameAlreadyTaken"), { description: err.message, duration: 6000 });
+        return { success: false };
+      }
       const message = err instanceof ApiClientError ? err.message : t("common.somethingWrong");
       toast.error(t("common.error"), { description: message });
       return { success: false };
@@ -74,11 +78,11 @@ export function useRegisterHandlers() {
     }
   }
 
-  async function verifyOtp(data: RegisterOtpForm, name: string, email: string): Promise<RegisterVerifyResult> {
+  async function verifyOtp(data: RegisterOtpForm, name: string, username: string, email: string, password: string): Promise<RegisterVerifyResult> {
     try {
       const res = await apiClient.post<ApiResponse<OTPVerifyResponse>>(
         "/auth/verify-otp",
-        { mobile: data.mobile, otp: data.otp, purpose: "REGISTER", name, email }
+        { mobile: data.mobile, otp: data.otp, purpose: "REGISTER", name, username, email, password }
       );
       if (res.success && res.data) {
         toast.success(t("auth.registerSuccess"), { description: t("auth.welcomeToNr") });

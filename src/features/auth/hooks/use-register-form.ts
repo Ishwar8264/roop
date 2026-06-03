@@ -57,6 +57,7 @@ export interface RegisterFormState {
   isSubmitting: boolean;
   devOtp: string | null;
   nameValue: string;
+  usernameValue: string;
   emailValue: string;
   watchedMobile: string;
 
@@ -96,7 +97,7 @@ export function useRegisterForm(options: UseRegisterFormOptions): RegisterFormSt
   // ── Form instances (react-hook-form + Zod validation) ──
   const detailsForm = useForm<RegisterDetailsForm>({
     resolver: zodResolver(registerDetailsSchema),
-    defaultValues: { name: "", email: "", mobile: prefilledMobile || "" },
+    defaultValues: { name: "", username: "", email: "", password: "", confirmPassword: "", mobile: prefilledMobile || "" },
     mode: "onChange",
   });
 
@@ -109,6 +110,7 @@ export function useRegisterForm(options: UseRegisterFormOptions): RegisterFormSt
   /** Watch values for the "details summary" section in OTP step */
   const watchedMobile = detailsForm.watch("mobile");
   const nameValue = detailsForm.watch("name");
+  const usernameValue = detailsForm.watch("username");
   const emailValue = detailsForm.watch("email");
 
   /**
@@ -169,8 +171,10 @@ export function useRegisterForm(options: UseRegisterFormOptions): RegisterFormSt
     setIsSubmitting(true);
 
     const name = detailsForm.getValues("name");
+    const username = detailsForm.getValues("username");
     const email = detailsForm.getValues("email");
-    const res = await handlers.verifyOtp(data, name, email);
+    const password = detailsForm.getValues("password");
+    const res = await handlers.verifyOtp(data, name, username, email, password);
 
     if (res.success && res.data) onSuccess?.(res.data);
 
@@ -186,7 +190,7 @@ export function useRegisterForm(options: UseRegisterFormOptions): RegisterFormSt
   }, [otpForm]);
 
   return {
-    step, isSubmitting, devOtp, nameValue, emailValue, watchedMobile,
+    step, isSubmitting, devOtp, nameValue, usernameValue, emailValue, watchedMobile,
     detailsForm, otpForm,
     otpTimer,
     handleSendOtp, handleResendOtp, handleVerifyOtp, handleChangeDetails,

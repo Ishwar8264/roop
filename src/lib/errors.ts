@@ -181,6 +181,16 @@ export class AuthMobileExistsError extends AppError {
   }
 }
 
+export class AuthUsernameExistsError extends AppError {
+  constructor() {
+    super(
+      ERROR_CODES.AUTH_USERNAME_EXISTS,
+      HTTP_STATUS.CONFLICT,
+      HTTP_MESSAGES.AUTH_USERNAME_EXISTS.messageEn
+    );
+  }
+}
+
 export class AuthMobileNotRegisteredError extends AppError {
   constructor() {
     super(

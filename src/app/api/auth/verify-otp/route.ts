@@ -30,6 +30,7 @@ import { verifyOtp, getMaxAttempts } from "@/lib/otp";
 import { createAuthSessionAndTokens } from "@/lib/create-auth-session";
 import { logAuthEvent } from "@/lib/auth-helpers";
 import { verifyOtpSchema } from "@/lib/validations/auth";
+import { hashPassword } from "@/lib/server/crypto";
 import {
   AuthNoValidOtpError,
   AuthOtpMaxAttemptsError,
@@ -37,12 +38,13 @@ import {
   AuthAccountSuspendedError,
   AuthMobileNotRegisteredError,
   AuthEmailExistsError,
+  AuthUsernameExistsError,
 } from "@/lib/errors";
 
 export const POST = createApiHandler({
   schema: verifyOtpSchema,
   handler: async ({ parsedBody, request }) => {
-    const { mobile, otp, purpose, name, email } = parsedBody;
+    const { mobile, otp, purpose, name, username, email, password } = parsedBody;
 
     // 1. Find the latest valid (unused, not expired) OTP
     const otpRecord = await prisma.authOtp.findFirst({
@@ -104,6 +106,13 @@ export const POST = createApiHandler({
         // Mobile got registered between send-otp and verify-otp — just login instead
         user = existingUser;
       } else {
+        // Check if username is already taken
+        if (username) {
+          const existingUsername = await prisma.user.findUnique({ where: { username } });
+          if (existingUsername) {
+            throw new AuthUsernameExistsError();
+          }
+        }
         // Check if email is already taken by another user
         if (email) {
           const existingEmail = await prisma.user.findUnique({ where: { email } });
@@ -111,11 +120,15 @@ export const POST = createApiHandler({
             throw new AuthEmailExistsError();
           }
         }
+        // Hash password if provided
+        const hashedPassword = password ? await hashPassword(password) : undefined;
         user = await prisma.user.create({
           data: {
             mobile,
+            username: username || null,
             name: name || null,
             email: email || null,
+            password: hashedPassword || null,
             role: "USER",
             authProvider: "MOBILE",
             isActive: true,
