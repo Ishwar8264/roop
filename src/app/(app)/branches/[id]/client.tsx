@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -15,12 +14,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useBranch } from "@/features/branch/hooks/use-branch";
 import { BranchStatusBadge } from "@/features/branch/components/branch-status-badge";
-import { BranchFormDialog } from "@/features/branch/components/branch-form-dialog";
 import { HolidayManager } from "@/features/branch/components/holiday-manager";
 import { useAuthStore } from "@/stores/auth-store";
 import { useTranslation } from "@/i18n/use-translation";
 import { useLocaleStore } from "@/i18n/locale-store";
-import type { BranchResponse } from "@/features/branch/types";
 
 export function BranchDetailClient() {
   const params = useParams();
@@ -32,7 +29,6 @@ export function BranchDetailClient() {
   const id = params.id as string;
 
   const { data: branch, isLoading } = useBranch(id);
-  const [dialogOpen, setDialogOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -54,7 +50,7 @@ export function BranchDetailClient() {
   }
 
   const displayName = locale === "hi" ? branch.nameHi : branch.nameEn;
-  const displayAddress = locale === "hi" ? branch.address : branch.address;
+  const displayAddress = branch.address;
 
   return (
     <div className="space-y-6">
@@ -79,7 +75,7 @@ export function BranchDetailClient() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setDialogOpen(true)}
+            onClick={() => router.push(`/branches/${id}/edit`)}
           >
             <Pencil className="h-3.5 w-3.5 mr-1" />
             {t("common.edit")}
@@ -150,13 +146,6 @@ export function BranchDetailClient() {
 
       {/* Holiday Manager */}
       <HolidayManager branchId={branch.id} />
-
-      {/* Edit Dialog */}
-      <BranchFormDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        branch={branch as unknown as BranchResponse}
-      />
     </div>
   );
 }
