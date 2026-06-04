@@ -5,6 +5,10 @@
  *   - mode="create" → POST /api/branches → redirect to list
  *   - mode="edit"   → PATCH /api/branches/:id → redirect back
  *   - defaultValues pre-fill for edit mode
+ *   - defaultLocation pre-fills map pin for edit mode
+ *   - LocationPicker for Google Maps integration
+ *   - TimePicker for open/close time selection
+ *   - Unsaved changes guard prevents accidental navigation
  *   - Reused by both app routes and admin routes
  */
 
@@ -27,8 +31,12 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { TimePicker } from "@/components/ui/time-picker";
+import { LocationPicker } from "@/components/shared/location-picker";
+import type { LocationData } from "@/components/shared/location-picker";
 import { useCreateBranch } from "@/features/branch/hooks/use-create-branch";
 import { useUpdateBranch } from "@/features/branch/hooks/use-update-branch";
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { useTranslation } from "@/i18n/use-translation";
 
 // ==================== Zod Schema (frontend-specific) ====================
@@ -79,6 +87,8 @@ export interface BranchFormProps {
   mode: "create" | "edit";
   branchId?: string;
   defaultValues?: Partial<BranchFormValues>;
+  /** Pre-loaded location data for edit mode (parsed from googleMapsUrl) */
+  defaultLocation?: LocationData | null;
   /** Where to go after successful submit. Defaults: /branches or /admin/branches */
   returnUrl?: string;
 }
@@ -89,6 +99,7 @@ export function BranchForm({
   mode,
   branchId,
   defaultValues,
+  defaultLocation,
   returnUrl,
 }: BranchFormProps) {
   const router = useRouter();
@@ -115,6 +126,31 @@ export function BranchForm({
   const isLoading = createBranch.isPending || updateBranch.isPending;
 
   const successUrl = returnUrl ?? (isEditing ? `/branches/${branchId}` : "/branches");
+
+  // Unsaved changes guard
+  const { UnsavedChangesDialog } = useUnsavedChanges(form.formState.isDirty);
+
+  // Handle location selection from map
+  const handleLocationChange = (location: LocationData | null) => {
+    if (location) {
+      form.setValue("googleMapsUrl", location.googleMapsUrl, {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+      // Auto-fill city and address from map selection
+      if (location.city && !form.getValues("city")) {
+        form.setValue("city", location.city, { shouldDirty: true });
+      }
+      if (location.address && !form.getValues("address")) {
+        form.setValue("address", location.address, { shouldDirty: true });
+      }
+    } else {
+      form.setValue("googleMapsUrl", "", {
+        shouldDirty: true,
+        shouldValidate: true,
+      });
+    }
+  };
 
   const onSubmit = (values: BranchFormValues) => {
     const payload = {
@@ -193,7 +229,44 @@ export function BranchForm({
                 />
               </div>
 
-              {/* City + Address */}
+              {/* Phone */}
+              <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("branches.phone")}</FormLabel>
+                    <FormControl>
+                      <Input placeholder="10-digit mobile number" {...field} />
+                    </FormControl>
+                    <FormDescription>Must start with 6-9</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Location Picker — Google Maps */}
+              <FormField
+                control={form.control}
+                name="googleMapsUrl"
+                render={({ field, fieldState }) => (
+                  <FormItem>
+                    <FormLabel>{t("branches.pickLocation") || "Pick Location on Map"}</FormLabel>
+                    <FormControl>
+                      <LocationPicker
+                        value={defaultLocation}
+                        onChange={handleLocationChange}
+                        error={fieldState.error?.message}
+                      />
+                    </FormControl>
+                    {/* Hidden field to keep googleMapsUrl in form state */}
+                    <input type="hidden" {...field} />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* City + Address (auto-filled by map, but editable) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -202,7 +275,7 @@ export function BranchForm({
                     <FormItem>
                       <FormLabel>{t("branches.city")}</FormLabel>
                       <FormControl>
-                        <Input {...field} />
+                        <Input placeholder="City" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -215,7 +288,7 @@ export function BranchForm({
                     <FormItem>
                       <FormLabel>{t("branches.address")}</FormLabel>
                       <FormControl>
-                        <Input {...field} />
+                        <Input placeholder="Full address" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -223,38 +296,7 @@ export function BranchForm({
                 />
               </div>
 
-              {/* Phone + Maps */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="phone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t("branches.phone")}</FormLabel>
-                      <FormControl>
-                        <Input placeholder="10-digit mobile number" {...field} />
-                      </FormControl>
-                      <FormDescription>Must start with 6-9</FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="googleMapsUrl"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t("branches.googleMapsUrl")}</FormLabel>
-                      <FormControl>
-                        <Input placeholder="https://maps.google.com/..." {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              {/* Timings */}
+              {/* Timings — shadcn TimePicker */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -263,7 +305,11 @@ export function BranchForm({
                     <FormItem>
                       <FormLabel>{t("branches.openTime")}</FormLabel>
                       <FormControl>
-                        <Input type="time" {...field} />
+                        <TimePicker
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder="Opening time"
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -276,7 +322,11 @@ export function BranchForm({
                     <FormItem>
                       <FormLabel>{t("branches.closeTime")}</FormLabel>
                       <FormControl>
-                        <Input type="time" {...field} />
+                        <TimePicker
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder="Closing time"
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -307,6 +357,9 @@ export function BranchForm({
           </Form>
         </CardContent>
       </Card>
+
+      {/* Unsaved Changes Dialog */}
+      <UnsavedChangesDialog />
     </div>
   );
 }
