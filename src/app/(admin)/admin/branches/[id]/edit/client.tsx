@@ -1,20 +1,18 @@
 /**
- * Purpose: Edit branch — client component
+ * Purpose: Admin — Edit branch (client component)
  * Responsibility: Fetch branch data and render BranchForm in edit mode
  */
 
 "use client";
 
-import { useParams } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useBranch } from "@/features/branch/hooks/use-branch";
 import { BranchForm } from "@/features/branch/components/branch-form";
 import type { LocationData } from "@/components/shared/location-picker";
 
-/** Try to extract lat,lng from a Google Maps URL */
+/** Extract lat,lng from a Google Maps URL */
 function parseLocationFromUrl(url: string | null): LocationData | null {
   if (!url) return null;
-  // Match ?q=lat,lng pattern
   const match = url.match(/[?&]q=([+-]?\d+\.?\d*),([+-]?\d+\.?\d*)/);
   if (match) {
     return {
@@ -28,10 +26,8 @@ function parseLocationFromUrl(url: string | null): LocationData | null {
   return null;
 }
 
-export function EditBranchPage({ branchId }: { branchId?: string }) {
-  const params = useParams();
-  const id = branchId ?? (params.id as string);
-  const { data: branch, isLoading } = useBranch(id);
+export function EditBranchClient({ branchId }: { branchId: string }) {
+  const { data: branch, isLoading } = useBranch(branchId);
 
   if (isLoading) {
     return (
@@ -55,7 +51,7 @@ export function EditBranchPage({ branchId }: { branchId?: string }) {
   return (
     <BranchForm
       mode="edit"
-      branchId={id}
+      branchId={branchId}
       defaultValues={{
         nameHi: branch.nameHi,
         nameEn: branch.nameEn,
@@ -67,7 +63,7 @@ export function EditBranchPage({ branchId }: { branchId?: string }) {
         closeTime: branch.closeTime,
       }}
       defaultLocation={defaultLocation}
-      returnUrl={`/branches/${id}`}
+      returnUrl="/admin/branches"
     />
   );
 }

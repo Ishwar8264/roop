@@ -1,12 +1,10 @@
 /**
- * Purpose: Admin — Create new branch page
- * Responsibility: Render BranchForm in create mode with admin return URL
+ * Purpose: Admin — Create new branch page (server component)
+ * Responsibility: Render client form component
  */
 
-"use client";
-
-import { BranchForm } from "@/features/branch/components/branch-form";
+import { NewBranchClient } from "./client";
 
 export default function AdminNewBranchPage() {
-  return <BranchForm mode="create" returnUrl="/admin/branches" />;
+  return <NewBranchClient />;
 }

@@ -18,6 +18,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, MapPin, Phone, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -109,6 +110,7 @@ export function BranchForm({
   returnUrl,
 }: BranchFormProps) {
   const { t } = useTranslation();
+  const router = useRouter();
   const createBranch = useCreateBranch();
   const updateBranch = useUpdateBranch();
 
@@ -166,11 +168,11 @@ export function BranchForm({
     if (isEditing && branchId) {
       updateBranch.mutate(
         { id: branchId, ...payload },
-        { onSuccess: () => { window.location.href = successUrl; } }
+        { onSuccess: () => router.push(successUrl) }
       );
     } else {
       createBranch.mutate(payload, {
-        onSuccess: () => { window.location.href = successUrl; },
+        onSuccess: () => router.push(successUrl),
       });
     }
   };

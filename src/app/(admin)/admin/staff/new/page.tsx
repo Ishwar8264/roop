@@ -1,12 +1,10 @@
 /**
- * Purpose: Admin — Create new staff page
- * Responsibility: Render StaffForm in create mode with admin return URL
+ * Purpose: Admin — Create new staff page (server component)
+ * Responsibility: Render client form component
  */
 
-"use client";
-
-import { StaffForm } from "@/features/staff/components/staff-form";
+import { NewStaffClient } from "./client";
 
 export default function AdminNewStaffPage() {
-  return <StaffForm mode="create" returnUrl="/admin/staff" />;
+  return <NewStaffClient />;
 }

@@ -18,6 +18,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   Loader2,
@@ -151,6 +152,7 @@ export function StaffForm({
   returnUrl,
 }: StaffFormProps) {
   const { t } = useTranslation();
+  const router = useRouter();
   const createStaff = useCreateStaff();
   const updateStaff = useUpdateStaff();
   const { data: branchesData } = useBranches({ limit: 100 });
@@ -208,12 +210,12 @@ export function StaffForm({
     if (isEditing && staffId) {
       updateStaff.mutate(
         { id: staffId, ...payload },
-        { onSuccess: () => { window.location.href = successUrl; } }
+        { onSuccess: () => router.push(successUrl) }
       );
     } else {
       payload.userId = values.userId.trim();
       createStaff.mutate(payload as typeof payload & { userId: string }, {
-        onSuccess: () => { window.location.href = successUrl; },
+        onSuccess: () => router.push(successUrl),
       });
     }
   };
