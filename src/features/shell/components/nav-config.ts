@@ -9,7 +9,7 @@
  */
 
 import type { LucideIcon } from "lucide-react";
-import { Home, Scissors, Calendar, Gift, User, BookOpen, Settings, MapPin } from "lucide-react";
+import { Home, Scissors, Calendar, Gift, User, BookOpen, Settings, MapPin, Users } from "lucide-react";
 
 export interface NavItemConfig {
   href: string;
@@ -52,6 +52,12 @@ export const allNavItems: NavItemConfig[] = [
     labelKey: "nav.branches",
   },
   {
+    href: "/staff",
+    icon: Users,
+    iconName: "Users",
+    labelKey: "nav.staff",
+  },
+  {
     href: "/blog",
     icon: BookOpen,
     iconName: "BookOpen",
@@ -81,4 +87,4 @@ export const bottomNavItemHrefs = [
 ];
 
 // Header-only items (not shown in bottom nav on mobile)
-export const headerOnlyHrefs = ["/branches", "/blog", "/profile"];
+export const headerOnlyHrefs = ["/branches", "/staff", "/blog", "/profile"];

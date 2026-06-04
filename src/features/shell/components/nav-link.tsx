@@ -14,7 +14,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
-import { Home, Scissors, Calendar, Gift, User, BookOpen, Star, Settings, MapPin } from "lucide-react";
+import { Home, Scissors, Calendar, Gift, User, BookOpen, Star, Settings, MapPin, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ==================== Icon Map ====================
@@ -29,6 +29,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   Star,
   Settings,
   MapPin,
+  Users,
 };
 
 // ==================== Types ====================
