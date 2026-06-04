@@ -19,6 +19,7 @@ import {
   LogOut,
   Settings,
   ChevronDown,
+  ShieldAlert,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -55,8 +56,11 @@ export function UserMenu() {
     user.name?.charAt(0) || user.email?.charAt(0) || "U"
   ).toUpperCase();
 
-  // Menu items with i18n
+  // Menu items with i18n — admin gets extra link
   const userMenuItems = [
+    ...(user.role === "ADMIN"
+      ? [{ href: "/admin/dashboard", icon: ShieldAlert, label: t("admin.badge") + " Panel" }]
+      : []),
     { href: "/profile", icon: User, label: t("userMenu.profile") },
     { href: "/bookings", icon: Calendar, label: t("userMenu.myBookings") },
     { href: "/loyalty", icon: Star, label: t("userMenu.loyaltyPoints") },
