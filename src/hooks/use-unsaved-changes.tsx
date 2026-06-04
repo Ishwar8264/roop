@@ -3,15 +3,16 @@
  * Responsibility: Detect dirty forms and prevent navigation with confirmation dialog
  * Important Notes:
  *   - Works with react-hook-form's formState.isDirty
- *   - Intercepts: browser back/forward, route changes via Next.js, link clicks
+ *   - Intercepts: back button clicks, cancel button clicks, browser back/forward
  *   - Shows a dialog: "You have unsaved changes. Leave anyway?"
- *   - Reusable — just call useUnsavedChanges(form.isDirty) in any form page
+ *   - Reusable — just call useUnsavedChanges(isDirty) in any form page
  *   - Also blocks browser beforeunload event for tab/window close
+ *   - Provides `navigateAway(path)` function for form buttons to use
  */
 
 "use client";
 
-import { useEffect, useCallback, useState } from "react";
+import { useEffect, useCallback, useState, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import {
   AlertDialog,
@@ -33,38 +34,29 @@ export function useUnsavedChanges(isDirty: boolean) {
   const { t } = useTranslation();
   const [showDialog, setShowDialog] = useState(false);
   const [pendingPath, setPendingPath] = useState<string | null>(null);
+  const isDirtyRef = useRef(isDirty);
+
+  // Keep ref in sync so event listeners always have latest value
+  useEffect(() => {
+    isDirtyRef.current = isDirty;
+  }, [isDirty]);
 
   // Block browser tab/window close
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (isDirty) {
+      if (isDirtyRef.current) {
         e.preventDefault();
         e.returnValue = "";
       }
     };
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [isDirty]);
+  }, []);
 
-  // Intercept Next.js route changes
+  // Intercept browser back/forward buttons via popstate
   useEffect(() => {
-    // Monkey-patch router.push and router.replace
-    const originalPush = router.push.bind(router);
-    const originalReplace = router.replace.bind(router);
-    const originalBack = router.back.bind(router);
-
-    const interceptNavigation = (targetPath: string) => {
-      if (isDirty && targetPath !== pathname) {
-        setPendingPath(targetPath);
-        setShowDialog(true);
-        return false;
-      }
-      return true;
-    };
-
-    // We use a different approach — intercept popstate for back/forward
     const handlePopState = () => {
-      if (isDirty) {
+      if (isDirtyRef.current) {
         // Push current state back to prevent navigation
         window.history.pushState(null, "", window.location.href);
         setPendingPath("back");
@@ -73,25 +65,22 @@ export function useUnsavedChanges(isDirty: boolean) {
     };
 
     window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
 
-    return () => {
-      window.removeEventListener("popstate", handlePopState);
-    };
-  }, [isDirty, pathname, router]);
-
-  // Confirm navigation — proceed
+  // Confirm navigation — actually leave the page
   const confirmNavigation = useCallback(() => {
     setShowDialog(false);
+    // Temporarily disable the guard so the next navigation goes through
+    isDirtyRef.current = false;
+
     if (pendingPath === "back") {
-      // Allow back navigation by temporarily disabling the guard
-      window.history.back();
+      router.back();
     } else if (pendingPath) {
-      // We need to navigate without triggering the guard again
-      // Use direct window.location for simplicity
-      window.location.href = pendingPath;
+      router.push(pendingPath);
     }
     setPendingPath(null);
-  }, [pendingPath]);
+  }, [pendingPath, router]);
 
   // Cancel navigation — stay on page
   const cancelNavigation = useCallback(() => {
@@ -99,9 +88,26 @@ export function useUnsavedChanges(isDirty: boolean) {
     setPendingPath(null);
   }, []);
 
+  /**
+   * Safe navigation function — call this from back/cancel buttons.
+   * If form is dirty, shows the confirmation dialog instead of navigating.
+   * If form is clean, navigates immediately.
+   */
+  const navigateAway = useCallback(
+    (path: string) => {
+      if (isDirtyRef.current) {
+        setPendingPath(path);
+        setShowDialog(true);
+      } else {
+        router.push(path);
+      }
+    },
+    [router]
+  );
+
   // Render the confirmation dialog
   const UnsavedChangesDialog = () => (
-    <AlertDialog open={showDialog} onOpenChange={setShowDialog}>
+    <AlertDialog open={showDialog} onOpenChange={(open) => { if (!open) cancelNavigation(); }}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>
@@ -129,6 +135,7 @@ export function useUnsavedChanges(isDirty: boolean) {
 
   return {
     UnsavedChangesDialog,
+    navigateAway,
     isGuarding: isDirty,
   };
 }
