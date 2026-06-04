@@ -1,0 +1,4 @@
+# Nikharta Roop — Pre-commit Hook
+# Runs lint-staged: ESLint fix on TS/TSX, Prettier on JSON/MD/YAML, Prisma format
+
+npx lint-staged

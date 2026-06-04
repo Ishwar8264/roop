@@ -1,0 +1,57 @@
+# Nikharta Roop — Commit Message Hook
+# Enforces Conventional Commits format:
+#   type(scope): description
+#
+# Valid types: feat, fix, refactor, docs, style, test, chore, perf, ci, build, revert
+# Scope is optional but recommended
+#
+# Examples:
+#   feat(auth): add Google OAuth login
+#   fix(booking): resolve timezone offset bug
+#   refactor(user): separate profile logic from UI
+#   docs: update API documentation
+
+COMMIT_MSG_FILE=$1
+COMMIT_MSG=$(cat "$COMMIT_MSG_FILE")
+
+# Allow merge commits, revert commits, and fixup/squash commits
+if echo "$COMMIT_MSG" | grep -qE "^(Merge|Revert|fixup!|squash!)"; then
+  exit 0
+fi
+
+# Conventional commit regex
+PATTERN="^(feat|fix|refactor|docs|style|test|chore|perf|ci|build|revert)(\(.+\))?: .{1,100}"
+
+FIRST_LINE=$(echo "$COMMIT_MSG" | head -n1)
+
+if ! echo "$FIRST_LINE" | grep -qE "$PATTERN"; then
+  echo ""
+  echo "❌ INVALID COMMIT MESSAGE!"
+  echo ""
+  echo "   Must follow Conventional Commits format:"
+  echo "   type(scope): description"
+  echo ""
+  echo "   Valid types: feat, fix, refactor, docs, style, test, chore, perf, ci, build, revert"
+  echo "   Scope is optional but recommended"
+  echo ""
+  echo "   Examples:"
+  echo "     feat(auth): add Google OAuth login"
+  echo "     fix(booking): resolve timezone offset bug"
+  echo "     refactor(user): separate profile logic from UI"
+  echo "     docs: update API documentation"
+  echo ""
+  echo "   Your message: $FIRST_LINE"
+  echo ""
+  exit 1
+fi
+
+# Max line length check (72 chars for subject line)
+if [ ${#FIRST_LINE} -gt 72 ]; then
+  echo ""
+  echo "❌ COMMIT SUBJECT LINE TOO LONG!"
+  echo ""
+  echo "   Max 72 characters. Yours is ${#FIRST_LINE} characters."
+  echo "   Move details to the commit body instead."
+  echo ""
+  exit 1
+fi

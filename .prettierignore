@@ -1,0 +1,13 @@
+node_modules
+.next
+out
+build
+dist
+coverage
+prisma/migrations
+skills
+examples
+download
+package-lock.json
+pnpm-lock.yaml
+bun.lock

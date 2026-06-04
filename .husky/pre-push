@@ -1,0 +1,36 @@
+# Nikharta Roop — Pre-push Hook
+# Runs TypeScript type-check on src/ only before pushing
+# Skips type-check if SKIP_TYPECHECK env is set
+
+if [ "$SKIP_TYPECHECK" = "1" ]; then
+  echo "⏭️  Type-check skipped (SKIP_TYPECHECK=1)"
+  exit 0
+fi
+
+echo "🔍 Running TypeScript type-check on src/..."
+npx tsc --noEmit --project tsconfig.json 2>&1 | grep -E "^src/" | head -20
+
+# Run full typecheck
+npx tsc --noEmit 2>/tmp/tsc-output.txt
+TSC_EXIT=$?
+
+if [ $TSC_EXIT -ne 0 ]; then
+  ERROR_COUNT=$(grep -c "error TS" /tmp/tsc-output.txt)
+  SRC_ERRORS=$(grep "^src/" /tmp/tsc-output.txt | grep "error TS" | wc -l)
+
+  if [ "$SRC_ERRORS" -gt 0 ]; then
+    echo ""
+    echo "❌ TYPE CHECK FAILED! $SRC_ERRORS type errors in src/. Push aborted."
+    echo "   Run 'npm run typecheck' to see full details."
+    echo "   Use 'SKIP_TYPECHECK=1 git push' to skip (not recommended)."
+    echo ""
+    exit 1
+  else
+    echo ""
+    echo "⚠️  $ERROR_COUNT pre-existing type errors found outside src/."
+    echo "   Pushing anyway — these are in non-core files."
+    echo ""
+  fi
+fi
+
+echo "✅ Core type check passed. Pushing..."
