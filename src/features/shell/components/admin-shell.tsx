@@ -13,7 +13,7 @@
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { GuardedLink } from "@/components/ui/guarded-link";
 import { ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,7 +39,6 @@ interface AdminShellProps {
 export function AdminShell({ children }: AdminShellProps) {
   const { user, isAuthenticated } = useAuthStore();
   const { t } = useTranslation();
-  const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -83,10 +82,10 @@ export function AdminShell({ children }: AdminShellProps) {
             </Button>
 
             {/* Brand — mobile only */}
-            <Link href="/admin/dashboard" className="flex items-center gap-2 lg:hidden">
+            <GuardedLink href="/admin/dashboard" className="flex items-center gap-2 lg:hidden">
               <img src="/logo.png" alt="Nikharta Roop" className="h-7 w-7 rounded-lg object-contain" />
               <span className="font-bold text-primary">{t("appNameHi")}</span>
-            </Link>
+            </GuardedLink>
 
             {/* Spacer */}
             <div className="flex-1" />

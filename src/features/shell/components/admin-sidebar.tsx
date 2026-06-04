@@ -10,7 +10,7 @@
 
 "use client";
 
-import Link from "next/link";
+import { GuardedLink } from "@/components/ui/guarded-link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
@@ -117,7 +117,7 @@ function NavItems({ collapsed, onItemClick }: { collapsed?: boolean; onItemClick
           {section.items.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
             return (
-              <Link
+              <GuardedLink
                 key={item.href}
                 href={item.href}
                 onClick={onItemClick}
@@ -136,7 +136,7 @@ function NavItems({ collapsed, onItemClick }: { collapsed?: boolean; onItemClick
                     {t("admin.comingSoonBadge")}
                   </span>
                 )}
-              </Link>
+              </GuardedLink>
             );
           })}
         </div>
@@ -160,15 +160,15 @@ export function AdminDesktopSidebar({ collapsed, onToggle }: { collapsed: boolea
       {/* Header */}
       <div className={cn("flex items-center border-b h-16 px-4", collapsed ? "justify-center" : "justify-between")}>
         {!collapsed && (
-          <Link href="/admin/dashboard" className="flex items-center gap-2">
+          <GuardedLink href="/admin/dashboard" className="flex items-center gap-2">
             <img src="/logo.png" alt="Nikharta Roop" className="h-8 w-8 rounded-lg object-contain" />
             <span className="font-bold text-primary text-lg">{t("appNameHi")}</span>
-          </Link>
+          </GuardedLink>
         )}
         {collapsed && (
-          <Link href="/admin/dashboard">
+          <GuardedLink href="/admin/dashboard">
             <img src="/logo.png" alt="Nikharta Roop" className="h-8 w-8 rounded-lg object-contain" />
-          </Link>
+          </GuardedLink>
         )}
         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onToggle}>
           {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
@@ -180,7 +180,7 @@ export function AdminDesktopSidebar({ collapsed, onToggle }: { collapsed: boolea
 
       {/* Back to App */}
       <div className="border-t p-2">
-        <Link
+        <GuardedLink
           href="/dashboard"
           className={cn(
             "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors",
@@ -189,7 +189,7 @@ export function AdminDesktopSidebar({ collapsed, onToggle }: { collapsed: boolea
         >
           <ArrowLeft className="h-5 w-5 flex-shrink-0" />
           {!collapsed && <span>{t("admin.backToApp")}</span>}
-        </Link>
+        </GuardedLink>
       </div>
     </aside>
   );
@@ -213,14 +213,14 @@ export function AdminMobileSidebarContent({ onItemClick }: { onItemClick: () => 
 
       {/* Back to App */}
       <div className="border-t p-2">
-        <Link
+        <GuardedLink
           href="/dashboard"
           onClick={onItemClick}
           className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
         >
           <ArrowLeft className="h-5 w-5" />
           <span>{t("admin.backToApp")}</span>
-        </Link>
+        </GuardedLink>
       </div>
     </div>
   );

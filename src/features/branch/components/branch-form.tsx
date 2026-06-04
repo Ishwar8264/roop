@@ -9,8 +9,8 @@
  *   - LocationPicker for Google Maps integration
  *   - TimePicker for open/close time selection
  *   - Unsaved changes guard prevents accidental navigation
- *   - Reused by both app routes and admin routes
- *   - Uses Card for sectioned layout, Link for back navigation
+ *   - Reused by admin routes only
+ *   - Uses Card for sectioned layout, navigateAway for back navigation
  */
 
 "use client";
@@ -134,8 +134,11 @@ export function BranchForm({
 
   const successUrl = returnUrl ?? (isEditing ? `/branches/${branchId}` : "/branches");
 
-  // Unsaved changes guard — use navigateAway for all navigation
-  const { UnsavedChangesDialog, navigateAway } = useUnsavedChanges(form.formState.isDirty);
+  // Unsaved changes guard — pass returnUrl so browser back can navigate to known URL
+  const { UnsavedChangesDialog, navigateAway, markClean } = useUnsavedChanges({
+    isDirty: form.formState.isDirty,
+    returnUrl: successUrl,
+  });
 
   // Handle location selection from map
   const handleLocationChange = (location: LocationData | null) => {
@@ -160,6 +163,9 @@ export function BranchForm({
   };
 
   const onSubmit = (values: BranchFormValues) => {
+    // Mark as clean BEFORE mutation so post-submit navigation bypasses the guard
+    markClean();
+
     const payload = {
       ...values,
       googleMapsUrl: values.googleMapsUrl?.trim() || null,

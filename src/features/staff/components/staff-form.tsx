@@ -8,8 +8,8 @@
  *   - Specialization tag input
  *   - Work days toggle switches
  *   - Unsaved changes guard with navigateAway
- *   - Reused by both app routes and admin routes
- *   - Uses Card for sectioned layout, Link for back navigation
+ *   - Reused by admin routes only
+ *   - Uses Card for sectioned layout, navigateAway for back navigation
  */
 
 "use client";
@@ -180,12 +180,16 @@ export function StaffForm({
 
   const successUrl = returnUrl ?? (isEditing ? `/staff/${staffId}` : "/staff");
 
-  // Unsaved changes guard — use navigateAway for all navigation
-  const { UnsavedChangesDialog, navigateAway } = useUnsavedChanges(
-    form.formState.isDirty
-  );
+  // Unsaved changes guard — pass returnUrl so browser back can navigate to known URL
+  const { UnsavedChangesDialog, navigateAway, markClean } = useUnsavedChanges({
+    isDirty: form.formState.isDirty,
+    returnUrl: successUrl,
+  });
 
   const onSubmit = (values: StaffFormValues) => {
+    // Mark as clean BEFORE mutation so post-submit navigation bypasses the guard
+    markClean();
+
     // In create mode, userId is required
     if (!isEditing && !values.userId.trim()) {
       form.setError("userId", { message: "User ID is required" });
