@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { MapPin, Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,23 +10,19 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useBranches } from "@/features/branch/hooks/use-branches";
 import { BranchCard } from "@/features/branch/components/branch-card";
-import { BranchFormDialog } from "@/features/branch/components/branch-form-dialog";
 import { useAuthStore } from "@/stores/auth-store";
 import { useTranslation } from "@/i18n/use-translation";
 import type { BranchResponse } from "@/features/branch/types";
 
 export function BranchesClient() {
   const { t } = useTranslation();
+  const router = useRouter();
   const { user } = useAuthStore();
   const isAdmin = user?.role === "ADMIN";
 
   const [citySearch, setCitySearch] = useState("");
   const [includeInactive, setIncludeInactive] = useState(false);
   const [page, setPage] = useState(1);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingBranch, setEditingBranch] = useState<BranchResponse | null>(
-    null
-  );
 
   const { data, isLoading } = useBranches({
     city: citySearch || undefined,
@@ -35,13 +32,11 @@ export function BranchesClient() {
   });
 
   const handleEdit = (branch: BranchResponse) => {
-    setEditingBranch(branch);
-    setDialogOpen(true);
+    router.push(`/branches/${branch.id}/edit`);
   };
 
   const handleAdd = () => {
-    setEditingBranch(null);
-    setDialogOpen(true);
+    router.push("/branches/new");
   };
 
   return (
@@ -143,13 +138,6 @@ export function BranchesClient() {
           </p>
         </div>
       )}
-
-      {/* Form Dialog */}
-      <BranchFormDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        branch={editingBranch}
-      />
     </div>
   );
 }

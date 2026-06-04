@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Users, Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,13 +11,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useStaffs } from "@/features/staff/hooks/use-staffs";
 import { useBranches } from "@/features/branch/hooks/use-branches";
 import { StaffCard } from "@/features/staff/components/staff-card";
-import { StaffFormDialog } from "@/features/staff/components/staff-form-dialog";
 import { useAuthStore } from "@/stores/auth-store";
 import { useTranslation } from "@/i18n/use-translation";
 import type { StaffResponse } from "@/features/staff/types";
 
 export function StaffClient() {
   const { t } = useTranslation();
+  const router = useRouter();
   const { user } = useAuthStore();
   const isAdmin = user?.role === "ADMIN";
 
@@ -24,8 +25,6 @@ export function StaffClient() {
   const [branchFilter, setBranchFilter] = useState("");
   const [showAvailableOnly, setShowAvailableOnly] = useState(false);
   const [page, setPage] = useState(1);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingStaff, setEditingStaff] = useState<StaffResponse | null>(null);
 
   const { data, isLoading } = useStaffs({
     branchId: branchFilter || undefined,
@@ -38,13 +37,11 @@ export function StaffClient() {
   const { data: branchesData } = useBranches({ limit: 100 });
 
   const handleEdit = (staff: StaffResponse) => {
-    setEditingStaff(staff);
-    setDialogOpen(true);
+    router.push(`/staff/${staff.id}/edit`);
   };
 
   const handleAdd = () => {
-    setEditingStaff(null);
-    setDialogOpen(true);
+    router.push("/staff/new");
   };
 
   return (
@@ -159,13 +156,6 @@ export function StaffClient() {
           </p>
         </div>
       )}
-
-      {/* Form Dialog */}
-      <StaffFormDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        staff={editingStaff}
-      />
     </div>
   );
 }

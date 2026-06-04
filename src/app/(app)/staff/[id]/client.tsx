@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -14,20 +13,18 @@ import {
   Percent,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { useStaff } from "@/features/staff/hooks/use-staff";
 import { StaffAvailabilityBadge } from "@/features/staff/components/staff-availability-badge";
-import { StaffFormDialog } from "@/features/staff/components/staff-form-dialog";
 import { LeaveManager } from "@/features/staff/components/leave-manager";
 import { ServiceList } from "@/features/staff/components/service-list";
 import { useAuthStore } from "@/stores/auth-store";
 import { useTranslation } from "@/i18n/use-translation";
 import { useLocaleStore } from "@/i18n/locale-store";
-import type { StaffResponse } from "@/features/staff/types";
 
 export function StaffDetailClient() {
   const params = useParams();
@@ -39,7 +36,6 @@ export function StaffDetailClient() {
   const id = params.id as string;
 
   const { data: staff, isLoading } = useStaff(id);
-  const [dialogOpen, setDialogOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -104,7 +100,7 @@ export function StaffDetailClient() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setDialogOpen(true)}
+            onClick={() => router.push(`/staff/${id}/edit`)}
           >
             <Pencil className="h-3.5 w-3.5 mr-1" />
             {t("common.edit")}
@@ -252,13 +248,6 @@ export function StaffDetailClient() {
 
       {/* Leaves */}
       <LeaveManager staffId={staff.id} />
-
-      {/* Edit Dialog */}
-      <StaffFormDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        staff={staff as unknown as StaffResponse}
-      />
     </div>
   );
 }
