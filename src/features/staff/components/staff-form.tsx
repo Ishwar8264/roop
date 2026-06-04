@@ -9,6 +9,7 @@
  *   - Work days toggle switches
  *   - Unsaved changes guard with navigateAway
  *   - Reused by both app routes and admin routes
+ *   - Uses Card for sectioned layout, Link for back navigation
  */
 
 "use client";
@@ -17,6 +18,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useState } from "react";
+import Link from "next/link";
 import {
   ArrowLeft,
   Loader2,
@@ -30,8 +32,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { Separator } from "@/components/ui/separator";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Form,
   FormControl,
@@ -243,10 +250,12 @@ export function StaffForm({
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => navigateAway(successUrl)}
+          asChild
           className="h-9 w-9 shrink-0"
         >
-          <ArrowLeft className="h-4 w-4" />
+          <Link href={successUrl}>
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
         </Button>
         <div>
           <h2 className="text-2xl font-bold tracking-tight">
@@ -262,307 +271,318 @@ export function StaffForm({
 
       {/* Form */}
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-          {/* ─── Section: Basic Info ─── */}
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <User className="h-4 w-4 text-muted-foreground" />
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                Basic Information
-              </h3>
-            </div>
-            <Separator />
-          </div>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
 
-          {/* User ID (create only) */}
-          {!isEditing && (
-            <FormField
-              control={form.control}
-              name="userId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("staff.userId")}</FormLabel>
-                  <FormControl>
-                    <Input placeholder="User ID" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
+          {/* ─── Card: Basic Info ─── */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <User className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-base">Basic Information</CardTitle>
+              </div>
+              <CardDescription>
+                Staff member identity and branch assignment
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* User ID (create only) */}
+              {!isEditing && (
+                <FormField
+                  control={form.control}
+                  name="userId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("staff.userId")}</FormLabel>
+                      <FormControl>
+                        <Input placeholder="User ID" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               )}
-            />
-          )}
 
-          {/* Branch */}
-          <FormField
-            control={form.control}
-            name="branchId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t("staff.branch")}</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
-                  value={field.value}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder={t("staff.selectBranch")} />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {branchesData?.branches?.map((b) => (
-                      <SelectItem key={b.id} value={b.id}>
-                        {b.nameEn} — {b.city}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* ─── Section: Professional ─── */}
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <Briefcase className="h-4 w-4 text-muted-foreground" />
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                Professional
-              </h3>
-            </div>
-            <Separator />
-          </div>
-
-          {/* Specialization Tags */}
-          <FormField
-            control={form.control}
-            name="specialization"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t("staff.specialization")}</FormLabel>
-                <div className="flex gap-2">
-                  <Input
-                    value={specInput}
-                    onChange={(e) => setSpecInput(e.target.value)}
-                    placeholder={t("staff.addSpecialization")}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        addSpec();
-                      }
-                    }}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={addSpec}
-                  >
-                    +
-                  </Button>
-                </div>
-                {field.value?.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    {field.value.map((spec: string) => (
-                      <Badge
-                        key={spec}
-                        variant="secondary"
-                        className="gap-1 pr-1"
-                      >
-                        {spec}
-                        <button
-                          type="button"
-                          onClick={() => removeSpec(spec)}
-                          className="hover:text-destructive"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    ))}
-                  </div>
+              {/* Branch */}
+              <FormField
+                control={form.control}
+                name="branchId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("staff.branch")}</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      value={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder={t("staff.selectBranch")} />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {branchesData?.branches?.map((b) => (
+                          <SelectItem key={b.id} value={b.id}>
+                            {b.nameEn} — {b.city}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
                 )}
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+              />
+            </CardContent>
+          </Card>
 
-          {/* Experience */}
-          <FormField
-            control={form.control}
-            name="experienceYears"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t("staff.experience")}</FormLabel>
-                <FormControl>
-                  <Input
-                    type="number"
-                    min="0"
-                    max="60"
-                    placeholder="0"
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* Bio */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="bioHi"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("staff.bioHi")}</FormLabel>
-                  <FormControl>
-                    <Textarea rows={2} {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="bioEn"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("staff.bioEn")}</FormLabel>
-                  <FormControl>
-                    <Textarea rows={2} {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          {/* ─── Section: Schedule ─── */}
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-muted-foreground" />
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                Schedule
-              </h3>
-            </div>
-            <Separator />
-          </div>
-
-          {/* Work Days */}
-          <FormField
-            control={form.control}
-            name="workDays"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t("staff.workDays")}</FormLabel>
-                <div className="flex gap-2 flex-wrap">
-                  {DAY_KEYS.map(({ key, label, short }) => {
-                    const isActive = field.value?.[key] ?? false;
-                    return (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={() =>
-                          field.onChange({
-                            ...field.value,
-                            [key]: !isActive,
-                          })
-                        }
-                        className={`
-                          flex h-10 w-10 items-center justify-center rounded-lg text-sm font-medium
-                          transition-colors border
-                          ${
-                            isActive
-                              ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                              : "bg-background text-muted-foreground border-border hover:border-primary/50"
+          {/* ─── Card: Professional ─── */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Briefcase className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-base">Professional</CardTitle>
+              </div>
+              <CardDescription>
+                Skills, experience, and bio information
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Specialization Tags */}
+              <FormField
+                control={form.control}
+                name="specialization"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("staff.specialization")}</FormLabel>
+                    <div className="flex gap-2">
+                      <Input
+                        value={specInput}
+                        onChange={(e) => setSpecInput(e.target.value)}
+                        placeholder={t("staff.addSpecialization")}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            addSpec();
                           }
-                        `}
-                        title={label}
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={addSpec}
                       >
-                        {short}
-                      </button>
-                    );
-                  })}
-                </div>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                        +
+                      </Button>
+                    </div>
+                    {field.value?.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {field.value.map((spec: string) => (
+                          <Badge
+                            key={spec}
+                            variant="secondary"
+                            className="gap-1 pr-1"
+                          >
+                            {spec}
+                            <button
+                              type="button"
+                              onClick={() => removeSpec(spec)}
+                              className="hover:text-destructive"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-          {/* Timing — shadcn TimePicker */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="workStart"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("staff.workStart")}</FormLabel>
-                  <FormControl>
-                    <TimePicker
-                      value={field.value}
-                      onChange={field.onChange}
-                      placeholder="Start time"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="workEnd"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("staff.workEnd")}</FormLabel>
-                  <FormControl>
-                    <TimePicker
-                      value={field.value}
-                      onChange={field.onChange}
-                      placeholder="End time"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
+              {/* Experience */}
+              <FormField
+                control={form.control}
+                name="experienceYears"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("staff.experience")}</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min="0"
+                        max="60"
+                        placeholder="0"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-          {/* ─── Section: Compensation ─── */}
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                Compensation
-              </h3>
-            </div>
-            <Separator />
-          </div>
+              {/* Bio */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="bioHi"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("staff.bioHi")}</FormLabel>
+                      <FormControl>
+                        <Textarea rows={2} {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="bioEn"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("staff.bioEn")}</FormLabel>
+                      <FormControl>
+                        <Textarea rows={2} {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </CardContent>
+          </Card>
 
-          {/* Commission Rate */}
-          <FormField
-            control={form.control}
-            name="commissionRate"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t("staff.commissionRate")}</FormLabel>
-                <FormControl>
-                  <Input
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="0.5"
-                    placeholder="0"
-                    {...field}
-                  />
-                </FormControl>
-                <FormDescription>Percentage (0-100)</FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+          {/* ─── Card: Schedule ─── */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-base">Schedule</CardTitle>
+              </div>
+              <CardDescription>
+                Working days and hours for the staff member
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Work Days */}
+              <FormField
+                control={form.control}
+                name="workDays"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("staff.workDays")}</FormLabel>
+                    <div className="flex gap-2 flex-wrap">
+                      {DAY_KEYS.map(({ key, label, short }) => {
+                        const isActive = field.value?.[key] ?? false;
+                        return (
+                          <button
+                            key={key}
+                            type="button"
+                            onClick={() =>
+                              field.onChange({
+                                ...field.value,
+                                [key]: !isActive,
+                              })
+                            }
+                            className={`
+                              flex h-10 w-10 items-center justify-center rounded-lg text-sm font-medium
+                              transition-colors border
+                              ${
+                                isActive
+                                  ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                                  : "bg-background text-muted-foreground border-border hover:border-primary/50"
+                              }
+                            `}
+                            title={label}
+                          >
+                            {short}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* Timing */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="workStart"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("staff.workStart")}</FormLabel>
+                      <FormControl>
+                        <TimePicker
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder="Start time"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="workEnd"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("staff.workEnd")}</FormLabel>
+                      <FormControl>
+                        <TimePicker
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder="End time"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* ─── Card: Compensation ─── */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-base">Compensation</CardTitle>
+              </div>
+              <CardDescription>
+                Commission rate for the staff member
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <FormField
+                control={form.control}
+                name="commissionRate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("staff.commissionRate")}</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.5"
+                        placeholder="0"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription>Percentage (0-100)</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+          </Card>
 
           {/* Actions */}
-          <Separator />
-          <div className="flex items-center justify-end gap-3">
+          <div className="flex items-center justify-end gap-3 pt-2">
             <Button
               type="button"
               variant="outline"
@@ -574,10 +594,10 @@ export function StaffForm({
             <Button
               type="submit"
               disabled={isLoading}
-              className="min-w-[100px]"
+              className="min-w-[120px]"
             >
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {t("common.save")}
+              {isEditing ? t("common.save") : t("common.create") || "Create"}
             </Button>
           </div>
         </form>

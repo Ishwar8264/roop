@@ -1,18 +1,18 @@
 /**
  * Purpose: Time Picker component with hours/minutes/AM-PM selection
- * Responsibility: Provide a shadcn-style time picker for forms
+ * Responsibility: Provide a clean, professional time picker for forms
  * Important Notes:
  *   - 12-hour format with AM/PM toggle
  *   - Returns "HH:MM" 24-hour format for API
  *   - Used in BranchForm (openTime, closeTime) and StaffForm (workStart, workEnd)
  *   - Integrates with react-hook-form via FormField
- *   - Clean design with scroll-style number selectors
+ *   - Scroll-wheel design with clean visual style
  */
 
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { Clock, ChevronUp, ChevronDown } from "lucide-react";
+import { useState, useCallback, useRef } from "react";
+import { Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -64,46 +64,57 @@ function formatDisplay(
     .padStart(2, "0")} ${period}`;
 }
 
-// ==================== Sub-component: Scroll Column ====================
+// ==================== Sub-component: Scroll Wheel Item ====================
 
-function TimeColumn({
-  value,
-  onUp,
-  onDown,
-  min,
-  max,
-  padStart = 2,
+function ScrollItem({
+  items,
+  selectedIndex,
+  onSelect,
 }: {
-  value: number;
-  onUp: () => void;
-  onDown: () => void;
-  min: number;
-  max: number;
-  padStart?: number;
+  items: { label: string; value: number }[];
+  selectedIndex: number;
+  onSelect: (index: number) => void;
 }) {
+  const listRef = useRef<HTMLDivElement>(null);
+
+  // Scroll to selected item on mount and when selectedIndex changes
+  // Using layout effect via ref callback to avoid setState in effect
+  const scrollToSelected = useCallback(
+    (node: HTMLDivElement | null) => {
+      if (node) {
+        const itemHeight = 40;
+        node.scrollTop = selectedIndex * itemHeight;
+      }
+    },
+    [selectedIndex]
+  );
+
   return (
-    <div className="flex flex-col items-center">
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className="h-7 w-7 rounded-full opacity-60 hover:opacity-100"
-        onClick={onUp}
-      >
-        <ChevronUp className="h-4 w-4" />
-      </Button>
-      <div className="flex h-11 w-12 items-center justify-center rounded-lg bg-muted text-lg font-semibold tabular-nums">
-        {value.toString().padStart(padStart, "0")}
+    <div
+      ref={(node) => {
+        (listRef as React.MutableRefObject<HTMLDivElement | null>).current = node;
+        scrollToSelected(node);
+      }}
+      className="h-[120px] overflow-y-scroll snap-y snap-mandatory"
+      style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+    >
+      <div className="py-[40px]">
+        {items.map((item, i) => (
+          <button
+            key={item.value}
+            type="button"
+            className={cn(
+              "flex h-10 w-full items-center justify-center text-base font-medium snap-start transition-colors rounded-md",
+              i === selectedIndex
+                ? "bg-primary/10 text-primary font-semibold"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+            )}
+            onClick={() => onSelect(i)}
+          >
+            {item.label}
+          </button>
+        ))}
       </div>
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className="h-7 w-7 rounded-full opacity-60 hover:opacity-100"
-        onClick={onDown}
-      >
-        <ChevronDown className="h-4 w-4" />
-      </Button>
     </div>
   );
 }
@@ -118,38 +129,74 @@ export function TimePicker({
   disabled,
 }: TimePickerProps) {
   const [open, setOpen] = useState(false);
+  // Track local edits separately so external value changes don't conflict
+  const [localEdits, setLocalEdits] = useState<{
+    hours: number;
+    minutes: number;
+    period: "AM" | "PM";
+  } | null>(null);
 
-  // Parse incoming value
-  const parsed = value
-    ? to12Hour(value)
-    : { hours: 9, minutes: 0, period: "AM" as const };
-  const [hours, setHours] = useState(parsed.hours);
-  const [minutes, setMinutes] = useState(parsed.minutes);
-  const [period, setPeriod] = useState<"AM" | "PM">(parsed.period);
+  // Parse external value for display (when no local edits)
+  const parsed = value ? to12Hour(value) : { hours: 9, minutes: 0, period: "AM" as const };
 
-  // Sync with external value
-  useEffect(() => {
-    if (value) {
-      const p = to12Hour(value);
-      setHours(p.hours);
-      setMinutes(p.minutes);
-      setPeriod(p.period);
-    }
-  }, [value]);
+  // Use local edits when popover is open, otherwise use parsed value
+  const hours = localEdits?.hours ?? parsed.hours;
+  const minutes = localEdits?.minutes ?? parsed.minutes;
+  const period = localEdits?.period ?? parsed.period;
+
+  const setHours = useCallback((h: number) => {
+    setLocalEdits((prev) => ({ ...prev!, hours: h, period: prev?.period ?? "AM", minutes: prev?.minutes ?? 0 }));
+  }, []);
+
+  const setMinutes = useCallback((m: number) => {
+    setLocalEdits((prev) => ({ ...prev!, minutes: m, period: prev?.period ?? "AM", hours: prev?.hours ?? 9 }));
+  }, []);
+
+  const setPeriod = useCallback((p: "AM" | "PM") => {
+    setLocalEdits((prev) => ({ ...prev!, period: p, hours: prev?.hours ?? 9, minutes: prev?.minutes ?? 0 }));
+  }, []);
+
+  // Generate hour items (1-12)
+  const hourItems = Array.from({ length: 12 }, (_, i) => ({
+    label: (i + 1).toString().padStart(2, "0"),
+    value: i + 1,
+  }));
+
+  // Generate minute items (0, 5, 10, ..., 55)
+  const minuteItems = Array.from({ length: 12 }, (_, i) => ({
+    label: (i * 5).toString().padStart(2, "0"),
+    value: i * 5,
+  }));
+
+  const selectedHourIndex = hourItems.findIndex((h) => h.value === hours);
+  const selectedMinuteIndex = minuteItems.findIndex((m) => m.value === minutes);
 
   // Apply changes
   const apply = useCallback(() => {
     const result = to24Hour(hours, minutes, period);
     onChange(result);
+    setLocalEdits(null);
     setOpen(false);
   }, [hours, minutes, period, onChange]);
+
+  // Handle popover open change
+  const handleOpenChange = useCallback((isOpen: boolean) => {
+    setOpen(isOpen);
+    if (isOpen) {
+      // Initialize local edits from current value
+      setLocalEdits({ hours: parsed.hours, minutes: parsed.minutes, period: parsed.period });
+    } else {
+      // Clear local edits when closing
+      setLocalEdits(null);
+    }
+  }, [parsed]);
 
   const displayText = value
     ? formatDisplay(parsed.hours, parsed.minutes, parsed.period)
     : "";
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -165,69 +212,77 @@ export function TimePicker({
           {displayText || placeholder}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-4" align="start">
-        <div className="space-y-4">
-          {/* Time selectors */}
-          <div className="flex items-center gap-1">
-            {/* Hours */}
-            <TimeColumn
-              value={hours}
-              onUp={() => setHours((h) => (h >= 12 ? 1 : h + 1))}
-              onDown={() => setHours((h) => (h <= 1 ? 12 : h - 1))}
-              min={1}
-              max={12}
-            />
+      <PopoverContent className="w-auto p-0" align="start">
+        <div className="p-4">
+          {/* Time selectors — scroll wheel style */}
+          <div className="relative flex items-center justify-center gap-1">
+            {/* Hours scroll */}
+            <div className="w-16 text-center">
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-1">
+                Hour
+              </p>
+              <ScrollItem
+                items={hourItems}
+                selectedIndex={selectedHourIndex >= 0 ? selectedHourIndex : 0}
+                onSelect={(i) => setHours(hourItems[i].value)}
+              />
+            </div>
 
             {/* Separator */}
-            <span className="text-2xl font-bold text-muted-foreground px-1">:</span>
+            <span className="text-2xl font-bold text-muted-foreground pt-5">:</span>
 
-            {/* Minutes */}
-            <TimeColumn
-              value={minutes}
-              onUp={() => setMinutes((m) => (m >= 55 ? 0 : m + 5))}
-              onDown={() => setMinutes((m) => (m <= 0 ? 55 : m - 5))}
-              min={0}
-              max={59}
-            />
+            {/* Minutes scroll */}
+            <div className="w-16 text-center">
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-1">
+                Min
+              </p>
+              <ScrollItem
+                items={minuteItems}
+                selectedIndex={selectedMinuteIndex >= 0 ? selectedMinuteIndex : 0}
+                onSelect={(i) => setMinutes(minuteItems[i].value)}
+              />
+            </div>
 
-            {/* AM/PM */}
-            <div className="ml-2 flex flex-col gap-1">
-              <Button
-                type="button"
-                variant={period === "AM" ? "default" : "outline"}
-                size="sm"
-                className={cn(
-                  "h-8 w-12 text-xs font-semibold",
-                  period === "AM" && "bg-primary text-primary-foreground shadow-sm"
-                )}
-                onClick={() => setPeriod("AM")}
-              >
-                AM
-              </Button>
-              <Button
-                type="button"
-                variant={period === "PM" ? "default" : "outline"}
-                size="sm"
-                className={cn(
-                  "h-8 w-12 text-xs font-semibold",
-                  period === "PM" && "bg-primary text-primary-foreground shadow-sm"
-                )}
-                onClick={() => setPeriod("PM")}
-              >
-                PM
-              </Button>
+            {/* AM/PM Toggle */}
+            <div className="ml-2 pt-5">
+              <div className="flex flex-col gap-1">
+                <button
+                  type="button"
+                  className={cn(
+                    "flex h-10 w-12 items-center justify-center rounded-lg text-sm font-semibold transition-all border",
+                    period === "AM"
+                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                      : "bg-background text-muted-foreground border-border hover:border-primary/50"
+                  )}
+                  onClick={() => setPeriod("AM")}
+                >
+                  AM
+                </button>
+                <button
+                  type="button"
+                  className={cn(
+                    "flex h-10 w-12 items-center justify-center rounded-lg text-sm font-semibold transition-all border",
+                    period === "PM"
+                      ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                      : "bg-background text-muted-foreground border-border hover:border-primary/50"
+                  )}
+                  onClick={() => setPeriod("PM")}
+                >
+                  PM
+                </button>
+              </div>
             </div>
           </div>
 
           {/* Preview + Apply */}
-          <div className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2">
-            <span className="text-sm text-muted-foreground">Selected:</span>
+          <div className="mt-4 flex items-center justify-between rounded-lg border bg-muted/30 px-3 py-2">
+            <span className="text-xs text-muted-foreground">Selected</span>
             <span className="text-sm font-semibold tabular-nums">
               {formatDisplay(hours, minutes, period)}
             </span>
           </div>
 
-          <div className="flex justify-end">
+          <div className="mt-3 flex justify-end">
             <Button
               type="button"
               size="sm"

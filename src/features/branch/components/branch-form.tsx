@@ -10,6 +10,7 @@
  *   - TimePicker for open/close time selection
  *   - Unsaved changes guard prevents accidental navigation
  *   - Reused by both app routes and admin routes
+ *   - Uses Card for sectioned layout, Link for back navigation
  */
 
 "use client";
@@ -17,10 +18,17 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import Link from "next/link";
 import { ArrowLeft, Loader2, MapPin, Phone, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Form,
   FormControl,
@@ -175,10 +183,12 @@ export function BranchForm({
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => navigateAway(successUrl)}
+          asChild
           className="h-9 w-9 shrink-0"
         >
-          <ArrowLeft className="h-4 w-4" />
+          <Link href={successUrl}>
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
         </Button>
         <div>
           <h2 className="text-2xl font-bold tracking-tight">
@@ -192,181 +202,188 @@ export function BranchForm({
 
       {/* Form */}
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
 
-          {/* ─── Section: Basic Info ─── */}
-          <div className="space-y-1">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-              Basic Information
-            </h3>
-            <Separator />
-          </div>
+          {/* ─── Card: Basic Info ─── */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Basic Information</CardTitle>
+              <CardDescription>
+                Name details for the branch in both Hindi and English
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="nameHi"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("branches.branchNameHi")}</FormLabel>
+                    <FormControl>
+                      <Input placeholder="शाखा का नाम हिंदी में" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="nameEn"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("branches.branchNameEn")}</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Branch name in English" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+          </Card>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="nameHi"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("branches.branchNameHi")}</FormLabel>
-                  <FormControl>
-                    <Input placeholder="शाखा का नाम हिंदी में" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="nameEn"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("branches.branchNameEn")}</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Branch name in English" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
+          {/* ─── Card: Contact ─── */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Phone className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-base">Contact</CardTitle>
+              </div>
+              <CardDescription>
+                Phone number for the branch
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("branches.phone")}</FormLabel>
+                    <FormControl>
+                      <Input placeholder="10-digit mobile number" {...field} />
+                    </FormControl>
+                    <FormDescription>Must start with 6-9</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+          </Card>
 
-          {/* ─── Section: Contact ─── */}
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <Phone className="h-4 w-4 text-muted-foreground" />
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                Contact
-              </h3>
-            </div>
-            <Separator />
-          </div>
+          {/* ─── Card: Location ─── */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <MapPin className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-base">Location</CardTitle>
+              </div>
+              <CardDescription>
+                Pick the branch location on the map and verify address details
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <FormField
+                control={form.control}
+                name="googleMapsUrl"
+                render={({ field, fieldState }) => (
+                  <FormItem>
+                    <FormLabel>{t("branches.pickLocation") || "Pick Location on Map"}</FormLabel>
+                    <FormControl>
+                      <LocationPicker
+                        value={defaultLocation}
+                        onChange={handleLocationChange}
+                        error={fieldState.error?.message}
+                      />
+                    </FormControl>
+                    <input type="hidden" {...field} />
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-          <FormField
-            control={form.control}
-            name="phone"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t("branches.phone")}</FormLabel>
-                <FormControl>
-                  <Input placeholder="10-digit mobile number" {...field} />
-                </FormControl>
-                <FormDescription>Must start with 6-9</FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="city"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("branches.city")}</FormLabel>
+                      <FormControl>
+                        <Input placeholder="City" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="address"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("branches.address")}</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Full address" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </CardContent>
+          </Card>
 
-          {/* ─── Section: Location ─── */}
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <MapPin className="h-4 w-4 text-muted-foreground" />
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                Location
-              </h3>
-            </div>
-            <Separator />
-          </div>
-
-          <FormField
-            control={form.control}
-            name="googleMapsUrl"
-            render={({ field, fieldState }) => (
-              <FormItem>
-                <FormLabel>{t("branches.pickLocation") || "Pick Location on Map"}</FormLabel>
-                <FormControl>
-                  <LocationPicker
-                    value={defaultLocation}
-                    onChange={handleLocationChange}
-                    error={fieldState.error?.message}
-                  />
-                </FormControl>
-                <input type="hidden" {...field} />
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="city"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("branches.city")}</FormLabel>
-                  <FormControl>
-                    <Input placeholder="City" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="address"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("branches.address")}</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Full address" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          {/* ─── Section: Timing ─── */}
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-muted-foreground" />
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                Timing
-              </h3>
-            </div>
-            <Separator />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <FormField
-              control={form.control}
-              name="openTime"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("branches.openTime")}</FormLabel>
-                  <FormControl>
-                    <TimePicker
-                      value={field.value}
-                      onChange={field.onChange}
-                      placeholder="Opening time"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="closeTime"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("branches.closeTime")}</FormLabel>
-                  <FormControl>
-                    <TimePicker
-                      value={field.value}
-                      onChange={field.onChange}
-                      placeholder="Closing time"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
+          {/* ─── Card: Timing ─── */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-base">Timing</CardTitle>
+              </div>
+              <CardDescription>
+                Set the opening and closing hours for the branch
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="openTime"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("branches.openTime")}</FormLabel>
+                    <FormControl>
+                      <TimePicker
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="Opening time"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="closeTime"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("branches.closeTime")}</FormLabel>
+                    <FormControl>
+                      <TimePicker
+                        value={field.value}
+                        onChange={field.onChange}
+                        placeholder="Closing time"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+          </Card>
 
           {/* Actions */}
-          <Separator />
-          <div className="flex items-center justify-end gap-3">
+          <div className="flex items-center justify-end gap-3 pt-2">
             <Button
               type="button"
               variant="outline"
@@ -378,10 +395,10 @@ export function BranchForm({
             <Button
               type="submit"
               disabled={isLoading}
-              className="min-w-[100px]"
+              className="min-w-[120px]"
             >
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {t("common.save")}
+              {isEditing ? t("common.save") : t("common.create") || "Create"}
             </Button>
           </div>
         </form>

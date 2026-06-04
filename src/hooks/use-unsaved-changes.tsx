@@ -3,17 +3,18 @@
  * Responsibility: Detect dirty forms and prevent navigation with confirmation dialog
  * Important Notes:
  *   - Works with react-hook-form's formState.isDirty
- *   - Intercepts: back button clicks, cancel button clicks, browser back/forward
+ *   - Intercepts: browser back/forward, cancel button clicks
  *   - Shows a dialog: "You have unsaved changes. Leave anyway?"
  *   - Reusable — just call useUnsavedChanges(isDirty) in any form page
  *   - Also blocks browser beforeunload event for tab/window close
- *   - Provides `navigateAway(path)` function for form buttons to use
+ *   - Provides `navigateAway(path)` function for cancel buttons
+ *   - Does NOT use useRouter.push/back — uses window.location for confirmed navigation
+ *     to avoid re-triggering the popstate guard
  */
 
 "use client";
 
 import { useEffect, useCallback, useState, useRef } from "react";
-import { useRouter, usePathname } from "next/navigation";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,12 +30,11 @@ import { useTranslation } from "@/i18n/use-translation";
 // ==================== Hook ====================
 
 export function useUnsavedChanges(isDirty: boolean) {
-  const router = useRouter();
-  const pathname = usePathname();
   const { t } = useTranslation();
   const [showDialog, setShowDialog] = useState(false);
   const [pendingPath, setPendingPath] = useState<string | null>(null);
   const isDirtyRef = useRef(isDirty);
+  const isConfirmingRef = useRef(false); // Guard against re-triggering
 
   // Keep ref in sync so event listeners always have latest value
   useEffect(() => {
@@ -56,6 +56,12 @@ export function useUnsavedChanges(isDirty: boolean) {
   // Intercept browser back/forward buttons via popstate
   useEffect(() => {
     const handlePopState = () => {
+      // If we're confirming, let the navigation through
+      if (isConfirmingRef.current) {
+        isConfirmingRef.current = false;
+        return;
+      }
+
       if (isDirtyRef.current) {
         // Push current state back to prevent navigation
         window.history.pushState(null, "", window.location.href);
@@ -63,6 +69,9 @@ export function useUnsavedChanges(isDirty: boolean) {
         setShowDialog(true);
       }
     };
+
+    // Push initial state so popstate fires on first back
+    window.history.pushState(null, "", window.location.href);
 
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
@@ -73,14 +82,19 @@ export function useUnsavedChanges(isDirty: boolean) {
     setShowDialog(false);
     // Temporarily disable the guard so the next navigation goes through
     isDirtyRef.current = false;
+    isConfirmingRef.current = true;
 
     if (pendingPath === "back") {
-      router.back();
+      // Use window.history.back() + flag to avoid re-triggering popstate guard
+      // The isConfirmingRef prevents the popstate handler from re-showing dialog
+      window.history.back();
     } else if (pendingPath) {
-      router.push(pendingPath);
+      // Use direct window.location for path navigation to avoid useRouter
+      // which would trigger Next.js route changes that popstate might intercept
+      window.location.href = pendingPath;
     }
     setPendingPath(null);
-  }, [pendingPath, router]);
+  }, [pendingPath]);
 
   // Cancel navigation — stay on page
   const cancelNavigation = useCallback(() => {
@@ -89,9 +103,9 @@ export function useUnsavedChanges(isDirty: boolean) {
   }, []);
 
   /**
-   * Safe navigation function — call this from back/cancel buttons.
+   * Safe navigation function — call this from cancel buttons.
    * If form is dirty, shows the confirmation dialog instead of navigating.
-   * If form is clean, navigates immediately.
+   * If form is clean, navigates immediately using window.location.
    */
   const navigateAway = useCallback(
     (path: string) => {
@@ -99,10 +113,10 @@ export function useUnsavedChanges(isDirty: boolean) {
         setPendingPath(path);
         setShowDialog(true);
       } else {
-        router.push(path);
+        window.location.href = path;
       }
     },
-    [router]
+    []
   );
 
   // Render the confirmation dialog
