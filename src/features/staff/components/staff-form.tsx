@@ -40,9 +40,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { TimePicker } from "@/components/ui/time-picker";
 import { useCreateStaff } from "@/features/staff/hooks/use-create-staff";
 import { useUpdateStaff } from "@/features/staff/hooks/use-update-staff";
 import { useBranches } from "@/features/branch/hooks/use-branches";
+import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { useTranslation } from "@/i18n/use-translation";
 import type { WorkDays } from "@/features/staff/types";
 
@@ -162,6 +164,9 @@ export function StaffForm({
   const isLoading = createStaff.isPending || updateStaff.isPending;
 
   const successUrl = returnUrl ?? (isEditing ? `/staff/${staffId}` : "/staff");
+
+  // Unsaved changes guard
+  const { UnsavedChangesDialog } = useUnsavedChanges(form.formState.isDirty);
 
   const onSubmit = (values: StaffFormValues) => {
     // In create mode, userId is required
@@ -436,7 +441,7 @@ export function StaffForm({
                 )}
               />
 
-              {/* Timing */}
+              {/* Timing — shadcn TimePicker */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -445,7 +450,11 @@ export function StaffForm({
                     <FormItem>
                       <FormLabel>{t("staff.workStart")}</FormLabel>
                       <FormControl>
-                        <Input type="time" {...field} />
+                        <TimePicker
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder="Start time"
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -458,7 +467,11 @@ export function StaffForm({
                     <FormItem>
                       <FormLabel>{t("staff.workEnd")}</FormLabel>
                       <FormControl>
-                        <Input type="time" {...field} />
+                        <TimePicker
+                          value={field.value}
+                          onChange={field.onChange}
+                          placeholder="End time"
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -512,6 +525,9 @@ export function StaffForm({
           </Form>
         </CardContent>
       </Card>
+
+      {/* Unsaved Changes Dialog */}
+      <UnsavedChangesDialog />
     </div>
   );
 }

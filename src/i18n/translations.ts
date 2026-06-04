@@ -129,6 +129,9 @@ export const translations = {
       noBranchesDesc: "No branches have been added yet.",
       includeInactive: "Show inactive branches",
       searchByCity: "Search by city...",
+      searchLocation: "Search location...",
+      pickLocation: "Pick Location on Map",
+      locationSet: "Location set",
       holidays: "Holidays",
       addHoliday: "Add Holiday",
       holidayDate: "Holiday Date",
@@ -259,6 +262,14 @@ export const translations = {
       title: "Coming Soon",
       subtitle: "We're working on something amazing! This page will be available soon.",
       goBack: "Go to Dashboard",
+    },
+
+    // Unsaved Changes
+    unsavedChanges: {
+      title: "Unsaved Changes",
+      description: "You have unsaved changes. Are you sure you want to leave? Your changes will be lost.",
+      stay: "Stay on Page",
+      leave: "Leave Anyway",
     },
 
     // Common
@@ -546,6 +557,9 @@ export const translations = {
       noBranchesDesc: "अभी तक कोई शाखा नहीं जोड़ी गई है।",
       includeInactive: "निष्क्रिय शाखाएं दिखाएं",
       searchByCity: "शहर से खोजें...",
+      searchLocation: "स्थान खोजें...",
+      pickLocation: "मैप पर स्थान चुनें",
+      locationSet: "स्थान सेट हुआ",
       holidays: "छुट्टियां",
       addHoliday: "छुट्टी जोड़ें",
       holidayDate: "छुट्टी की तारीख",
@@ -676,6 +690,14 @@ export const translations = {
       title: "जल्द आ रहा है",
       subtitle: "हम कुछ शानदार पर काम कर रहे हैं! यह पेज जल्द ही उपलब्ध होगा।",
       goBack: "डैशबोर्ड पर जाएं",
+    },
+
+    // Unsaved Changes
+    unsavedChanges: {
+      title: "असहेजे बदलाव",
+      description: "आपके असहेजे बदलाव हैं। क्या आप वाकई जाना चाहते हैं? आपके बदलाव खो जाएंगे।",
+      stay: "पेज पर रहें",
+      leave: "फिर भी जाएं",
     },
 
     // Common
