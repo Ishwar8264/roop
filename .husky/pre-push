@@ -1,36 +1,86 @@
 # Nikharta Roop — Pre-push Hook
-# Runs TypeScript type-check on src/ only before pushing
-# Skips type-check if SKIP_TYPECHECK env is set
+# 1. Blocks direct pushes to main (must use feature branch + merge)
+# 2. Runs TypeScript type-check on src/
+# 3. Runs production build
+# 4. Runs React Doctor health check
 
-if [ "$SKIP_TYPECHECK" = "1" ]; then
-  echo "⏭️  Type-check skipped (SKIP_TYPECHECK=1)"
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+
+# ===== BLOCK DIRECT PUSH TO MAIN =====
+if [ "$CURRENT_BRANCH" = "main" ]; then
+  echo ""
+  echo "🚫 DIRECT PUSH TO MAIN IS BLOCKED!"
+  echo ""
+  echo "   Workflow: Create feature branch → Commit → Push → Merge to main"
+  echo "   Example:"
+  echo "     git checkout -b feat/my-feature"
+  echo "     git commit -m 'feat(scope): description'"
+  echo "     git push origin feat/my-feature"
+  echo "     git checkout main && git merge feat/my-feature"
+  echo ""
+  exit 1
+fi
+
+# ===== SKIP CHECKS =====
+if [ "$SKIP_TYPECHECK" = "1" ] && [ "$SKIP_BUILD" = "1" ] && [ "$SKIP_DOCTORS" = "1" ]; then
+  echo "⏭️  All checks skipped"
   exit 0
 fi
 
-echo "🔍 Running TypeScript type-check on src/..."
-npx tsc --noEmit --project tsconfig.json 2>&1 | grep -E "^src/" | head -20
+# ===== TYPE-CHECK =====
+if [ "$SKIP_TYPECHECK" != "1" ]; then
+  echo "🔍 Running TypeScript type-check..."
+  npx tsc --noEmit 2>/tmp/tsc-output.txt
+  TSC_EXIT=$?
 
-# Run full typecheck
-npx tsc --noEmit 2>/tmp/tsc-output.txt
-TSC_EXIT=$?
-
-if [ $TSC_EXIT -ne 0 ]; then
-  ERROR_COUNT=$(grep -c "error TS" /tmp/tsc-output.txt)
-  SRC_ERRORS=$(grep "^src/" /tmp/tsc-output.txt | grep "error TS" | wc -l)
-
-  if [ "$SRC_ERRORS" -gt 0 ]; then
-    echo ""
-    echo "❌ TYPE CHECK FAILED! $SRC_ERRORS type errors in src/. Push aborted."
-    echo "   Run 'npm run typecheck' to see full details."
-    echo "   Use 'SKIP_TYPECHECK=1 git push' to skip (not recommended)."
-    echo ""
-    exit 1
-  else
-    echo ""
-    echo "⚠️  $ERROR_COUNT pre-existing type errors found outside src/."
-    echo "   Pushing anyway — these are in non-core files."
-    echo ""
+  if [ $TSC_EXIT -ne 0 ]; then
+    SRC_ERRORS=$(grep "^src/" /tmp/tsc-output.txt | grep "error TS" | wc -l)
+    if [ "$SRC_ERRORS" -gt 0 ]; then
+      echo ""
+      echo "❌ TYPE CHECK FAILED! $SRC_ERRORS errors in src/. Push aborted."
+      echo "   Run 'npm run typecheck' to see details."
+      echo ""
+      exit 1
+    else
+      echo "⚠️  Pre-existing type errors outside src/ (non-blocking)"
+    fi
   fi
+  echo "✅ Type check passed"
 fi
 
-echo "✅ Core type check passed. Pushing..."
+# ===== BUILD =====
+if [ "$SKIP_BUILD" != "1" ]; then
+  echo ""
+  echo "🏗️  Running production build..."
+  npm run build 2>&1 | tail -20
+  BUILD_EXIT=$?
+
+  if [ $BUILD_EXIT -ne 0 ]; then
+    echo ""
+    echo "❌ BUILD FAILED! Push aborted."
+    echo "   Run 'npm run build' to see details."
+    echo ""
+    exit 1
+  fi
+  echo "✅ Build passed"
+fi
+
+# ===== REACT DOCTOR =====
+if [ "$SKIP_DOCTORS" != "1" ]; then
+  echo ""
+  echo "🩺 Running React Doctor health check..."
+  npm run doctors
+  DOCTOR_EXIT=$?
+
+  if [ $DOCTOR_EXIT -ne 0 ]; then
+    echo ""
+    echo "❌ REACT DOCTOR CHECK FAILED! Push aborted."
+    echo "   Run 'npm run doctors' to see details."
+    echo ""
+    exit 1
+  fi
+  echo "✅ React Doctor passed"
+fi
+
+echo ""
+echo "✅ All pre-push checks passed. Pushing..."

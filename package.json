@@ -16,7 +16,9 @@
     "postinstall": "prisma generate",
     "prepare": "husky",
     "lint-staged": "lint-staged",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "doctors": "react-doctor --score .",
+    "check-all": "npm run lint && npm run typecheck && npm run doctors"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

@@ -1,4 +1,20 @@
 # Nikharta Roop — Pre-commit Hook
-# Runs lint-staged: ESLint fix on TS/TSX, Prettier on JSON/MD/YAML, Prisma format
+# 1. Runs lint-staged: ESLint fix on TS/TSX, Prettier on JSON/MD/YAML, Prisma format
+# 2. Runs React Doctor health check
 
 npx lint-staged
+
+echo ""
+echo "🩺 Running React Doctor health check..."
+npm run doctors
+
+DOCTOR_EXIT=$?
+if [ $DOCTOR_EXIT -ne 0 ]; then
+  echo ""
+  echo "❌ React Doctor check failed! Fix issues before committing."
+  echo "   Run 'npm run doctors' manually for details."
+  echo ""
+  exit 1
+fi
+
+echo "✅ React Doctor passed. Proceeding with commit..."
