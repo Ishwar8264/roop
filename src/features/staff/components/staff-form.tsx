@@ -18,7 +18,6 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useState } from "react";
-import Link from "next/link";
 import {
   ArrowLeft,
   Loader2,
@@ -209,12 +208,12 @@ export function StaffForm({
     if (isEditing && staffId) {
       updateStaff.mutate(
         { id: staffId, ...payload },
-        { onSuccess: () => navigateAway(successUrl) }
+        { onSuccess: () => { window.location.href = successUrl; } }
       );
     } else {
       payload.userId = values.userId.trim();
       createStaff.mutate(payload as typeof payload & { userId: string }, {
-        onSuccess: () => navigateAway(successUrl),
+        onSuccess: () => { window.location.href = successUrl; },
       });
     }
   };
@@ -250,12 +249,10 @@ export function StaffForm({
         <Button
           variant="ghost"
           size="icon"
-          asChild
           className="h-9 w-9 shrink-0"
+          onClick={() => navigateAway(successUrl)}
         >
-          <Link href={successUrl}>
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
+          <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
           <h2 className="text-2xl font-bold tracking-tight">
@@ -597,7 +594,7 @@ export function StaffForm({
               className="min-w-[120px]"
             >
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isEditing ? t("common.save") : t("common.create") || "Create"}
+              {isEditing ? t("common.save") : t("common.create")}
             </Button>
           </div>
         </form>
