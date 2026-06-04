@@ -9,6 +9,23 @@ import { useParams } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useBranch } from "@/features/branch/hooks/use-branch";
 import { BranchForm } from "@/features/branch/components/branch-form";
+import type { LocationData } from "@/components/shared/location-picker";
+
+/** Try to extract lat,lng from a Google Maps URL */
+function parseLocationFromUrl(url: string | null): LocationData | null {
+  if (!url) return null;
+  const match = url.match(/[?&]q=([+-]?\d+\.?\d*),([+-]?\d+\.?\d*)/);
+  if (match) {
+    return {
+      lat: parseFloat(match[1]),
+      lng: parseFloat(match[2]),
+      address: "",
+      city: "",
+      googleMapsUrl: url,
+    };
+  }
+  return null;
+}
 
 export default function AdminEditBranchPage() {
   const params = useParams();
@@ -32,6 +49,8 @@ export default function AdminEditBranchPage() {
     );
   }
 
+  const defaultLocation = parseLocationFromUrl(branch.googleMapsUrl);
+
   return (
     <BranchForm
       mode="edit"
@@ -46,6 +65,7 @@ export default function AdminEditBranchPage() {
         openTime: branch.openTime,
         closeTime: branch.closeTime,
       }}
+      defaultLocation={defaultLocation}
       returnUrl="/admin/branches"
     />
   );
