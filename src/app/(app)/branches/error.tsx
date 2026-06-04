@@ -1,18 +1,9 @@
-/**
- * Purpose: Global error boundary for the (app) layout
- * Responsibility: Catch and display errors with a friendly retry button
- * Important Notes:
- *   - Must be a client component
- *   - Uses rose pink theme matching the app
- *   - Resets error state on retry
- */
-
 "use client";
 
 import { AlertTriangle, RotateCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export default function AppError({
+export default function BranchesError({
   error,
   reset,
 }: {
@@ -24,11 +15,9 @@ export default function AppError({
       <div className="flex h-16 w-16 items-center justify-center rounded-full bg-rose-100 dark:bg-rose-900/30 mb-6">
         <AlertTriangle className="h-8 w-8 text-rose-500" />
       </div>
-      <h2 className="text-xl font-bold text-foreground mb-2">
-        Something went wrong
-      </h2>
+      <h2 className="text-xl font-bold mb-2">Something went wrong</h2>
       <p className="text-sm text-muted-foreground max-w-sm mb-6">
-        {error.message || "An unexpected error occurred. Please try again."}
+        {error.message || "An unexpected error occurred."}
       </p>
       <Button
         onClick={reset}
