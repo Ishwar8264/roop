@@ -4,8 +4,7 @@
  * Important Notes:
  *   - "use client" component
  *   - Uses useProfile hook to fetch user data
- *   - Renders: ProfileHeader, PersonalInfoCard, SecurityCard
- *   - Quick actions section
+ *   - Renders: Page header with back button, ProfileHeader, PersonalInfoCard, SecurityCard
  *   - Logout button at bottom (with confirmation AlertDialog)
  */
 
@@ -13,7 +12,7 @@
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { LogOut, Loader2 } from "lucide-react";
+import { LogOut, Loader2, ChevronLeft, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -65,6 +64,22 @@ export function ProfileClient() {
 
   return (
     <div className="space-y-6 pb-4">
+      {/* Page Header */}
+      <div className="flex items-center gap-3">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-9 w-9 shrink-0"
+          onClick={() => router.push("/dashboard")}
+        >
+          <ChevronLeft className="h-5 w-5" />
+        </Button>
+        <div className="flex items-center gap-2">
+          <User className="h-5 w-5 text-rose-500" />
+          <h1 className="text-xl font-bold">{t("profile.title")}</h1>
+        </div>
+      </div>
+
       {/* Profile Header */}
       <ProfileHeader profile={profileData?.user} />
 

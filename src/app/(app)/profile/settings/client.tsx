@@ -39,14 +39,14 @@ export function SettingsClient() {
 
   const [name, setName] = useState(displayUser?.name || "");
   const [email, setEmail] = useState(displayUser?.email || "");
-  const [phone, setPhone] = useState(displayUser?.phone || displayUser?.mobile || "");
+  const [phone, setPhone] = useState(displayUser?.mobile || "");
   const [isEditing, setIsEditing] = useState(false);
 
   const handleSave = useCallback(() => {
     const payload: Record<string, string> = {};
     if (name !== (displayUser?.name || "")) payload.name = name;
     if (email !== (displayUser?.email || "")) payload.email = email;
-    if (phone !== (displayUser?.phone || displayUser?.mobile || "")) payload.phone = phone;
+    if (phone !== (displayUser?.mobile || "")) payload.phone = phone;
 
     if (Object.keys(payload).length === 0) {
       setIsEditing(false);
@@ -63,7 +63,7 @@ export function SettingsClient() {
   const handleCancel = useCallback(() => {
     setName(displayUser?.name || "");
     setEmail(displayUser?.email || "");
-    setPhone(displayUser?.phone || displayUser?.mobile || "");
+    setPhone(displayUser?.mobile || "");
     setIsEditing(false);
   }, [displayUser]);
 
@@ -197,7 +197,7 @@ export function SettingsClient() {
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">{t("profile.phone")}</p>
-                      <p className="text-sm font-medium">{displayUser?.phone || displayUser?.mobile || "—"}</p>
+                      <p className="text-sm font-medium">{displayUser?.mobile || "—"}</p>
                     </div>
                   </div>
                 </div>

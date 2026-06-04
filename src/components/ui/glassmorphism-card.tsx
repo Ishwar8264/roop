@@ -19,15 +19,18 @@
  */
 
 import { type ReactNode } from "react";
+import { cn } from "@/lib/utils";
 
 interface GlassmorphismCardProps {
   /** Content to render inside the card */
   children: ReactNode;
+  /** Additional CSS classes to apply to the outer container */
+  className?: string;
 }
 
-export function GlassmorphismCard({ children }: GlassmorphismCardProps) {
+export function GlassmorphismCard({ children, className }: GlassmorphismCardProps) {
   return (
-    <div className="relative backdrop-blur-xl bg-white/70 dark:bg-card/70 rounded-3xl shadow-2xl shadow-rose-500/10 border border-white/50 dark:border-border/50 p-8 overflow-hidden">
+    <div className={cn("relative backdrop-blur-xl bg-white/70 dark:bg-card/70 rounded-3xl shadow-2xl shadow-rose-500/10 border border-white/50 dark:border-border/50 p-8 overflow-hidden", className)}>
       {/* Decorative top-right gradient corner */}
       <div className="absolute -top-1 -right-1 w-20 h-20 bg-gradient-to-bl from-primary/20 to-transparent rounded-bl-3xl" />
       {/* Decorative bottom-left gradient corner */}

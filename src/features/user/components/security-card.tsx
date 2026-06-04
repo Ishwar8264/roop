@@ -74,17 +74,27 @@ export function SecurityCard({ profile }: SecurityCardProps) {
             <div className="text-left flex-1">
               <p className="text-sm font-medium">{t("profile.verifyEmail")}</p>
               <p className="text-xs text-muted-foreground">
-                {displayUser?.email
-                  ? t("profile.emailNotVerified")
-                  : t("profile.emailAddress")}
+                {displayUser?.emailVerified
+                  ? t("profile.emailVerified")
+                  : displayUser?.email
+                    ? t("profile.emailNotVerified")
+                    : t("profile.emailAddress")}
               </p>
             </div>
-            {displayUser?.email && (
+            {displayUser?.email && !displayUser.emailVerified && (
               <Badge
                 variant="outline"
                 className="text-[9px] gap-0.5 px-1.5 py-0 border-amber-200 text-amber-700 dark:border-amber-800 dark:text-amber-400"
               >
                 {t("profile.notVerified")}
+              </Badge>
+            )}
+            {displayUser?.email && displayUser.emailVerified && (
+              <Badge
+                variant="outline"
+                className="text-[9px] gap-0.5 px-1.5 py-0 border-green-200 text-green-700 dark:border-green-800 dark:text-green-400"
+              >
+                {t("profile.verified")}
               </Badge>
             )}
           </Button>

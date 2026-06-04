@@ -24,6 +24,7 @@ export const translations = {
       offers: "Offers",
       profile: "Profile",
       blog: "Blog",
+      settings: "Settings",
     },
 
     // User Menu
@@ -262,6 +263,7 @@ export const translations = {
       offers: "ऑफ़र",
       profile: "प्रोफ़ाइल",
       blog: "ब्लॉग",
+      settings: "सेटिंग्स",
     },
 
     // User Menu

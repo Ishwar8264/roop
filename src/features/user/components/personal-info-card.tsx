@@ -3,11 +3,10 @@
  * Responsibility: Display and edit personal information
  * Important Notes:
  *   - Each field has edit icon that opens inline edit mode
- *   - Name: simple text input (FloatingLabelInput)
- *   - Email: text input with "Not Verified" badge → triggers verify email dialog
- *   - Phone: click triggers change-phone dialog (needs OTP)
- *   - Save/Cancel buttons in edit mode
- *   - Uses useUpdateProfile hook
+ *   - Edit buttons always slightly visible (mobile-friendly)
+ *   - Better spacing between fields
+ *   - Subtle animation on edit mode entry
+ *   - Email badge shows correct verified/unverified status
  */
 
 "use client";
@@ -91,11 +90,11 @@ export function PersonalInfoCard({ profile, onVerifyEmail, onChangePhone }: Pers
           {t("profile.personalInfo")}
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-5">
         {/* Name Field */}
         <div>
           {editingField === "name" ? (
-            <div className="space-y-3">
+            <div className="space-y-3 animate-in fade-in-0 slide-in-from-top-2 duration-200">
               <FloatingLabelInput
                 label={t("profile.fullName")}
                 value={editValue}
@@ -139,7 +138,7 @@ export function PersonalInfoCard({ profile, onVerifyEmail, onChangePhone }: Pers
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-rose-500"
+                className="h-8 w-8 opacity-40 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-rose-500 hover:opacity-100"
                 onClick={() => startEditing("name")}
                 aria-label={t("common.edit")}
               >
@@ -154,7 +153,7 @@ export function PersonalInfoCard({ profile, onVerifyEmail, onChangePhone }: Pers
         {/* Email Field */}
         <div>
           {editingField === "email" ? (
-            <div className="space-y-3">
+            <div className="space-y-3 animate-in fade-in-0 slide-in-from-top-2 duration-200">
               <FloatingLabelInput
                 label={t("profile.emailAddress")}
                 type="email"
@@ -199,17 +198,26 @@ export function PersonalInfoCard({ profile, onVerifyEmail, onChangePhone }: Pers
                   <Mail className="h-4 w-4 text-rose-500" />
                 </div>
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     <p className="text-xs text-muted-foreground">{t("profile.emailAddress")}</p>
-                    {displayUser?.email ? (
+                    {displayUser?.email && !displayUser.emailVerified && (
                       <Badge
                         variant="outline"
-                        className="text-[9px] gap-0.5 px-1 py-0 border-amber-200 text-amber-700 dark:border-amber-800 dark:text-amber-400"
+                        className="text-[9px] gap-0.5 px-1 py-px border-amber-200 text-amber-700 dark:border-amber-800 dark:text-amber-400"
                       >
-                        <AlertCircle className="h-2.5 w-2.5" />
+                        <AlertCircle className="h-2 w-2" />
                         {t("profile.notVerified")}
                       </Badge>
-                    ) : null}
+                    )}
+                    {displayUser?.email && displayUser.emailVerified && (
+                      <Badge
+                        variant="outline"
+                        className="text-[9px] gap-0.5 px-1 py-px border-green-200 text-green-700 dark:border-green-800 dark:text-green-400"
+                      >
+                        <CheckCircle2 className="h-2 w-2" />
+                        {t("profile.verified")}
+                      </Badge>
+                    )}
                   </div>
                   <p className="text-sm font-medium truncate">
                     {displayUser?.email || "—"}
@@ -219,7 +227,7 @@ export function PersonalInfoCard({ profile, onVerifyEmail, onChangePhone }: Pers
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-rose-500"
+                className="h-8 w-8 opacity-40 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-rose-500 hover:opacity-100"
                 onClick={() => startEditing("email")}
                 aria-label={t("common.edit")}
               >
@@ -241,27 +249,27 @@ export function PersonalInfoCard({ profile, onVerifyEmail, onChangePhone }: Pers
               <Phone className="h-4 w-4 text-rose-500" />
             </div>
             <div className="min-w-0">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 flex-wrap">
                 <p className="text-xs text-muted-foreground">{t("profile.phone")}</p>
-                {(displayUser?.phone || displayUser?.mobile) && (
+                {displayUser?.mobile && (
                   <Badge
                     variant="outline"
-                    className="text-[9px] gap-0.5 px-1 py-0 border-green-200 text-green-700 dark:border-green-800 dark:text-green-400"
+                    className="text-[9px] gap-0.5 px-1 py-px border-green-200 text-green-700 dark:border-green-800 dark:text-green-400"
                   >
-                    <CheckCircle2 className="h-2.5 w-2.5" />
+                    <CheckCircle2 className="h-2 w-2" />
                     {t("profile.verified")}
                   </Badge>
                 )}
               </div>
               <p className="text-sm font-medium truncate">
-                {displayUser?.phone || displayUser?.mobile || "—"}
+                {displayUser?.mobile || "—"}
               </p>
             </div>
           </div>
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-rose-500"
+            className="h-8 w-8 opacity-40 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-rose-500 hover:opacity-100"
             onClick={() => startEditing("phone")}
             aria-label={t("common.edit")}
           >

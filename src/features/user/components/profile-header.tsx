@@ -2,19 +2,19 @@
  * Purpose: Top section of profile page
  * Responsibility: Show avatar, name, email, phone with verified badge, loyalty points, quick actions
  * Important Notes:
- *   - Uses GlassmorphismCard for premium look
- *   - Shows verification badges for email and phone
+ *   - Uses GlassmorphismCard for premium look with subtle gradient background
+ *   - Shows verification badges for email and phone (checks actual emailVerified)
  *   - Quick action buttons: My Bookings, View Offers, Settings
+ *   - Verified badge styling is smaller and more subtle
  */
 
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Calendar, Gift, Settings, Star, CheckCircle2 } from "lucide-react";
+import { Calendar, Gift, Settings, Star, CheckCircle2, AlertCircle } from "lucide-react";
 import { GlassmorphismCard } from "@/components/ui/glassmorphism-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { AvatarUpload } from "./avatar-upload";
 import { useAuthStore } from "@/stores/auth-store";
 import { useTranslation } from "@/i18n/use-translation";
@@ -32,8 +32,11 @@ export function ProfileHeader({ profile }: ProfileHeaderProps) {
   const displayUser = profile || user;
 
   return (
-    <GlassmorphismCard>
-      <div className="flex flex-col items-center text-center gap-4">
+    <GlassmorphismCard className="relative overflow-hidden">
+      {/* Subtle gradient background overlay */}
+      <div className="absolute inset-0 bg-gradient-to-br from-rose-50/80 via-pink-50/40 to-transparent dark:from-rose-950/20 dark:via-pink-950/10 dark:to-transparent pointer-events-none" />
+
+      <div className="relative flex flex-col items-center text-center gap-4">
         {/* Avatar */}
         <AvatarUpload />
 
@@ -47,30 +50,40 @@ export function ProfileHeader({ profile }: ProfileHeaderProps) {
         {/* Contact info with verification badges */}
         <div className="flex flex-col gap-2 w-full max-w-xs">
           {displayUser?.email && (
-            <div className="flex items-center justify-center gap-2">
+            <div className="flex items-center justify-center gap-1.5">
               <span className="text-sm text-muted-foreground truncate">
                 {displayUser.email}
               </span>
-              <Badge
-                variant="outline"
-                className="text-[10px] gap-0.5 px-1.5 py-0 border-green-200 text-green-700 dark:border-green-800 dark:text-green-400"
-              >
-                <CheckCircle2 className="h-2.5 w-2.5" />
-                {t("profile.verified")}
-              </Badge>
+              {displayUser.emailVerified ? (
+                <Badge
+                  variant="outline"
+                  className="text-[9px] gap-0.5 px-1 py-px border-green-200 text-green-600 dark:border-green-800 dark:text-green-400"
+                >
+                  <CheckCircle2 className="h-2 w-2" />
+                  {t("profile.verified")}
+                </Badge>
+              ) : (
+                <Badge
+                  variant="outline"
+                  className="text-[9px] gap-0.5 px-1 py-px border-amber-200 text-amber-600 dark:border-amber-800 dark:text-amber-400"
+                >
+                  <AlertCircle className="h-2 w-2" />
+                  {t("profile.notVerified")}
+                </Badge>
+              )}
             </div>
           )}
 
-          {(displayUser?.phone || displayUser?.mobile) && (
-            <div className="flex items-center justify-center gap-2">
+          {displayUser?.mobile && (
+            <div className="flex items-center justify-center gap-1.5">
               <span className="text-sm text-muted-foreground">
-                {displayUser?.phone || displayUser?.mobile}
+                {displayUser.mobile}
               </span>
               <Badge
                 variant="outline"
-                className="text-[10px] gap-0.5 px-1.5 py-0 border-green-200 text-green-700 dark:border-green-800 dark:text-green-400"
+                className="text-[9px] gap-0.5 px-1 py-px border-green-200 text-green-600 dark:border-green-800 dark:text-green-400"
               >
-                <CheckCircle2 className="h-2.5 w-2.5" />
+                <CheckCircle2 className="h-2 w-2" />
                 {t("profile.verified")}
               </Badge>
             </div>
@@ -87,35 +100,39 @@ export function ProfileHeader({ profile }: ProfileHeaderProps) {
           </div>
         )}
 
-        <Separator className="bg-border/50" />
-
         {/* Quick Actions */}
-        <div className="grid grid-cols-3 gap-3 w-full">
+        <div className="grid grid-cols-3 gap-2 w-full pt-2">
           <Button
             variant="ghost"
-            className="flex flex-col items-center gap-1.5 h-auto py-3 hover:bg-rose-50 dark:hover:bg-rose-950/20 hover:text-rose-600"
+            className="flex flex-col items-center gap-2 h-auto py-3 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/20 hover:text-rose-600 transition-all duration-200"
             onClick={() => router.push("/bookings")}
           >
-            <Calendar className="h-5 w-5" />
-            <span className="text-[11px] font-medium">{t("profile.myBookings")}</span>
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-rose-100 dark:bg-rose-900/30">
+              <Calendar className="h-4 w-4 text-rose-500" />
+            </div>
+            <span className="text-[10px] sm:text-[11px] font-medium leading-none">{t("profile.myBookings")}</span>
           </Button>
 
           <Button
             variant="ghost"
-            className="flex flex-col items-center gap-1.5 h-auto py-3 hover:bg-rose-50 dark:hover:bg-rose-950/20 hover:text-rose-600"
+            className="flex flex-col items-center gap-2 h-auto py-3 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/20 hover:text-rose-600 transition-all duration-200"
             onClick={() => router.push("/offers")}
           >
-            <Gift className="h-5 w-5" />
-            <span className="text-[11px] font-medium">{t("profile.viewOffers")}</span>
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-rose-100 dark:bg-rose-900/30">
+              <Gift className="h-4 w-4 text-rose-500" />
+            </div>
+            <span className="text-[10px] sm:text-[11px] font-medium leading-none">{t("profile.viewOffers")}</span>
           </Button>
 
           <Button
             variant="ghost"
-            className="flex flex-col items-center gap-1.5 h-auto py-3 hover:bg-rose-50 dark:hover:bg-rose-950/20 hover:text-rose-600"
+            className="flex flex-col items-center gap-2 h-auto py-3 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/20 hover:text-rose-600 transition-all duration-200"
             onClick={() => router.push("/profile/settings")}
           >
-            <Settings className="h-5 w-5" />
-            <span className="text-[11px] font-medium">{t("profile.settings")}</span>
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-rose-100 dark:bg-rose-900/30">
+              <Settings className="h-4 w-4 text-rose-500" />
+            </div>
+            <span className="text-[10px] sm:text-[11px] font-medium leading-none">{t("profile.settings")}</span>
           </Button>
         </div>
       </div>
