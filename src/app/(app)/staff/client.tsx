@@ -37,11 +37,11 @@ export function StaffClient() {
   const { data: branchesData } = useBranches({ limit: 100 });
 
   const handleEdit = (staff: StaffResponse) => {
-    router.push(`/staff/${staff.id}/edit`);
+    router.push(`/admin/staff/${staff.id}/edit`);
   };
 
   const handleAdd = () => {
-    router.push("/staff/new");
+    router.push("/admin/staff/new");
   };
 
   return (

@@ -3,18 +3,18 @@
  * Responsibility: Detect dirty forms and prevent navigation with confirmation dialog
  * Important Notes:
  *   - Works with react-hook-form's formState.isDirty
- *   - Intercepts: browser back/forward, cancel button clicks
- *   - Shows a dialog: "You have unsaved changes. Leave anyway?"
- *   - Reusable — just call useUnsavedChanges(isDirty) in any form page
- *   - Also blocks browser beforeunload event for tab/window close
- *   - Provides `navigateAway(path)` function for cancel buttons
- *   - Does NOT use useRouter.push/back — uses window.location for confirmed navigation
- *     to avoid re-triggering the popstate guard
+ *   - Intercepts: browser back/forward, cancel button clicks, sidebar nav clicks
+ *   - Shows AlertDialog: "You have unsaved changes. Leave anyway?"
+ *   - Uses Next.js useRouter for navigation (proper client-side routing)
+ *   - Also blocks browser beforeunload for tab/window close
+ *   - Provides navigateAway(path) for cancel/back buttons
+ *   - After successful submit, caller should call router.push directly (bypass guard)
  */
 
 "use client";
 
 import { useEffect, useCallback, useState, useRef } from "react";
+import { useRouter } from "next/navigation";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,13 +30,14 @@ import { useTranslation } from "@/i18n/use-translation";
 // ==================== Hook ====================
 
 export function useUnsavedChanges(isDirty: boolean) {
+  const router = useRouter();
   const { t } = useTranslation();
   const [showDialog, setShowDialog] = useState(false);
   const [pendingPath, setPendingPath] = useState<string | null>(null);
   const isDirtyRef = useRef(isDirty);
-  const isConfirmingRef = useRef(false); // Guard against re-triggering
+  const skipNextPopstate = useRef(false);
 
-  // Keep ref in sync so event listeners always have latest value
+  // Keep ref in sync
   useEffect(() => {
     isDirtyRef.current = isDirty;
   }, [isDirty]);
@@ -53,59 +54,55 @@ export function useUnsavedChanges(isDirty: boolean) {
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, []);
 
-  // Intercept browser back/forward buttons via popstate
+  // Intercept browser back/forward via popstate
   useEffect(() => {
+    // Push a history entry so we can intercept the first back
+    window.history.pushState(null, "", window.location.href);
+
     const handlePopState = () => {
-      // If we're confirming, let the navigation through
-      if (isConfirmingRef.current) {
-        isConfirmingRef.current = false;
+      // If we're allowing this navigation through, skip interception
+      if (skipNextPopstate.current) {
+        skipNextPopstate.current = false;
         return;
       }
 
       if (isDirtyRef.current) {
-        // Push current state back to prevent navigation
+        // User pressed back but form is dirty — push state back and show dialog
         window.history.pushState(null, "", window.location.href);
         setPendingPath("back");
         setShowDialog(true);
       }
     };
 
-    // Push initial state so popstate fires on first back
-    window.history.pushState(null, "", window.location.href);
-
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
-  // Confirm navigation — actually leave the page
+  // Confirm — user wants to leave
   const confirmNavigation = useCallback(() => {
     setShowDialog(false);
-    // Temporarily disable the guard so the next navigation goes through
-    isDirtyRef.current = false;
-    isConfirmingRef.current = true;
+    isDirtyRef.current = false; // Prevent re-trigger
 
     if (pendingPath === "back") {
-      // Use window.history.back() + flag to avoid re-triggering popstate guard
-      // The isConfirmingRef prevents the popstate handler from re-showing dialog
-      window.history.back();
+      // Allow the next popstate through without interception
+      skipNextPopstate.current = true;
+      router.back();
     } else if (pendingPath) {
-      // Use direct window.location for path navigation to avoid useRouter
-      // which would trigger Next.js route changes that popstate might intercept
-      window.location.href = pendingPath;
+      router.push(pendingPath);
     }
     setPendingPath(null);
-  }, [pendingPath]);
+  }, [pendingPath, router]);
 
-  // Cancel navigation — stay on page
+  // Cancel — stay on page
   const cancelNavigation = useCallback(() => {
     setShowDialog(false);
     setPendingPath(null);
   }, []);
 
   /**
-   * Safe navigation function — call this from cancel buttons.
-   * If form is dirty, shows the confirmation dialog instead of navigating.
-   * If form is clean, navigates immediately using window.location.
+   * navigateAway — safe navigation for back/cancel buttons
+   * - If dirty: shows confirmation dialog
+   * - If clean: navigates immediately via router.push
    */
   const navigateAway = useCallback(
     (path: string) => {
@@ -113,10 +110,10 @@ export function useUnsavedChanges(isDirty: boolean) {
         setPendingPath(path);
         setShowDialog(true);
       } else {
-        window.location.href = path;
+        router.push(path);
       }
     },
-    []
+    [router]
   );
 
   // Render the confirmation dialog

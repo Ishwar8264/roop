@@ -1,19 +1,16 @@
 /**
- * Purpose: Edit staff — client component
+ * Purpose: Admin — Edit staff (client component)
  * Responsibility: Fetch staff data and render StaffForm in edit mode
  */
 
 "use client";
 
-import { useParams } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useStaff } from "@/features/staff/hooks/use-staff";
 import { StaffForm } from "@/features/staff/components/staff-form";
 
-export function EditStaffPage({ staffId }: { staffId?: string }) {
-  const params = useParams();
-  const id = staffId ?? (params.id as string);
-  const { data: staff, isLoading } = useStaff(id);
+export function EditStaffClient({ staffId }: { staffId: string }) {
+  const { data: staff, isLoading } = useStaff(staffId);
 
   if (isLoading) {
     return (
@@ -35,7 +32,7 @@ export function EditStaffPage({ staffId }: { staffId?: string }) {
   return (
     <StaffForm
       mode="edit"
-      staffId={id}
+      staffId={staffId}
       defaultValues={{
         userId: staff.userId,
         branchId: staff.branchId,
@@ -48,7 +45,7 @@ export function EditStaffPage({ staffId }: { staffId?: string }) {
         commissionRate: staff.commissionRate,
         workDays: staff.workDays,
       }}
-      returnUrl={`/staff/${id}`}
+      returnUrl="/admin/staff"
     />
   );
 }

@@ -75,7 +75,7 @@ export function BranchDetailClient() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => router.push(`/branches/${id}/edit`)}
+            onClick={() => router.push(`/admin/branches/${id}/edit`)}
           >
             <Pencil className="h-3.5 w-3.5 mr-1" />
             {t("common.edit")}

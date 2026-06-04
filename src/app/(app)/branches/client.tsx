@@ -32,11 +32,11 @@ export function BranchesClient() {
   });
 
   const handleEdit = (branch: BranchResponse) => {
-    router.push(`/branches/${branch.id}/edit`);
+    router.push(`/admin/branches/${branch.id}/edit`);
   };
 
   const handleAdd = () => {
-    router.push("/branches/new");
+    router.push("/admin/branches/new");
   };
 
   return (
