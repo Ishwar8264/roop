@@ -16,7 +16,9 @@
     "react-doctor/anchor-has-content": "off",
     "react-doctor/prefer-tag-over-role": "off",
     "react-doctor/no-redundant-roles": "off",
-    "react-doctor/only-export-components": "off"
+    "react-doctor/only-export-components": "off",
+    "react-doctor/no-multi-comp": "off",
+    "react-doctor/require-pnpm-hardening": "off"
   },
   "ignore": {
     "tags": [
