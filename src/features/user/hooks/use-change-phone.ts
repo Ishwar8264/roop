@@ -26,12 +26,10 @@ export function useChangePhone() {
     async (newPhone: string, onSuccess?: () => void) => {
       setIsSending(true);
       try {
-        const token = useAuthStore.getState().token;
         const res = await fetch("/api/user/change-phone", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
           credentials: "same-origin",
           body: JSON.stringify({ newPhone }),
@@ -54,12 +52,10 @@ export function useChangePhone() {
     async ({ newPhone, otp }: { newPhone: string; otp: string }, onSuccess?: () => void) => {
       setIsVerifying(true);
       try {
-        const token = useAuthStore.getState().token;
         const res = await fetch("/api/user/change-phone/verify", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
           credentials: "same-origin",
           body: JSON.stringify({ newPhone, otp }),

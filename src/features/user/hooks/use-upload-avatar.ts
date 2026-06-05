@@ -45,10 +45,8 @@ export function useUploadAvatar() {
         const formData = new FormData();
         formData.append("avatar", file);
 
-        const token = useAuthStore.getState().token;
         const res = await fetch("/api/user/avatar", {
           method: "POST",
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
           body: formData,
           credentials: "same-origin",
         });

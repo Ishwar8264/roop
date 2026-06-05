@@ -4,15 +4,13 @@
  * Important Notes:
  *   - Must be "use client" — uses useEffect, useState
  *   - Wrap this around {children} in root layout — ONE time only
- *   - On mount: WAITS for Zustand persist rehydration from sessionStorage, then validates token
- *   - If token exists but is stale: tries /api/auth/me to validate, then refresh if 401
+ *   - On mount: syncs user state from HttpOnly cookie-backed server session
+ *   - If access cookie is stale: refreshes via HttpOnly refresh cookie, then retries /api/auth/me
  *   - Shows loading screen until auth state is determined
  *   - IMPORTANT: Loading screen has timeout (5s) to avoid blocking if API is down
  *   - Route protection is PRIMARILY handled by src/proxy.ts (server-side)
  *   - This component ALSO handles client-side redirects as a FALLBACK for when
  *     proxy.ts cookies aren't available (e.g., fetch() Set-Cookie not processed yet)
- *   - CRITICAL FIX: Waits for Zustand persist rehydration before reading token.
- *     Without this, the token is null on page reload because persist is async.
  */
 
 "use client";
@@ -20,7 +18,6 @@
 import { useState, useEffect, useCallback, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { useAuthStore } from "@/stores/auth-store";
-import { apiClient } from "@/services/api-client";
 import type { ApiResponse } from "@/types";
 import type { UserProfile } from "@/types";
 
@@ -34,35 +31,6 @@ function isAuthPage(pathname: string): boolean {
   );
 }
 
-// ==================== Persist Rehydration Helper ====================
-
-/**
- * Wait for Zustand persist middleware to finish rehydrating from sessionStorage.
- * Without this, useAuthStore.getState().token returns null on page reload
- * because persist rehydration is asynchronous.
- */
-function waitForRehydration(): Promise<void> {
-  // Already hydrated — no need to wait
-  if (useAuthStore.persist.hasHydrated()) {
-    return Promise.resolve();
-  }
-
-  return new Promise<void>((resolve) => {
-    // Listen for the finishHydration event
-    const unsub = useAuthStore.persist.onFinishHydration(() => {
-      unsub();
-      resolve();
-    });
-
-    // Safety timeout — if hydration doesn't finish in 1s, proceed anyway
-    // (the store might have no saved state, which is fine)
-    setTimeout(() => {
-      unsub();
-      resolve();
-    }, 1000);
-  });
-}
-
 // ==================== Auth Provider ====================
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -73,41 +41,60 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Using the hook (not getState()) so React re-renders when it changes
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
-  // Initialize auth state on mount — sync Zustand with backend
+  // Initialize auth state on mount — sync Zustand with backend cookies
   const initAuth = useCallback(async (signal: AbortSignal) => {
-    // 1. Wait for Zustand persist to finish rehydrating from sessionStorage
-    //    CRITICAL: Without this, token is null on page reload because
-    //    persist rehydration is async and hasn't completed yet
-    await waitForRehydration();
+    async function fetchCurrentUser(): Promise<UserProfile | null> {
+      const response = await fetch("/api/auth/me", {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        signal,
+      });
 
-    // 2. If there's a stored token, verify it's still valid
-    const currentToken = useAuthStore.getState().token;
-    if (currentToken) {
-      try {
-        const res = await apiClient.get<ApiResponse<{ user: UserProfile }>>(
-          "/auth/me"
-        );
-        if (res.success && res.data?.user) {
-          useAuthStore.getState().setUser(res.data.user);
+      if (!response.ok) return null;
+
+      const res: ApiResponse<{ user: UserProfile }> = await response.json();
+      return res.success ? res.data?.user ?? null : null;
+    }
+
+    try {
+      let user = await fetchCurrentUser();
+
+      if (!user && !signal.aborted) {
+        const refreshResponse = await fetch("/api/auth/refresh", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+          credentials: "same-origin",
+          signal,
+        });
+
+        if (refreshResponse.ok) {
+          user = await fetchCurrentUser();
         }
-      } catch {
-        // Token invalid or expired — auto-refresh attempted by api-client
-        // If we're here, refresh also failed
-        if (!signal.aborted) {
+      }
+
+      if (!signal.aborted) {
+        if (user) {
+          useAuthStore.getState().login(user);
+        } else {
           useAuthStore.getState().logout();
         }
       }
-    }
-
-    if (!signal.aborted) {
-      setIsReady(true);
+    } catch {
+      if (!signal.aborted) {
+        useAuthStore.getState().logout();
+      }
+    } finally {
+      if (!signal.aborted) {
+        setIsReady(true);
+      }
     }
   }, []);
 
   useEffect(() => {
     const controller = new AbortController();
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- auth init must set ready state
     initAuth(controller.signal);
 
     // Safety timeout — don't block UI forever if API is slow

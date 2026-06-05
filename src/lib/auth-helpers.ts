@@ -2,7 +2,7 @@
  * Purpose: Reusable auth helper functions for API routes
  * Responsibility: Centralize common auth operations used across multiple routes
  * Important Notes:
- *   - extractTokenFromHeader: Extract Bearer token from Authorization header
+ *   - extractAccessToken: Extract token from Authorization header or HttpOnly access cookie
  *   - logAuthEvent: Create AuthEvent records for audit trail
  *   - requireAuth: Extract + verify token + return payload (or throw AppError)
  *   - Previously these were duplicated or inline in route handlers
@@ -11,6 +11,7 @@
 import { NextRequest } from "next/server";
 import { prisma } from "./prisma";
 import { verifyAccessToken } from "@/lib/server/jwt";
+import { getAccessTokenFromCookie } from "@/lib/server/cookies";
 import {
   AuthMissingTokenError,
   AuthInvalidTokenError,
@@ -23,15 +24,25 @@ import type { AccessTokenPayload } from "@/shared/types/auth";
 // ==================== TOKEN EXTRACTION ====================
 
 /**
- * Extract Bearer token from Authorization header
+ * Extract access token from Authorization header or HttpOnly cookie
  * @returns The token string, or null if not found
+ */
+export function extractAccessToken(request: NextRequest): string | null {
+  const authHeader = request.headers.get("authorization");
+  if (authHeader?.startsWith("Bearer ")) {
+    return authHeader.split(" ")[1];
+  }
+
+  return getAccessTokenFromCookie(request);
+}
+
+/**
+ * Extract Bearer token from Authorization header
+ * Kept for backward compatibility with non-browser API clients
  */
 export function extractTokenFromHeader(request: NextRequest): string | null {
   const authHeader = request.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return null;
-  }
-  return authHeader.split(" ")[1];
+  return authHeader?.startsWith("Bearer ") ? authHeader.split(" ")[1] : null;
 }
 
 /**
@@ -99,7 +110,7 @@ export async function logAuthEvent(
  */
 export async function requireAuth(request: NextRequest): Promise<AccessTokenPayload> {
   // 1. Extract token
-  const token = extractTokenFromHeader(request);
+  const token = extractAccessToken(request);
   if (!token) {
     throw new AuthMissingTokenError();
   }

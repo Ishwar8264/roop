@@ -8,7 +8,7 @@ import { prisma } from "@/lib/database/prisma";
 import { verifyStoredOtp } from "@/features/auth/services/otp-service";
 import { logAuthEvent } from "@/features/auth/services/auth-event-service";
 import { createSession, getUserWithProviders } from "@/features/auth/services/session-service";
-import { setRefreshTokenCookie } from "@/lib/server/cookies";
+import { setAccessTokenCookie, setRefreshTokenCookie } from "@/lib/server/cookies";
 import { recordSuccessfulLogin } from "@/features/auth/services/login-rate-limit";
 import { verifyOtpSchema } from "@/features/auth/validations/auth";
 import { AuthAccountSuspendedError, isAppError } from "@/lib/server/errors";
@@ -59,14 +59,15 @@ export async function POST(request: NextRequest) {
     // 6. Get user with providers
     const fullUser = await getUserWithProviders(user.id);
 
-    // 7. Build response — accessToken in JSON, refreshToken in HttpOnly cookie ONLY
+    // 7. Build response — tokens are HttpOnly cookies only
     const response = NextResponse.json({
       success: true,
-      data: { user: fullUser, tokens: { accessToken }, isNewUser },
+      data: { user: fullUser, isNewUser },
       ...(isNewUser && { message: "Registration successful! Welcome to Nikharta Roop." }),
     }, { status: isNewUser ? 201 : 200 });
 
     setRefreshTokenCookie(response, refreshToken);
+    setAccessTokenCookie(response, accessToken);
 
     await logAuthEvent(isNewUser ? "REGISTER_PHONE" : "LOGIN_SUCCESS", request, { userId: user.id, identifier: phone, metadata: { authProvider: "MOBILE", isNewUser } });
 

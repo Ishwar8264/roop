@@ -119,7 +119,7 @@ export function useLoginHandlers() {
         toast.success(t("common.success"), { description: t("auth.welcomeBack") });
         return {
           success: true,
-          data: { user: res.data.user, token: res.data.tokens.accessToken, isNewUser: res.data.isNewUser },
+          data: { user: res.data.user, isNewUser: res.data.isNewUser },
         };
       }
       return { success: false };
@@ -142,7 +142,7 @@ export function useLoginHandlers() {
       );
       if (res.success && res.data) {
         toast.success(t("common.success"), { description: t("auth.welcomeBack") });
-        return { success: true, data: { user: res.data.user, token: res.data.tokens.accessToken } };
+        return { success: true, data: { user: res.data.user } };
       }
       return { success: false };
     } catch (err: unknown) {

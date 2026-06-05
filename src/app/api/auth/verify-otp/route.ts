@@ -16,7 +16,7 @@
  *   At least one of mobile or email must be provided
  *
  * Responses:
- *   200: { success: true, data: { user, tokens, isNewUser } }
+ *   200: { success: true, data: { user, isNewUser } }
  *   400: { success: false, error: "VAL_INVALID_INPUT", message, statusCode: 400 }
  *   401: { success: false, error: "AUTH_OTP_INVALID"|"AUTH_OTP_EXPIRED"|"AUTH_OTP_MAX_ATTEMPTS"|"AUTH_ACCOUNT_SUSPENDED", message, statusCode: 401 }
  *   404: { success: false, error: "AUTH_MOBILE_NOT_REGISTERED", message, statusCode: 404 }
@@ -199,7 +199,7 @@ export const POST = createApiHandler({
       user.id
     );
 
-    // 10. Return tokens and user data
+    // 10. Return public user data; tokens are set as HttpOnly cookies below
     return {
       ...authResult,
       isNewUser,
@@ -216,7 +216,6 @@ export const POST = createApiHandler({
         success: true,
         data: {
           ...publicData,
-          tokens: tokenData ? { accessToken: tokenData.accessToken } : undefined,
         },
       },
       { status: 200 }

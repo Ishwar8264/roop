@@ -10,7 +10,6 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { useAuthStore } from "@/stores/auth-store";
 import type { ApiResponse } from "@/types";
 
 export interface GalleryImage {
@@ -35,11 +34,9 @@ export function useAvatarGallery() {
     setIsLoading(true);
     setError(null);
     try {
-      const token = useAuthStore.getState().token;
       const res = await fetch("/api/user/avatar/gallery", {
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         credentials: "same-origin",
       });

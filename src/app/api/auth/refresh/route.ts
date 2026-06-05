@@ -1,6 +1,6 @@
 /**
  * Purpose: Refresh JWT token API endpoint for Nikharta Roop auth
- * Responsibility: Issue new access token using refresh token (without re-login)
+ * Responsibility: Rotate HttpOnly auth cookies using refresh token (without re-login)
  *
  * Endpoint: POST /api/auth/refresh
  *
@@ -18,7 +18,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/database/prisma";
-import { verifyRefreshToken, generateTokenPair, signAccessToken } from "@/lib/server/jwt";
+import { verifyRefreshToken, generateTokenPair } from "@/lib/server/jwt";
 import { hashTokenSha256, generateTokenFamily } from "@/lib/server/crypto";
 import { logAuthEvent } from "@/lib/auth-helpers";
 import { getRefreshTokenFromCookie, setRefreshTokenCookie, setAccessTokenCookie } from "@/lib/server/cookies";
@@ -31,7 +31,6 @@ import {
   isAppError,
   toAppError,
 } from "@/lib/server/errors";
-import { HTTP_STATUS, ERROR_CODES } from "@/shared/constants";
 import type { UserRole } from "@/shared/types/enums";
 
 export async function POST(request: NextRequest) {
@@ -135,9 +134,7 @@ export async function POST(request: NextRequest) {
     const response = NextResponse.json(
       {
         success: true,
-        data: {
-          tokens: { accessToken: tokens.accessToken },
-        },
+        data: {},
         message: "Token refreshed successfully.",
       },
       { status: 200 }

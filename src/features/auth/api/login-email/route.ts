@@ -2,8 +2,8 @@
  * Purpose: Email + Password login
  * Endpoint: POST /api/auth/login-email
  *
- * Returns access token in JSON body + refresh token in HttpOnly cookie
- * Refresh token is NEVER exposed in JSON — HttpOnly cookie only
+ * Sets access + refresh tokens in HttpOnly cookies
+ * Tokens are NEVER exposed in JSON
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -11,10 +11,10 @@ import { prisma } from "@/lib/database/prisma";
 import { verifyPasswordHash } from "@/lib/server/crypto";
 import { logAuthEvent } from "@/features/auth/services/auth-event-service";
 import { createSession, getUserWithProviders } from "@/features/auth/services/session-service";
-import { setRefreshTokenCookie } from "@/lib/server/cookies";
+import { setAccessTokenCookie, setRefreshTokenCookie } from "@/lib/server/cookies";
 import { checkLoginRateLimit, recordFailedLogin, recordSuccessfulLogin } from "@/features/auth/services/login-rate-limit";
 import { loginEmailSchema } from "@/features/auth/validations/auth";
-import { AuthInvalidCredentialsError, AuthAccountSuspendedError, isAppError, toAppError } from "@/lib/server/errors";
+import { AuthInvalidCredentialsError, AuthAccountSuspendedError, isAppError } from "@/lib/server/errors";
 import { HTTP_STATUS, ERROR_CODES } from "@/shared/constants";
 
 export async function POST(request: NextRequest) {
@@ -67,17 +67,17 @@ export async function POST(request: NextRequest) {
     // 8. Get user with providers
     const fullUser = await getUserWithProviders(user.id);
 
-    // 9. Build response — accessToken in JSON, refreshToken in HttpOnly cookie ONLY
+    // 9. Build response — tokens are HttpOnly cookies only
     const response = NextResponse.json({
       success: true,
       data: {
         user: fullUser,
-        tokens: { accessToken },
       },
       message: "Login successful!",
     }, { status: 200 });
 
     setRefreshTokenCookie(response, refreshToken);
+    setAccessTokenCookie(response, accessToken);
 
     // 10. Log event
     await logAuthEvent("LOGIN_SUCCESS", request, { userId: user.id, identifier: email, metadata: { authProvider: "EMAIL" } });

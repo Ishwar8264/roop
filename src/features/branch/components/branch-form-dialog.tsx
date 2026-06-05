@@ -1,3 +1,11 @@
+/**
+ * Purpose: Branch create/edit dialog
+ * Responsibility: Collect branch form fields and submit branch mutations
+ * Important Notes:
+ *   - Client component for dialog and form state
+ *   - Auth is sent through HttpOnly same-origin cookies
+ */
+
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
@@ -13,7 +21,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/i18n/use-translation";
-import { useAuthStore } from "@/stores/auth-store";
 import { toast } from "sonner";
 import type { BranchResponse } from "@/features/branch/types";
 
@@ -98,7 +105,7 @@ export function BranchFormDialog({
       setErrors((prev) => ({ ...prev, [field]: undefined }));
   };
 
-  const validate = (): boolean => {
+  const validate = useCallback((): boolean => {
     const e: Partial<Record<keyof FormState, string>> = {};
     if (!form.nameHi.trim()) e.nameHi = t("common.pleaseEnter");
     if (!form.nameEn.trim()) e.nameEn = t("common.pleaseEnter");
@@ -112,7 +119,7 @@ export function BranchFormDialog({
         t("branches.openTime") + " < " + t("branches.closeTime");
     setErrors(e);
     return Object.keys(e).length === 0;
-  };
+  }, [form, t]);
 
   const handleSubmit = useCallback(async () => {
     if (!validate()) return;
@@ -135,7 +142,6 @@ export function BranchFormDialog({
 
     setIsSubmitting(true);
     try {
-      const token = useAuthStore.getState().token;
       const url = isEditing && branch ? `/api/branches/${branch.id}` : "/api/branches";
       const method = isEditing ? "PATCH" : "POST";
 
@@ -143,7 +149,6 @@ export function BranchFormDialog({
         method,
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         credentials: "same-origin",
         body: JSON.stringify(payload),
@@ -160,7 +165,7 @@ export function BranchFormDialog({
     } finally {
       setIsSubmitting(false);
     }
-  }, [form, isEditing, branch, t, onOpenChange, onMutated]);
+  }, [form, isEditing, branch, t, onOpenChange, onMutated, validate]);
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>

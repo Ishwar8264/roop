@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { refreshSession } from "@/features/auth/services/session-service";
 import { logAuthEvent } from "@/features/auth/services/auth-event-service";
-import { setRefreshTokenCookie } from "@/lib/server/cookies";
+import { setAccessTokenCookie, setRefreshTokenCookie } from "@/lib/server/cookies";
 import { isAppError } from "@/lib/server/errors";
 import { ERROR_CODES } from "@/shared/constants";
 
@@ -16,12 +16,12 @@ export async function POST(request: NextRequest) {
 
     const response = NextResponse.json({
       success: true,
-      data: { accessToken },
+      data: {},
       message: "Token refreshed successfully.",
     }, { status: 200 });
 
-    // Set new refresh token cookie
     setRefreshTokenCookie(response, refreshToken);
+    setAccessTokenCookie(response, accessToken);
 
     await logAuthEvent("TOKEN_REFRESHED", request, {});
 

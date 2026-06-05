@@ -11,7 +11,7 @@
  *   mobile: string (optional, Indian 10-digit)
  *
  * Responses:
- *   201: { success: true, data: { user, tokens }, message }
+ *   201: { success: true, data: { user }, message }
  *   400: { success: false, error: "VAL_INVALID_INPUT", message, statusCode: 400 }
  *   409: { success: false, error: "AUTH_EMAIL_EXISTS"|"AUTH_MOBILE_EXISTS", message, statusCode: 409 }
  */
@@ -96,7 +96,6 @@ export const POST = createApiHandler({
         success: true,
         data: {
           ...publicData,
-          tokens: tokenData ? { accessToken: tokenData.accessToken } : undefined,
         },
         message: "Registration successful! Welcome to Nikharta Roop.",
       },

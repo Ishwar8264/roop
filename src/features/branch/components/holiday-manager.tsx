@@ -1,3 +1,11 @@
+/**
+ * Purpose: Branch holiday management panel
+ * Responsibility: Let admins add and remove branch holidays from the branch UI
+ * Important Notes:
+ *   - Client component for form state and mutation feedback
+ *   - Auth is sent through HttpOnly same-origin cookies
+ */
+
 "use client";
 
 import { useState, useCallback } from "react";
@@ -36,12 +44,10 @@ export function HolidayManager({ branchId, initialHolidays, onMutated }: Holiday
     if (!date || !reasonHi.trim()) return;
     setIsAdding(true);
     try {
-      const token = useAuthStore.getState().token;
       const res = await fetch(`/api/branches/${branchId}/holidays`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         credentials: "same-origin",
         body: JSON.stringify({
@@ -71,12 +77,10 @@ export function HolidayManager({ branchId, initialHolidays, onMutated }: Holiday
     if (!confirm(t("branches.removeHolidayConfirm"))) return;
     setRemovingId(holidayId);
     try {
-      const token = useAuthStore.getState().token;
       const res = await fetch(`/api/branches/${branchId}/holidays/${holidayId}`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         credentials: "same-origin",
       });

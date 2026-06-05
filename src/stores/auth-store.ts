@@ -1,26 +1,24 @@
 /**
  * Purpose: Global authentication state management
- * Responsibility: Manage user auth state, token, login/logout/refresh actions with sessionStorage persistence
+ * Responsibility: Manage user auth state without exposing tokens to client JavaScript
  * Important Notes:
  *   - This is the ONLY place for auth state — do not duplicate in components
- *   - Access token stored in Zustand (RAM) + persisted to sessionStorage
- *   - Refresh token handled via HttpOnly cookie (never accessible to JS)
- *   - sessionStorage clears on tab close for security
+ *   - Access and refresh tokens are HttpOnly cookies managed by server routes
+ *   - Client stores only non-sensitive user/session UI state
  *   - initialize() must be called once on app mount to restore state
  */
 
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import type { User, AuthState, UserProfile } from "@/types";
+import type { AuthState, UserProfile } from "@/types";
 
 // ==================== Actions Interface ====================
 
 interface AuthActions {
-  login: (user: UserProfile, token: string) => void;
+  login: (user: UserProfile) => void;
   logout: () => void;
   setUser: (user: Partial<UserProfile>) => void;
   setLoading: (loading: boolean) => void;
-  setToken: (token: string) => void;
   initialize: () => void;
 }
 
@@ -28,18 +26,16 @@ interface AuthActions {
 
 export const useAuthStore = create<AuthState & AuthActions>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       // State
       user: null,
-      token: null,
       isAuthenticated: false,
       isLoading: false,
 
       // Actions
-      login: (user: UserProfile, token: string) => {
+      login: (user: UserProfile) => {
         set({
           user,
-          token,
           isAuthenticated: true,
           isLoading: false,
         });
@@ -48,7 +44,6 @@ export const useAuthStore = create<AuthState & AuthActions>()(
       logout: () => {
         set({
           user: null,
-          token: null,
           isAuthenticated: false,
           isLoading: false,
         });
@@ -57,15 +52,12 @@ export const useAuthStore = create<AuthState & AuthActions>()(
       setUser: (userData: Partial<UserProfile>) => {
         set((state) => ({
           user: state.user ? { ...state.user, ...userData } : null,
+          isAuthenticated: !!state.user,
         }));
       },
 
       setLoading: (loading: boolean) => {
         set({ isLoading: loading });
-      },
-
-      setToken: (token: string) => {
-        set({ token });
       },
 
       initialize: () => {
@@ -90,7 +82,6 @@ export const useAuthStore = create<AuthState & AuthActions>()(
       partialize: (state) => ({
         // Only persist these fields — not isLoading
         user: state.user,
-        token: state.token,
         isAuthenticated: state.isAuthenticated,
       }),
     }

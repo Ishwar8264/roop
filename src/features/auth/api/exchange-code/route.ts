@@ -21,7 +21,7 @@ import { hashTokenSha256 } from "@/lib/server/crypto";
 import { redis } from "@/lib/config/redis";
 import { setRefreshTokenCookie, setAccessTokenCookie } from "@/lib/server/cookies";
 import { AuthMagicLinkInvalidError } from "@/lib/server/errors";
-import { createSession, getUserWithProviders } from "@/features/auth/services/session-service";
+import { createSession } from "@/features/auth/services/session-service";
 import { logAuthEvent } from "@/features/auth/services/auth-event-service";
 import { prisma } from "@/lib/database/prisma";
 import { z } from "zod";

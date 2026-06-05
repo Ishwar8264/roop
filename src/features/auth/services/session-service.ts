@@ -14,10 +14,10 @@
 import { prisma } from "@/lib/database/prisma";
 import { redis } from "@/lib/config/redis";
 import { SESSION_CONFIG, RATE_LIMIT_CONFIG, REDIS_KEYS } from "@/lib/config/auth";
-import { generateTokenPair, verifyRefreshToken, signAccessToken, verifyAccessToken } from "@/lib/server/jwt";
+import { generateTokenPair, verifyRefreshToken, verifyAccessToken } from "@/lib/server/jwt";
 import { hashTokenSha256, generateTokenFamily } from "@/lib/server/crypto";
 import { parseUserAgent, extractClientIp, extractGeoFromIp } from "@/lib/server/device";
-import { setRefreshTokenCookie, clearRefreshTokenCookie, getRefreshTokenFromCookie } from "@/lib/server/cookies";
+import { getAccessTokenFromCookie, getRefreshTokenFromCookie } from "@/lib/server/cookies";
 import {
   AuthSessionInvalidError,
   AuthSessionRevokedError,
@@ -25,7 +25,7 @@ import {
   AuthRefreshReuseError,
 } from "@/lib/server/errors";
 import type { AccessTokenPayload } from "@/shared/types/auth";
-import type { NextRequest, NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import type { UserRole } from "@/shared/types/enums";
 
 // ==================== CREATE SESSION ====================
@@ -320,11 +320,14 @@ export async function touchSessionThrottled(sessionId: string): Promise<void> {
  */
 export async function requireAuth(request: NextRequest): Promise<AccessTokenPayload> {
   const authHeader = request.headers.get("authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
+  const token = authHeader?.startsWith("Bearer ")
+    ? authHeader.split(" ")[1]
+    : getAccessTokenFromCookie(request);
+
+  if (!token) {
     throw new AuthSessionInvalidError();
   }
 
-  const token = authHeader.split(" ")[1];
   const payload = await verifyAccessToken(token);
   if (!payload) {
     throw new AuthSessionInvalidError();

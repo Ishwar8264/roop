@@ -8,7 +8,7 @@ import { OAuth2Client } from "google-auth-library";
 import { prisma } from "@/lib/database/prisma";
 import { logAuthEvent } from "@/features/auth/services/auth-event-service";
 import { createSession, getUserWithProviders } from "@/features/auth/services/session-service";
-import { setRefreshTokenCookie } from "@/lib/server/cookies";
+import { setAccessTokenCookie, setRefreshTokenCookie } from "@/lib/server/cookies";
 import { googleAuthSchema } from "@/features/auth/validations/auth";
 import { AuthGoogleTokenInvalidError, AuthAccountSuspendedError, isAppError } from "@/lib/server/errors";
 import { ERROR_CODES } from "@/shared/constants";
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     } else {
       const existingUser = await prisma.user.findUnique({ where: { email: googleUser.email } });
       if (existingUser) {
-        await prisma.account.create({ data: { userId: existingUser.id, provider: "GOOGLE", providerAccountId: googleUser.googleId, metadata: { email: googleUser.email, name: googleUser.name, picture: googleUser.picture } } });
+        await prisma.account.create({ data: { userId: existingUser.id, provider: "GOOGLE", providerAccountId: googleUser.googleId } });
         const updates: Record<string, unknown> = {};
         if (!existingUser.name) updates.name = googleUser.name;
         if (!existingUser.avatarUrl) updates.avatarUrl = googleUser.picture;
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
       } else {
         user = await prisma.$transaction(async (tx) => {
           const newUser = await tx.user.create({ data: { email: googleUser.email, emailVerified: googleUser.emailVerified, name: googleUser.name, avatarUrl: googleUser.picture || null, role: "USER", isActive: true, loyaltyPoints: 0 } });
-          await tx.account.create({ data: { userId: newUser.id, provider: "GOOGLE", providerAccountId: googleUser.googleId, metadata: { email: googleUser.email, name: googleUser.name, picture: googleUser.picture } } });
+          await tx.account.create({ data: { userId: newUser.id, provider: "GOOGLE", providerAccountId: googleUser.googleId } });
           return newUser;
         });
         isNewUser = true;
@@ -76,14 +76,15 @@ export async function POST(request: NextRequest) {
 
     const fullUser = await getUserWithProviders(user.id);
 
-    // Build response — accessToken in JSON, refreshToken in HttpOnly cookie ONLY
+    // Build response — tokens are HttpOnly cookies only
     const response = NextResponse.json({
       success: true,
-      data: { user: fullUser, tokens: { accessToken }, isNewUser },
+      data: { user: fullUser, isNewUser },
       ...(isNewUser && { message: "Registration successful! Welcome to Nikharta Roop." }),
     }, { status: isNewUser ? 201 : 200 });
 
     setRefreshTokenCookie(response, refreshToken);
+    setAccessTokenCookie(response, accessToken);
 
     await logAuthEvent(isNewUser ? "REGISTER_GOOGLE" : "LOGIN_SUCCESS", request, { userId: user.id, identifier: googleUser.email, metadata: { authProvider: "GOOGLE", isNewUser } });
 

@@ -29,12 +29,10 @@ export function useUpdateProfile() {
     async (payload: UpdateProfilePayload, onSuccess?: () => void) => {
       setIsPending(true);
       try {
-        const token = useAuthStore.getState().token;
         const res = await fetch("/api/user/profile", {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
           credentials: "same-origin",
           body: JSON.stringify(payload),

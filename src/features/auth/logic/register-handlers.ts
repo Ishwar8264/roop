@@ -88,7 +88,7 @@ export function useRegisterHandlers() {
         toast.success(t("auth.registerSuccess"), { description: t("auth.welcomeToNr") });
         return {
           success: true,
-          data: { user: res.data.user, token: res.data.tokens.accessToken },
+          data: { user: res.data.user },
         };
       }
       return { success: false };
