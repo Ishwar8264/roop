@@ -182,8 +182,9 @@ export function PersonalInfoCard({ profile, onVerifyEmail, onChangePhone }: Pers
             </div>
           ) : (
             <div className="flex items-center justify-between group">
-              <div
-                className="flex items-center gap-3 min-w-0 cursor-pointer flex-1"
+              <button
+                type="button"
+                className="flex items-center gap-3 min-w-0 cursor-pointer flex-1 bg-transparent border-0 p-0 text-left font-inherit"
                 onClick={() => {
                   if (!displayUser?.email) {
                     startEditing("email");
@@ -191,6 +192,7 @@ export function PersonalInfoCard({ profile, onVerifyEmail, onChangePhone }: Pers
                     onVerifyEmail?.();
                   }
                 }}
+                aria-label={displayUser?.email ? t("profile.verifyEmail") : t("profile.emailAddress")}
               >
                 <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-rose-50 dark:bg-rose-950/20 shrink-0">
                   <Mail className="h-4 w-4 text-rose-500" />
@@ -221,7 +223,7 @@ export function PersonalInfoCard({ profile, onVerifyEmail, onChangePhone }: Pers
                     {displayUser?.email || "—"}
                   </p>
                 </div>
-              </div>
+              </button>
               <Button
                 variant="ghost"
                 size="icon"
@@ -239,9 +241,11 @@ export function PersonalInfoCard({ profile, onVerifyEmail, onChangePhone }: Pers
 
         {/* Phone Field */}
         <div className="flex items-center justify-between group">
-          <div
-            className="flex items-center gap-3 min-w-0 cursor-pointer flex-1"
+          <button
+            type="button"
+            className="flex items-center gap-3 min-w-0 cursor-pointer flex-1 bg-transparent border-0 p-0 text-left font-inherit"
             onClick={() => startEditing("phone")}
+            aria-label={t("profile.phone")}
           >
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-rose-50 dark:bg-rose-950/20 shrink-0">
               <Phone className="h-4 w-4 text-rose-500" />
@@ -263,7 +267,7 @@ export function PersonalInfoCard({ profile, onVerifyEmail, onChangePhone }: Pers
                 {displayUser?.mobile || "—"}
               </p>
             </div>
-          </div>
+          </button>
           <Button
             variant="ghost"
             size="icon"

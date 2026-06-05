@@ -53,49 +53,49 @@ export const GET = createApiHandler({
     const page = parseInt(url.searchParams.get("page") || "1", 10);
     const pageSize = Math.min(parseInt(url.searchParams.get("pageSize") || "20", 10), 100);
 
-    // 3. Count total sales
-    const total = await prisma.productSale.count();
-
-    // 4. Fetch paginated sales
-    const items = await prisma.productSale.findMany({
-      select: {
-        id: true,
-        customerId: true,
-        branchId: true,
-        totalAmount: true,
-        status: true,
-        paymentMethod: true,
-        notes: true,
-        createdAt: true,
-        updatedAt: true,
-        customer: {
-          select: {
-            id: true,
-            name: true,
-            mobile: true,
+    // 3. Count total and fetch paginated sales
+    const [total, items] = await Promise.all([
+      prisma.productSale.count(),
+      prisma.productSale.findMany({
+        select: {
+          id: true,
+          customerId: true,
+          branchId: true,
+          totalAmount: true,
+          status: true,
+          paymentMethod: true,
+          notes: true,
+          createdAt: true,
+          updatedAt: true,
+          customer: {
+            select: {
+              id: true,
+              name: true,
+              mobile: true,
+            },
           },
-        },
-        items: {
-          select: {
-            id: true,
-            productId: true,
-            quantity: true,
-            unitPrice: true,
-            totalPrice: true,
-            product: {
-              select: {
-                id: true,
-                nameHi: true,
-                nameEn: true,
+          items: {
+            select: {
+              id: true,
+              productId: true,
+              quantity: true,
+              unitPrice: true,
+              totalPrice: true,
+              product: {
+                select: {
+                  id: true,
+                  nameHi: true,
+                  nameEn: true,
+                },
               },
             },
           },
         },
-      },
-      orderBy: { createdAt: "desc" },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    });
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
 
     // 5. Return with pagination and serialized decimals
     return {

@@ -8,7 +8,7 @@ import Image from "next/image";
  * Falls back to a placeholder if no coordinates are available
  */
 
-const GOOGLE_MAPS_API_KEY = "AIzaSyCj89eOTW_b8blT60s_zjaUdRLwjO-yhiE";
+const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
 interface BranchMapProps {
   latitude: number | null;
@@ -26,6 +26,18 @@ export function BranchMap({ latitude, longitude, address, className }: BranchMap
       >
         <span className="text-xs text-muted-foreground px-2 py-1">
           {address}
+        </span>
+      </div>
+    );
+  }
+
+  if (!GOOGLE_MAPS_API_KEY) {
+    return (
+      <div
+        className={`flex items-center justify-center bg-muted/50 rounded-md ${className ?? ""}`}
+      >
+        <span className="text-xs text-muted-foreground px-2 py-1">
+          Map unavailable{"\u2014"}set NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
         </span>
       </div>
     );

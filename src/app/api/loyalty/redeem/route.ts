@@ -59,26 +59,26 @@ export const POST = createApiHandler({
       }
     }
 
-    // 4. Create LoyaltyTransaction record
-    const transaction = await prisma.loyaltyTransaction.create({
-      data: {
-        userId: user.id,
-        type: "REDEEM",
-        points: -points, // Negative for redemption
-        bookingId: bookingId || null,
-        reason,
-      },
-    });
-
-    // 5. Deduct points from user
-    const updatedUser = await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        loyaltyPoints: {
-          decrement: points,
+    // 4. Create LoyaltyTransaction record and deduct points (parallel)
+    const [transaction, updatedUser] = await Promise.all([
+      prisma.loyaltyTransaction.create({
+        data: {
+          userId: user.id,
+          type: "REDEEM",
+          points: -points, // Negative for redemption
+          bookingId: bookingId || null,
+          reason,
         },
-      },
-    });
+      }),
+      prisma.user.update({
+        where: { id: user.id },
+        data: {
+          loyaltyPoints: {
+            decrement: points,
+          },
+        },
+      }),
+    ]);
 
     // 6. Return transaction and new balance
     return {

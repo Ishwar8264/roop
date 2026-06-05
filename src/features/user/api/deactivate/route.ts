@@ -64,22 +64,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 3. Set isActive = false on user
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { isActive: false },
-    });
-
-    // 4. Revoke ALL user sessions
-    await revokeAllUserSessions(user.id);
-
-    // 5. Log ACCOUNT_DEACTIVATED auth event
-    await logAuthEvent("ACCOUNT_DEACTIVATED", request, {
-      userId: user.id,
-      metadata: {
-        reason: parsedBody.reason || undefined,
-      },
-    });
+    // 3. Deactivate user, revoke sessions, and log event (parallel — independent operations)
+    await Promise.all([
+      prisma.user.update({
+        where: { id: user.id },
+        data: { isActive: false },
+      }),
+      revokeAllUserSessions(user.id),
+      logAuthEvent("ACCOUNT_DEACTIVATED", request, {
+        userId: user.id,
+        metadata: {
+          reason: parsedBody.reason || undefined,
+        },
+      }),
+    ]);
 
     // 6. Build response and clear refresh token cookie
     const response = NextResponse.json(

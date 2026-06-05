@@ -89,58 +89,56 @@ export const GET = createApiHandler({
       isApproved: true,
     };
 
-    // 4. Get aggregate rating info
-    const ratingStats = await prisma.review.aggregate({
-      where,
-      _avg: { rating: true },
-      _count: { rating: true },
-    });
-
-    // 5. Count total matching reviews
-    const total = await prisma.review.count({ where });
-
-    // 6. Fetch paginated reviews
-    const reviews = await prisma.review.findMany({
-      where,
-      select: {
-        id: true,
-        userId: true,
-        bookingId: true,
-        staffId: true,
-        serviceId: true,
-        rating: true,
-        commentHi: true,
-        commentEn: true,
-        isApproved: true,
-        createdAt: true,
-        updatedAt: true,
-        user: {
-          select: {
-            id: true,
-            name: true,
-            avatarUrl: true,
+    // 4. Get aggregate rating info, total count, and paginated reviews
+    const [ratingStats, total, reviews] = await Promise.all([
+      prisma.review.aggregate({
+        where,
+        _avg: { rating: true },
+        _count: { rating: true },
+      }),
+      prisma.review.count({ where }),
+      prisma.review.findMany({
+        where,
+        select: {
+          id: true,
+          userId: true,
+          bookingId: true,
+          staffId: true,
+          serviceId: true,
+          rating: true,
+          commentHi: true,
+          commentEn: true,
+          isApproved: true,
+          createdAt: true,
+          updatedAt: true,
+          user: {
+            select: {
+              id: true,
+              name: true,
+              avatarUrl: true,
+            },
           },
-        },
-        staff: {
-          select: {
-            id: true,
-            bioHi: true,
-            bioEn: true,
-            rating: true,
-            user: {
-              select: {
-                id: true,
-                name: true,
-                avatarUrl: true,
+          staff: {
+            select: {
+              id: true,
+              bioHi: true,
+              bioEn: true,
+              rating: true,
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  avatarUrl: true,
+                },
               },
             },
           },
         },
-      },
-      orderBy: { createdAt: "desc" },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    });
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
 
     // 7. Return with pagination and serialized decimals
     return {

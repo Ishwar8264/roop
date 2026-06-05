@@ -126,7 +126,6 @@ export const createServiceSchema = z.object({
   price,
   durationMinutes,
   imageUrl: z
-    .string()
     .url("अमान्य URL / Invalid URL")
     .nullable()
     .optional(),
@@ -173,7 +172,6 @@ export const updateServiceSchema = z.object({
   price: price.optional(),
   durationMinutes: durationMinutes.optional(),
   imageUrl: z
-    .string()
     .url("अमान्य URL / Invalid URL")
     .nullable()
     .optional(),

@@ -93,59 +93,59 @@ export const GET = createApiHandler({
     if (staffId) where.staffId = staffId;
     if (rating) where.rating = rating;
 
-    // 3. Count total matching reviews
-    const total = await prisma.review.count({ where });
-
-    // 4. Fetch paginated reviews
-    const reviews = await prisma.review.findMany({
-      where,
-      select: {
-        id: true,
-        userId: true,
-        bookingId: true,
-        staffId: true,
-        serviceId: true,
-        rating: true,
-        commentHi: true,
-        commentEn: true,
-        isApproved: true,
-        createdAt: true,
-        updatedAt: true,
-        user: {
-          select: {
-            id: true,
-            name: true,
-            avatarUrl: true,
+    // 3. Count total and fetch paginated reviews
+    const [total, reviews] = await Promise.all([
+      prisma.review.count({ where }),
+      prisma.review.findMany({
+        where,
+        select: {
+          id: true,
+          userId: true,
+          bookingId: true,
+          staffId: true,
+          serviceId: true,
+          rating: true,
+          commentHi: true,
+          commentEn: true,
+          isApproved: true,
+          createdAt: true,
+          updatedAt: true,
+          user: {
+            select: {
+              id: true,
+              name: true,
+              avatarUrl: true,
+            },
           },
-        },
-        staff: {
-          select: {
-            id: true,
-            bioHi: true,
-            bioEn: true,
-            rating: true,
-            user: {
-              select: {
-                id: true,
-                name: true,
-                avatarUrl: true,
+          staff: {
+            select: {
+              id: true,
+              bioHi: true,
+              bioEn: true,
+              rating: true,
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  avatarUrl: true,
+                },
               },
             },
           },
-        },
-        service: {
-          select: {
-            id: true,
-            nameHi: true,
-            nameEn: true,
-            price: true,
+          service: {
+            select: {
+              id: true,
+              nameHi: true,
+              nameEn: true,
+              price: true,
+            },
           },
         },
-      },
-      orderBy: { createdAt: "desc" },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    });
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
 
     // 5. Return with pagination and serialized decimals
     return {
@@ -184,10 +184,11 @@ export const POST = createApiHandler({
     // 1. Verify authenticated user
     const { user } = await requireActiveUser(request);
 
-    // 2. Check booking exists and belongs to user
-    const booking = await prisma.booking.findUnique({
-      where: { id: bookingId },
-    });
+    // 2. Check booking exists and check for existing review (parallel)
+    const [booking, existingReview] = await Promise.all([
+      prisma.booking.findUnique({ where: { id: bookingId } }),
+      prisma.review.findUnique({ where: { bookingId } }),
+    ]);
 
     if (!booking) {
       throw new NotFoundError("Booking not found");
@@ -203,10 +204,6 @@ export const POST = createApiHandler({
     }
 
     // 4. Check if review already exists for this booking (one per booking)
-    const existingReview = await prisma.review.findUnique({
-      where: { bookingId },
-    });
-
     if (existingReview) {
       throw new ConflictError("A review already exists for this booking");
     }

@@ -133,56 +133,56 @@ export const GET = createApiHandler({
     if (status) where.status = status;
     if (date) where.bookingDate = new Date(date);
 
-    // 4. Count total matching bookings
-    const total = await prisma.booking.count({ where });
-
-    // 5. Fetch paginated bookings
-    const bookings = await prisma.booking.findMany({
-      where,
-      select: {
-        id: true,
-        bookingDisplayId: true,
-        userId: true,
-        serviceId: true,
-        variantId: true,
-        staffId: true,
-        branchId: true,
-        bookingDate: true,
-        slotStart: true,
-        slotEnd: true,
-        status: true,
-        advanceAmount: true,
-        totalAmount: true,
-        cancellationReason: true,
-        notes: true,
-        createdAt: true,
-        updatedAt: true,
-        user: {
-          select: { id: true, name: true, mobile: true },
-        },
-        service: {
-          select: { id: true, nameHi: true, nameEn: true, price: true, durationMinutes: true },
-        },
-        variant: {
-          select: { id: true, nameHi: true, nameEn: true, price: true, durationMinutes: true },
-        },
-        staff: {
-          select: {
-            id: true,
-            user: { select: { id: true, name: true } },
+    // 4. Count total and fetch paginated bookings
+    const [total, bookings] = await Promise.all([
+      prisma.booking.count({ where }),
+      prisma.booking.findMany({
+        where,
+        select: {
+          id: true,
+          bookingDisplayId: true,
+          userId: true,
+          serviceId: true,
+          variantId: true,
+          staffId: true,
+          branchId: true,
+          bookingDate: true,
+          slotStart: true,
+          slotEnd: true,
+          status: true,
+          advanceAmount: true,
+          totalAmount: true,
+          cancellationReason: true,
+          notes: true,
+          createdAt: true,
+          updatedAt: true,
+          user: {
+            select: { id: true, name: true, mobile: true },
+          },
+          service: {
+            select: { id: true, nameHi: true, nameEn: true, price: true, durationMinutes: true },
+          },
+          variant: {
+            select: { id: true, nameHi: true, nameEn: true, price: true, durationMinutes: true },
+          },
+          staff: {
+            select: {
+              id: true,
+              user: { select: { id: true, name: true } },
+            },
+          },
+          branch: {
+            select: { id: true, nameHi: true, nameEn: true },
+          },
+          _count: {
+            select: { addOns: true },
           },
         },
-        branch: {
-          select: { id: true, nameHi: true, nameEn: true },
-        },
-        _count: {
-          select: { addOns: true },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    });
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
 
     // 6. Return with serialized decimals
     return {
@@ -232,32 +232,25 @@ export const POST = createApiHandler({
     // 1. Require authentication
     const { user } = await requireActiveUser(request);
 
-    // 2. Verify service exists
-    const service = await prisma.service.findUnique({
-      where: { id: serviceId },
-    });
+    // 2. Verify service, variant, and branch exist (parallel)
+    const [service, variantResult, branch] = await Promise.all([
+      prisma.service.findUnique({ where: { id: serviceId } }),
+      variantId
+        ? prisma.serviceVariant.findFirst({ where: { id: variantId, serviceId, isActive: true } })
+        : Promise.resolve(null),
+      prisma.branch.findUnique({ where: { id: branchId } }),
+    ]);
+    const variant: Awaited<ReturnType<typeof prisma.serviceVariant.findFirst>> = variantResult;
+
     if (!service) {
       throw new NotFoundError("Service not found");
     }
     if (!service.isActive) {
       throw new NotFoundError("Service is not available");
     }
-
-    // 3. Verify variant if provided
-    let variant: Awaited<ReturnType<typeof prisma.serviceVariant.findFirst>> = null;
-    if (variantId) {
-      variant = await prisma.serviceVariant.findFirst({
-        where: { id: variantId, serviceId, isActive: true },
-      });
-      if (!variant) {
-        throw new NotFoundError("Service variant not found");
-      }
+    if (variantId && !variant) {
+      throw new NotFoundError("Service variant not found");
     }
-
-    // 4. Verify branch exists
-    const branch = await prisma.branch.findUnique({
-      where: { id: branchId },
-    });
     if (!branch) {
       throw new NotFoundError("Branch not found");
     }
@@ -274,28 +267,28 @@ export const POST = createApiHandler({
         throw new ValidationError("Staff member is not available");
       }
 
-      // Check if staff is on leave
-      const leave = await prisma.staffLeave.findUnique({
-        where: {
-          staffId_date: {
-            staffId,
-            date: new Date(bookingDate),
+      // Check if staff is on leave and can perform this service (parallel)
+      const [leave, staffService] = await Promise.all([
+        prisma.staffLeave.findUnique({
+          where: {
+            staffId_date: {
+              staffId,
+              date: new Date(bookingDate),
+            },
           },
-        },
-      });
+        }),
+        prisma.staffService.findUnique({
+          where: {
+            staffId_serviceId: {
+              staffId,
+              serviceId,
+            },
+          },
+        }),
+      ]);
       if (leave) {
         throw new ConflictError("Staff member is on leave on this date");
       }
-
-      // Check if staff can perform this service
-      const staffService = await prisma.staffService.findUnique({
-        where: {
-          staffId_serviceId: {
-            staffId,
-            serviceId,
-          },
-        },
-      });
       if (!staffService) {
         throw new ValidationError("Staff member cannot perform this service");
       }

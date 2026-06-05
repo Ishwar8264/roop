@@ -80,6 +80,7 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
 
   return (
     <style
+      // eslint-disable-next-line react/no-danger -- shadcn/ui standard CSS theming pattern
       dangerouslySetInnerHTML={{
         __html: Object.entries(THEMES)
           .map(

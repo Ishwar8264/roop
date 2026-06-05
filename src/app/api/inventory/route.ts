@@ -69,43 +69,43 @@ export const GET = createApiHandler({
       where.branchId = branchId;
     }
 
-    // 4. Count total matching items
-    const total = await prisma.inventoryItem.count({ where });
-
-    // 5. Fetch paginated inventory items
-    const items = await prisma.inventoryItem.findMany({
-      where,
-      select: {
-        id: true,
-        productId: true,
-        branchId: true,
-        quantity: true,
-        lowStockThreshold: true,
-        createdAt: true,
-        updatedAt: true,
-        product: {
-          select: {
-            id: true,
-            nameHi: true,
-            nameEn: true,
-            slug: true,
-            price: true,
-            imageUrl: true,
-            isActive: true,
+    // 4. Count total and fetch paginated inventory items
+    const [total, items] = await Promise.all([
+      prisma.inventoryItem.count({ where }),
+      prisma.inventoryItem.findMany({
+        where,
+        select: {
+          id: true,
+          productId: true,
+          branchId: true,
+          quantity: true,
+          lowStockThreshold: true,
+          createdAt: true,
+          updatedAt: true,
+          product: {
+            select: {
+              id: true,
+              nameHi: true,
+              nameEn: true,
+              slug: true,
+              price: true,
+              imageUrl: true,
+              isActive: true,
+            },
+          },
+          branch: {
+            select: {
+              id: true,
+              nameHi: true,
+              nameEn: true,
+            },
           },
         },
-        branch: {
-          select: {
-            id: true,
-            nameHi: true,
-            nameEn: true,
-          },
-        },
-      },
-      orderBy: { updatedAt: "desc" },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    });
+        orderBy: { updatedAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
 
     // 6. Filter for low stock if requested
     let filteredItems = items;

@@ -21,8 +21,10 @@ export async function POST(request: NextRequest) {
     const { sessionId } = result.data;
     const payload = await requireAuth(request);
 
-    await revokeSession(sessionId, payload.userId);
-    await logAuthEvent("DEVICE_REVOKED", request, { userId: payload.userId, metadata: { revokedSessionId: sessionId } });
+    await Promise.all([
+      revokeSession(sessionId, payload.userId),
+      logAuthEvent("DEVICE_REVOKED", request, { userId: payload.userId, metadata: { revokedSessionId: sessionId } }),
+    ]);
 
     return NextResponse.json({ success: true, data: { revokedSessionId: sessionId }, message: "Device logged out successfully." }, { status: 200 });
   } catch (error: unknown) {

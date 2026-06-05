@@ -20,7 +20,7 @@ export const createStaffSchema = z.object({
   branchId: cuid,
   specialization: z.union([
     z.array(nonEmptyString).min(1, "At least one specialization required"),
-    nonEmptyString.transform((val) => val.split(",").map(s => s.trim()).filter(Boolean))
+    nonEmptyString.transform((val) => val.split(",").flatMap(s => { const t = s.trim(); return t ? [t] : []; }))
   ]),
   experienceYears: z.number().int().nonnegative("Experience years must be non-negative").optional(),
   bioHi: nonEmptyString.optional(),
@@ -28,7 +28,7 @@ export const createStaffSchema = z.object({
   workStart: timeString,
   workEnd: timeString,
   commissionRate: decimalString.optional(),
-  photoUrl: z.string().url("Must be a valid URL").optional(),
+  photoUrl: z.url("Must be a valid URL").optional(),
 });
 
 export type CreateStaffInput = z.infer<typeof createStaffSchema>;
@@ -42,7 +42,7 @@ export const updateStaffSchema = z.object({
   experienceYears: z.number().int().nonnegative("Experience years must be non-negative").optional(),
   bioHi: nonEmptyString.optional(),
   bioEn: nonEmptyString.optional(),
-  photoUrl: z.string().url("Must be a valid URL").optional(),
+  photoUrl: z.url("Must be a valid URL").optional(),
   workStart: timeString.optional(),
   workEnd: timeString.optional(),
   commissionRate: decimalString.optional(),

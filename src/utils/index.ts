@@ -6,17 +6,27 @@
 
 // ==================== Currency Formatting ====================
 
+// Cache Intl formatters — avoid rebuilding on every call
+const currencyFormatter = new Intl.NumberFormat("hi-IN", {
+  style: "currency",
+  currency: "INR",
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 2,
+});
+
+const hindiDateFormatter = new Intl.DateTimeFormat("hi-IN", {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
+
 /**
  * Format a number as Indian Rupee currency string
  * Example: formatCurrency(2500) → "₹2,500"
  */
 export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("hi-IN", {
-    style: "currency",
-    currency: "INR",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(amount);
+  return currencyFormatter.format(amount);
 }
 
 // ==================== Date Formatting ====================
@@ -27,12 +37,7 @@ export function formatCurrency(amount: number): string {
  */
 export function formatHindiDate(dateStr: string): string {
   const date = new Date(dateStr);
-  return new Intl.DateTimeFormat("hi-IN", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(date);
+  return hindiDateFormatter.format(date);
 }
 
 /**

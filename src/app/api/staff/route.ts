@@ -80,52 +80,52 @@ export const GET = createApiHandler({
       where.isAvailable = isAvailable;
     }
 
-    // 3. Count total matching staff
-    const total = await prisma.staff.count({ where });
-
-    // 4. Fetch paginated staff profiles
-    const staff = await prisma.staff.findMany({
-      where,
-      select: {
-        id: true,
-        userId: true,
-        branchId: true,
-        specialization: true,
-        experienceYears: true,
-        bioHi: true,
-        bioEn: true,
-        photoUrl: true,
-        rating: true,
-        isAvailable: true,
-        workDays: true,
-        workStart: true,
-        workEnd: true,
-        commissionRate: true,
-        createdAt: true,
-        updatedAt: true,
-        user: {
-          select: {
-            id: true,
-            name: true,
-            mobile: true,
-            avatarUrl: true,
+    // 3. Count total and fetch paginated staff profiles
+    const [total, staff] = await Promise.all([
+      prisma.staff.count({ where }),
+      prisma.staff.findMany({
+        where,
+        select: {
+          id: true,
+          userId: true,
+          branchId: true,
+          specialization: true,
+          experienceYears: true,
+          bioHi: true,
+          bioEn: true,
+          photoUrl: true,
+          rating: true,
+          isAvailable: true,
+          workDays: true,
+          workStart: true,
+          workEnd: true,
+          commissionRate: true,
+          createdAt: true,
+          updatedAt: true,
+          user: {
+            select: {
+              id: true,
+              name: true,
+              mobile: true,
+              avatarUrl: true,
+            },
+          },
+          branch: {
+            select: {
+              id: true,
+              nameHi: true,
+              nameEn: true,
+            },
+          },
+          _count: {
+            select: { staffServices: true, bookings: true },
           },
         },
-        branch: {
-          select: {
-            id: true,
-            nameHi: true,
-            nameEn: true,
-          },
-        },
-        _count: {
-          select: { staffServices: true, bookings: true },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    });
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
 
     // 5. Return with serialized decimals and pagination
     return {

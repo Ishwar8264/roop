@@ -15,7 +15,7 @@ import { cuid, nonEmptyString, pageParam, pageSizeParam } from "../common";
 
 /** POST /api/staff/[id]/portfolio */
 export const addPortfolioItemSchema = z.object({
-  imageUrl: z.string().url("Must be a valid URL"),
+  imageUrl: z.url("Must be a valid URL"),
   titleHi: nonEmptyString.optional(),
   titleEn: nonEmptyString.optional(),
   isFeatured: z.boolean().default(false),
@@ -38,7 +38,7 @@ export type ListPortfolioQueryInput = z.infer<typeof listPortfolioQuerySchema>;
 
 /** POST /api/media — save media URL record */
 export const saveMediaSchema = z.object({
-  url: z.string().url("Must be a valid URL"),
+  url: z.url("Must be a valid URL"),
   ownerId: cuid,
   ownerType: z.enum([
     "SERVICE",

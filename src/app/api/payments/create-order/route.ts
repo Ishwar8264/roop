@@ -41,10 +41,16 @@ export const POST = createApiHandler({
     // 1. Verify authenticated user
     const { user } = await requireActiveUser(request);
 
-    // 2. Check booking exists and belongs to user
-    const booking = await prisma.booking.findUnique({
-      where: { id: bookingId },
-    });
+    // 2. Check booking exists and check for existing payment (parallel)
+    const [booking, existingPayment] = await Promise.all([
+      prisma.booking.findUnique({ where: { id: bookingId } }),
+      prisma.payment.findFirst({
+        where: {
+          bookingId,
+          status: { in: ["SUCCESS", "PENDING"] },
+        },
+      }),
+    ]);
 
     if (!booking) {
       throw new NotFoundError("Booking not found");
@@ -54,14 +60,6 @@ export const POST = createApiHandler({
     if (booking.userId !== user.id && user.role !== "ADMIN" && user.role !== "STAFF") {
       throw new NotFoundError("Booking not found");
     }
-
-    // 3. Check if a successful payment already exists for this booking
-    const existingPayment = await prisma.payment.findFirst({
-      where: {
-        bookingId,
-        status: { in: ["SUCCESS", "PENDING"] },
-      },
-    });
 
     if (existingPayment && existingPayment.status === "SUCCESS") {
       throw new ConflictError("A successful payment already exists for this booking");

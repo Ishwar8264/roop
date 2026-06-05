@@ -46,7 +46,7 @@ export const otpPurposeSchema = z.enum(["LOGIN", "REGISTER"]);
  */
 export const sendOtpSchema = z.object({
   mobile: indianMobileSchema.optional(),
-  email: z.string().email("Valid email is required").optional(),
+  email: z.email("Valid email is required").optional(),
   purpose: otpPurposeSchema.default("LOGIN"),
 }).refine(
   (data) => data.mobile || data.email,
@@ -67,7 +67,7 @@ export type SendOtpInput = z.infer<typeof sendOtpSchema>;
  */
 export const verifyOtpSchema = z.object({
   mobile: indianMobileSchema.optional(),
-  email: z.string().email("Valid email is required").optional(),
+  email: z.email("Valid email is required").optional(),
   otp: otpSchema,
   purpose: otpPurposeSchema.default("LOGIN"),
   name: z.string().min(1, "Name is required").max(100, "Name too long").optional(),
@@ -114,7 +114,7 @@ export type LogoutInput = z.infer<typeof logoutSchema>;
  * Body: { email: string, password: string }
  */
 export const loginEmailSchema = z.object({
-  email: z.string().email("Valid email is required"),
+  email: z.email("Valid email is required"),
   password: z.string().min(1, "Password is required"),
 });
 
@@ -128,7 +128,7 @@ export type LoginEmailInput = z.infer<typeof loginEmailSchema>;
  */
 export const registerEmailSchema = z.object({
   name: z.string().min(1, "Name is required").max(100, "Name too long"),
-  email: z.string().email("Valid email is required"),
+  email: z.email("Valid email is required"),
   password: z
     .string()
     .min(8, "Password must be at least 8 characters")

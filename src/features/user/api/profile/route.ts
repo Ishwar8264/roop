@@ -82,13 +82,15 @@ export async function PATCH(request: NextRequest) {
       await prisma.$transaction(async (tx) => {
         await tx.user.update({ where: { id: user.id }, data: updateData });
 
-        // Update Account.providerAccountId for changed email/phone
-        for (const { provider, providerAccountId } of accountUpdates) {
-          await tx.account.updateMany({
-            where: { userId: user.id, provider },
-            data: { providerAccountId },
-          });
-        }
+        // Update Account.providerAccountId for changed email/phone (parallel)
+        await Promise.all(
+          accountUpdates.map(({ provider, providerAccountId }) =>
+            tx.account.updateMany({
+              where: { userId: user.id, provider },
+              data: { providerAccountId },
+            })
+          )
+        );
       });
     } catch (error) {
       // Handle Prisma P2002 unique constraint violation (race condition)

@@ -12,6 +12,7 @@
 
 "use client";
 
+import Image from "next/image";
 import { useRef, useState, useCallback } from "react";
 import {
   Camera,
@@ -175,9 +176,11 @@ export function AvatarUpload() {
   return (
     <>
       {/* Avatar — click to open dialog */}
-      <div
-        className="relative group cursor-pointer"
+      <button
+        type="button"
+        className="relative group cursor-pointer bg-transparent border-0 p-0"
         onClick={() => setDialogOpen(true)}
+        aria-label={t("profile.avatarUpload")}
       >
         <div
           className={cn(
@@ -218,7 +221,7 @@ export function AvatarUpload() {
         <p className="text-[10px] text-muted-foreground text-center mt-1.5">
           {t("profile.avatarHint")}
         </p>
-      </div>
+      </button>
 
       {/* Avatar Dialog */}
       <Dialog open={dialogOpen} onOpenChange={handleDialogClose}>
@@ -243,9 +246,10 @@ export function AvatarUpload() {
 
             {/* Upload Tab */}
             <TabsContent value="upload" className="mt-4">
-              <div
+              <button
+                type="button"
                 className={cn(
-                  "relative border-2 border-dashed rounded-xl p-6 text-center transition-colors cursor-pointer",
+                  "relative border-2 border-dashed rounded-xl p-6 text-center transition-colors cursor-pointer w-full bg-transparent",
                   isDragOver
                     ? "border-rose-500 bg-rose-50 dark:bg-rose-950/20"
                     : "border-muted-foreground/25 hover:border-rose-400 hover:bg-rose-50/50 dark:hover:bg-rose-950/10"
@@ -254,6 +258,7 @@ export function AvatarUpload() {
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
                 onClick={() => inputRef.current?.click()}
+                aria-label={t("profile.avatarUpload")}
               >
                 {preview ? (
                   <div className="flex flex-col items-center gap-3">
@@ -296,7 +301,7 @@ export function AvatarUpload() {
                   disabled={isUploading}
                   aria-label={t("profile.avatarUpload")}
                 />
-              </div>
+              </button>
 
               {preview && (
                 <div className="flex gap-2 mt-4 justify-end">
@@ -374,9 +379,11 @@ export function AvatarUpload() {
                           )
                         }
                       >
-                        <img
+                        <Image
                           src={image.url}
                           alt="Avatar option"
+                          fill
+                          sizes="96px"
                           className="w-full h-full object-cover"
                         />
                         {isSelected && (

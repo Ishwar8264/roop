@@ -25,6 +25,6 @@ export type ListCommissionsQueryInput = z.infer<typeof listCommissionsQuerySchem
 // ==================== PAY COMMISSION ====================
 
 /** PATCH /api/commissions/[id]/pay — empty body, just mark as paid */
-export const payCommissionSchema = z.object({}).strict();
+export const payCommissionSchema = z.strictObject({});
 
 export type PayCommissionInput = z.infer<typeof payCommissionSchema>;

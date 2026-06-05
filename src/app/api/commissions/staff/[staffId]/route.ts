@@ -80,20 +80,22 @@ export const GET = createApiHandler({
       orderBy: { createdAt: "desc" },
     });
 
-    // 4. Calculate summary
-    const totalAmount = commissions.reduce(
-      (sum, c) => sum + Number(c.amount),
-      0
+    // 4. Calculate summary — single pass through commissions
+    const summary = commissions.reduce(
+      (acc, c) => {
+        const amount = Number(c.amount);
+        acc.totalAmount += amount;
+        if (c.status === "PAID") {
+          acc.paidAmount += amount;
+          acc.paidCount++;
+        } else if (c.status === "PENDING") {
+          acc.pendingAmount += amount;
+          acc.pendingCount++;
+        }
+        return acc;
+      },
+      { totalAmount: 0, paidAmount: 0, pendingAmount: 0, paidCount: 0, pendingCount: 0 },
     );
-    const paidAmount = commissions
-      .filter((c) => c.status === "PAID")
-      .reduce((sum, c) => sum + Number(c.amount), 0);
-    const pendingAmount = commissions
-      .filter((c) => c.status === "PENDING")
-      .reduce((sum, c) => sum + Number(c.amount), 0);
-
-    const paidCount = commissions.filter((c) => c.status === "PAID").length;
-    const pendingCount = commissions.filter((c) => c.status === "PENDING").length;
 
     // 5. Return summary with recent commissions
     return {
@@ -104,12 +106,12 @@ export const GET = createApiHandler({
         commissionRate: staff.commissionRate?.toString() ?? null,
       },
       summary: {
-        totalCommissions: totalAmount.toString(),
-        paidCommissions: paidAmount.toString(),
-        pendingCommissions: pendingAmount.toString(),
+        totalCommissions: summary.totalAmount.toString(),
+        paidCommissions: summary.paidAmount.toString(),
+        pendingCommissions: summary.pendingAmount.toString(),
         totalCount: commissions.length,
-        paidCount,
-        pendingCount,
+        paidCount: summary.paidCount,
+        pendingCount: summary.pendingCount,
       },
       recentCommissions: commissions.slice(0, 10).map((c) => ({
         ...c,

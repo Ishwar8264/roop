@@ -54,13 +54,11 @@ export const PATCH = createApiHandler({
       throw new NotFoundError("Booking not found");
     }
 
-    // 1. Require authentication
-    const { user } = await requireActiveUser(request);
-
-    // 2. Fetch booking
-    const booking = await prisma.booking.findUnique({
-      where: { id },
-    });
+    // 1. Require authentication and fetch booking (parallel)
+    const [{ user }, booking] = await Promise.all([
+      requireActiveUser(request),
+      prisma.booking.findUnique({ where: { id } }),
+    ]);
     if (!booking) {
       throw new NotFoundError("Booking not found");
     }

@@ -1,3 +1,10 @@
+/**
+ * Purpose: Slider UI primitive
+ * Responsibility: Wrap Radix Slider with project styling and thumb rendering
+ * Important Notes:
+ *   - Thumb count follows controlled/default slider values
+ */
+
 "use client"
 
 import * as React from "react"
@@ -49,10 +56,10 @@ function Slider({
           )}
         />
       </SliderPrimitive.Track>
-      {Array.from({ length: _values.length }, (_, index) => (
+      {_values.map((thumbValue) => (
         <SliderPrimitive.Thumb
           data-slot="slider-thumb"
-          key={index}
+          key={`slider-thumb-${thumbValue}`}
           className="border-primary bg-background ring-ring/50 block size-4 shrink-0 rounded-full border shadow-sm transition-[color,box-shadow] hover:ring-4 focus-visible:ring-4 focus-visible:outline-hidden disabled:pointer-events-none disabled:opacity-50"
         />
       ))}

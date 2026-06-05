@@ -22,7 +22,7 @@ export const createProductSchema = z.object({
   descriptionEn: z.string().optional(),
   price: decimalString,
   costPrice: decimalString.optional(),
-  imageUrl: z.string().url("Must be a valid URL").optional(),
+  imageUrl: z.url("Must be a valid URL").optional(),
   categoryId: cuid,
 });
 

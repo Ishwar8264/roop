@@ -75,30 +75,30 @@ export const GET = createApiHandler({
       where.isActive = true;
     }
 
-    // 3. Count total matching categories
-    const total = await prisma.serviceCategory.count({ where });
-
-    // 4. Fetch paginated categories
-    const items = await prisma.serviceCategory.findMany({
-      where,
-      select: {
-        id: true,
-        nameHi: true,
-        nameEn: true,
-        slug: true,
-        icon: true,
-        sortOrder: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-        _count: {
-          select: { services: true },
+    // 3. Count total and fetch paginated categories
+    const [total, items] = await Promise.all([
+      prisma.serviceCategory.count({ where }),
+      prisma.serviceCategory.findMany({
+        where,
+        select: {
+          id: true,
+          nameHi: true,
+          nameEn: true,
+          slug: true,
+          icon: true,
+          sortOrder: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true,
+          _count: {
+            select: { services: true },
+          },
         },
-      },
-      orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    });
+        orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
 
     // 5. Return with pagination
     return {

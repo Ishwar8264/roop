@@ -75,37 +75,35 @@ export const POST = createApiHandler({
       throw new ValidationError("Provider order ID does not match");
     }
 
-    // 6. Update payment to SUCCESS
-    const updatedPayment = await prisma.payment.update({
-      where: { id: paymentId },
-      data: {
-        status: "SUCCESS",
-        providerRefId,
-        providerOrderId,
-        paidAt: new Date(),
-        metadata: JSON.stringify({
-          ...(typeof payment.metadata === "string" ? JSON.parse(payment.metadata) : typeof payment.metadata === "object" && payment.metadata !== null ? payment.metadata as Record<string, unknown> : {}),
-          verifiedAt: new Date().toISOString(),
+    // 6. Update payment, booking status, and create history (parallel)
+    const [updatedPayment] = await Promise.all([
+      prisma.payment.update({
+        where: { id: paymentId },
+        data: {
+          status: "SUCCESS",
           providerRefId,
-        }),
-      },
-    });
-
-    // 7. Update booking status to CONFIRMED
-    await prisma.booking.update({
-      where: { id: payment.bookingId },
-      data: { status: "CONFIRMED" },
-    });
-
-    // 8. Create booking status history record
-    await prisma.bookingStatusHistory.create({
-      data: {
-        bookingId: payment.bookingId,
-        status: "CONFIRMED",
-        changedBy: user.id,
-        reason: "Payment verified and confirmed",
-      },
-    });
+          providerOrderId,
+          paidAt: new Date(),
+          metadata: JSON.stringify({
+            ...(typeof payment.metadata === "string" ? JSON.parse(payment.metadata) : typeof payment.metadata === "object" && payment.metadata !== null ? payment.metadata as Record<string, unknown> : {}),
+            verifiedAt: new Date().toISOString(),
+            providerRefId,
+          }),
+        },
+      }),
+      prisma.booking.update({
+        where: { id: payment.bookingId },
+        data: { status: "CONFIRMED" },
+      }),
+      prisma.bookingStatusHistory.create({
+        data: {
+          bookingId: payment.bookingId,
+          status: "CONFIRMED",
+          changedBy: user.id,
+          reason: "Payment verified and confirmed",
+        },
+      }),
+    ]);
 
     // 9. Return verified payment with serialized decimals
     return {

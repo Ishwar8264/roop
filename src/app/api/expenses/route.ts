@@ -87,35 +87,35 @@ export const GET = createApiHandler({
       };
     }
 
-    // 4. Count total matching expenses
-    const total = await prisma.expense.count({ where });
-
-    // 5. Fetch paginated expenses
-    const items = await prisma.expense.findMany({
-      where,
-      select: {
-        id: true,
-        branchId: true,
-        category: true,
-        amount: true,
-        description: true,
-        date: true,
-        receiptUrl: true,
-        recordedBy: true,
-        createdAt: true,
-        updatedAt: true,
-        branch: {
-          select: {
-            id: true,
-            nameHi: true,
-            nameEn: true,
+    // 4. Count total and fetch paginated expenses
+    const [total, items] = await Promise.all([
+      prisma.expense.count({ where }),
+      prisma.expense.findMany({
+        where,
+        select: {
+          id: true,
+          branchId: true,
+          category: true,
+          amount: true,
+          description: true,
+          date: true,
+          receiptUrl: true,
+          recordedBy: true,
+          createdAt: true,
+          updatedAt: true,
+          branch: {
+            select: {
+              id: true,
+              nameHi: true,
+              nameEn: true,
+            },
           },
         },
-      },
-      orderBy: { date: "desc" },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    });
+        orderBy: { date: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
 
     // 6. Return with pagination and serialized decimals
     return {

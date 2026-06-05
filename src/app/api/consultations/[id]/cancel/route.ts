@@ -41,13 +41,11 @@ export const PATCH = createApiHandler({
       throw new NotFoundError("Consultation not found");
     }
 
-    // 1. Require authentication
-    const { user } = await requireActiveUser(request);
-
-    // 2. Check consultation exists
-    const consultation = await prisma.consultation.findUnique({
-      where: { id },
-    });
+    // 1. Require authentication and check consultation exists (parallel)
+    const [{ user }, consultation] = await Promise.all([
+      requireActiveUser(request),
+      prisma.consultation.findUnique({ where: { id } }),
+    ]);
     if (!consultation) {
       throw new NotFoundError("Consultation not found");
     }

@@ -65,7 +65,6 @@ export const pageSizeParam = z.coerce.number().int().positive().max(100).default
 
 /** Email address */
 export const email = z
-  .string()
   .email("Invalid email address");
 
 /** Password — min 8 chars, at least 1 uppercase, 1 lowercase, 1 digit */

@@ -88,42 +88,42 @@ export const GET = createApiHandler({
       where.categoryId = categoryId;
     }
 
-    // 3. Count total matching services
-    const total = await prisma.service.count({ where });
-
-    // 4. Fetch paginated services
-    const items = await prisma.service.findMany({
-      where,
-      select: {
-        id: true,
-        nameHi: true,
-        nameEn: true,
-        slug: true,
-        descriptionHi: true,
-        descriptionEn: true,
-        descriptionHtml: true,
-        price: true,
-        durationMinutes: true,
-        imageUrl: true,
-        isActive: true,
-        branchId: true,
-        categoryId: true,
-        createdAt: true,
-        updatedAt: true,
-        branch: {
-          select: { id: true, nameHi: true, nameEn: true },
+    // 3. Count total and fetch paginated services
+    const [total, items] = await Promise.all([
+      prisma.service.count({ where }),
+      prisma.service.findMany({
+        where,
+        select: {
+          id: true,
+          nameHi: true,
+          nameEn: true,
+          slug: true,
+          descriptionHi: true,
+          descriptionEn: true,
+          descriptionHtml: true,
+          price: true,
+          durationMinutes: true,
+          imageUrl: true,
+          isActive: true,
+          branchId: true,
+          categoryId: true,
+          createdAt: true,
+          updatedAt: true,
+          branch: {
+            select: { id: true, nameHi: true, nameEn: true },
+          },
+          category: {
+            select: { id: true, nameHi: true, nameEn: true, slug: true },
+          },
+          _count: {
+            select: { variants: true, addOns: true },
+          },
         },
-        category: {
-          select: { id: true, nameHi: true, nameEn: true, slug: true },
-        },
-        _count: {
-          select: { variants: true, addOns: true },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    });
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
 
     // 5. Return with pagination and serialized decimals
     return {

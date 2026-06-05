@@ -12,6 +12,7 @@
 
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -49,7 +50,7 @@ export function AppHeader() {
           <MobileMenuButton navItems={navItems} />
 
           <Link href="/dashboard" className="flex items-center gap-2">
-            <img src="/logo.png" alt="Nikharta Roop" className="h-8 w-8 rounded-lg object-contain" />
+            <Image src="/logo.png" alt="Nikharta Roop" width={32} height={32} className="h-8 w-8 rounded-lg object-contain" />
             <span className="font-bold text-primary text-lg">{t("appNameHi")}</span>
           </Link>
 
@@ -65,7 +66,7 @@ export function AppHeader() {
           {/* Brand — left */}
           <div className="flex-shrink-0">
             <Link href="/dashboard" className="flex items-center gap-2.5">
-              <img src="/logo.png" alt="Nikharta Roop" className="h-9 w-9 rounded-lg object-contain" />
+              <Image src="/logo.png" alt="Nikharta Roop" width={36} height={36} className="h-9 w-9 rounded-lg object-contain" />
               <span className="font-bold text-primary text-xl">{t("appNameHi")}</span>
             </Link>
           </div>
@@ -104,7 +105,7 @@ function MobileMenuButton({ navItems }: { navItems: NavItem[] }) {
       </SheetTrigger>
       <SheetContent side="left" className="w-72 p-0">
         <SheetTitle className="px-4 pt-4 pb-2 border-b flex items-center gap-2">
-          <img src="/logo.png" alt="Nikharta Roop" className="h-7 w-7 rounded-lg object-contain" />
+          <Image src="/logo.png" alt="Nikharta Roop" width={28} height={28} className="h-7 w-7 rounded-lg object-contain" />
           <span className="text-primary font-bold text-lg">{t("appNameHi")}</span>
         </SheetTitle>
         <nav className="flex flex-col p-2">

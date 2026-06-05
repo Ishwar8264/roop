@@ -65,16 +65,16 @@ export const GET = createApiHandler({
     };
     if (type) where.type = type;
 
-    // 4. Count total matching transactions
-    const total = await prisma.loyaltyTransaction.count({ where });
-
-    // 5. Fetch paginated transactions
-    const transactions = await prisma.loyaltyTransaction.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    });
+    // 4. Count total and fetch paginated transactions
+    const [total, transactions] = await Promise.all([
+      prisma.loyaltyTransaction.count({ where }),
+      prisma.loyaltyTransaction.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
 
     // 6. Return with pagination
     return {

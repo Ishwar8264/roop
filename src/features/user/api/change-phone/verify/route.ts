@@ -53,19 +53,19 @@ export const POST = createApiHandler<
     // 3. Verify OTP using verifyStoredOtp()
     await verifyStoredOtp(newPhone, otp);
 
-    // 4. Update user's phone and set phoneVerified = true
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        phone: newPhone,
-        phoneVerified: true,
-      },
-    });
+    // 4. Update user's phone + delete Redis key (parallel — independent operations)
+    await Promise.all([
+      prisma.user.update({
+        where: { id: user.id },
+        data: {
+          phone: newPhone,
+          phoneVerified: true,
+        },
+      }),
+      redis.del(redisKey),
+    ]);
 
-    // 5. Delete Redis key
-    await redis.del(redisKey);
-
-    // 6. Return updated user with providers
+    // 5. Return updated user with providers
     const updatedUser = await getUserWithProviders(user.id);
 
     return updatedUser as Record<string, unknown>;

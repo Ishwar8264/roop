@@ -1,3 +1,11 @@
+/**
+ * Purpose: Sidebar UI primitives
+ * Responsibility: Provide shared sidebar layout, trigger, rail, and menu components
+ * Important Notes:
+ *   - Based on shadcn/ui sidebar patterns
+ *   - Shared UI only; feature navigation data is passed from callers
+ */
+
 "use client"
 
 import * as React from "react"
@@ -284,6 +292,7 @@ function SidebarRail({ className, ...props }: React.ComponentProps<"button">) {
 
   return (
     <button
+      type="button"
       data-sidebar="rail"
       data-slot="sidebar-rail"
       aria-label="Toggle Sidebar"

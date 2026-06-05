@@ -26,7 +26,7 @@ export const createBranchSchema = z.object({
   nameEn: nonEmptyString.max(200, "English name must be less than 200 characters"),
   city: nonEmptyString.max(100, "City must be less than 100 characters"),
   address: nonEmptyString.max(500, "Address must be less than 500 characters"),
-  googleMapsUrl: z.string().url("Invalid Google Maps URL").optional(),
+  googleMapsUrl: z.url("Invalid Google Maps URL").optional(),
   phone: z
     .string()
     .regex(/^[6-9]\d{9}$/, "Phone must be 10 digits starting with 6-9"),
@@ -40,7 +40,7 @@ export const updateBranchSchema = z.object({
   nameEn: nonEmptyString.max(200, "English name must be less than 200 characters").optional(),
   city: nonEmptyString.max(100, "City must be less than 100 characters").optional(),
   address: nonEmptyString.max(500, "Address must be less than 500 characters").optional(),
-  googleMapsUrl: z.string().url("Invalid Google Maps URL").nullable().optional(),
+  googleMapsUrl: z.url("Invalid Google Maps URL").nullable().optional(),
   phone: z
     .string()
     .regex(/^[6-9]\d{9}$/, "Phone must be 10 digits starting with 6-9")

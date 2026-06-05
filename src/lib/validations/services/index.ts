@@ -23,7 +23,7 @@ export const createServiceSchema = z.object({
   descriptionHtml: z.string().optional(),
   price: decimalString,
   durationMinutes: z.number().int().positive("Duration must be a positive integer"),
-  imageUrl: z.string().url("Must be a valid URL").optional(),
+  imageUrl: z.url("Must be a valid URL").optional(),
   branchId: cuid,
   categoryId: cuid,
 });

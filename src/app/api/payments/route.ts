@@ -71,38 +71,38 @@ export const GET = createApiHandler({
     if (status) where.status = status;
     if (provider) where.provider = provider;
 
-    // 4. Count total matching payments
-    const total = await prisma.payment.count({ where });
-
-    // 5. Fetch paginated payments
-    const payments = await prisma.payment.findMany({
-      where,
-      select: {
-        id: true,
-        bookingId: true,
-        amount: true,
-        provider: true,
-        status: true,
-        providerRefId: true,
-        providerOrderId: true,
-        receiptUrl: true,
-        metadata: true,
-        paidAt: true,
-        createdAt: true,
-        updatedAt: true,
-        booking: {
-          select: {
-            id: true,
-            bookingDisplayId: true,
-            totalAmount: true,
-            status: true,
+    // 4. Count total and fetch paginated payments
+    const [total, payments] = await Promise.all([
+      prisma.payment.count({ where }),
+      prisma.payment.findMany({
+        where,
+        select: {
+          id: true,
+          bookingId: true,
+          amount: true,
+          provider: true,
+          status: true,
+          providerRefId: true,
+          providerOrderId: true,
+          receiptUrl: true,
+          metadata: true,
+          paidAt: true,
+          createdAt: true,
+          updatedAt: true,
+          booking: {
+            select: {
+              id: true,
+              bookingDisplayId: true,
+              totalAmount: true,
+              status: true,
+            },
           },
         },
-      },
-      orderBy: { createdAt: "desc" },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    });
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
 
     // 6. Return with pagination and serialized decimals
     return {

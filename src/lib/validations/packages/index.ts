@@ -23,10 +23,10 @@ export const createPackageSchema = z.object({
   price: decimalString,
   originalPrice: decimalString,
   durationMinutes: z.number().int().positive("Duration must be a positive integer"),
-  imageUrl: z.string().url("Must be a valid URL").optional(),
+  imageUrl: z.url("Must be a valid URL").optional(),
   branchId: cuid,
-  validFrom: z.string().datetime("Must be a valid ISO datetime").optional(),
-  validUntil: z.string().datetime("Must be a valid ISO datetime").optional(),
+  validFrom: z.iso.datetime("Must be a valid ISO datetime").optional(),
+  validUntil: z.iso.datetime("Must be a valid ISO datetime").optional(),
 });
 
 export type CreatePackageInput = z.infer<typeof createPackageSchema>;

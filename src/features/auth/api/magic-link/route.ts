@@ -1,13 +1,10 @@
 /**
  * Purpose: Send magic link to email
- * Endpoint: POST /api/auth/magic-link
- *
- * Flow:
- * 1. Validate email
- * 2. Generate magic link token
- * 3. Store token in VerificationToken table
- * 4. Send email with magic link (stubbed)
- * 5. Log event
+ * Responsibility: Create a fresh email magic link token and invalidate previous unused tokens
+ * Important Notes:
+ *   - Endpoint: POST /api/auth/magic-link
+ *   - Email delivery is currently stubbed
+ *   - Newly created token must stay unused after invalidating older tokens
  */
 
 import { createApiHandler } from "@/lib/server/api-handler";
@@ -25,13 +22,15 @@ export const POST = createApiHandler({
 
     // 1. Generate magic link token
     const plainToken = generateMagicLinkToken();
-    const hashedToken = await hashOtp(plainToken);
 
-    // 2. Find user by email (if exists)
-    const existingUser = await prisma.user.findUnique({ where: { email } });
+    // 2. Hash token and find user by email (if exists)
+    const [hashedToken, existingUser] = await Promise.all([
+      hashOtp(plainToken),
+      prisma.user.findUnique({ where: { email } }),
+    ]);
 
     // 3. Store verification token
-    await prisma.verificationToken.create({
+    const verificationToken = await prisma.verificationToken.create({
       data: {
         userId: existingUser?.id || null,
         identifier: email,
@@ -47,7 +46,7 @@ export const POST = createApiHandler({
         identifier: email,
         type: "EMAIL_MAGIC_LINK",
         usedAt: null,
-        id: { not: undefined }, // all records except the one we just created
+        id: { not: verificationToken.id },
       },
       data: { usedAt: new Date() }, // mark as used to invalidate
     });

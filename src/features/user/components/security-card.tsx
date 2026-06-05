@@ -46,7 +46,7 @@ export function SecurityCard({ profile }: SecurityCardProps) {
           {/* Change Password */}
           <Button
             variant="ghost"
-            className="w-full justify-start gap-3 h-auto py-3 px-3 hover:bg-rose-50 dark:hover:bg-rose-950/20"
+            className="w-full justify-start gap-3 h-auto p-3 hover:bg-rose-50 dark:hover:bg-rose-950/20"
             onClick={() => setPasswordDialogOpen(true)}
           >
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-rose-50 dark:bg-rose-950/20 shrink-0">
@@ -65,7 +65,7 @@ export function SecurityCard({ profile }: SecurityCardProps) {
           {/* Verify Email */}
           <Button
             variant="ghost"
-            className="w-full justify-start gap-3 h-auto py-3 px-3 hover:bg-rose-50 dark:hover:bg-rose-950/20"
+            className="w-full justify-start gap-3 h-auto p-3 hover:bg-rose-50 dark:hover:bg-rose-950/20"
             onClick={() => setEmailDialogOpen(true)}
           >
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-rose-50 dark:bg-rose-950/20 shrink-0">
@@ -104,7 +104,7 @@ export function SecurityCard({ profile }: SecurityCardProps) {
           {/* Login Devices — Coming Soon */}
           <Button
             variant="ghost"
-            className="w-full justify-start gap-3 h-auto py-3 px-3 opacity-60 cursor-not-allowed"
+            className="w-full justify-start gap-3 h-auto p-3 opacity-60 cursor-not-allowed"
             disabled
           >
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted shrink-0">
