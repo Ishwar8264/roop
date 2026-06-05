@@ -94,6 +94,15 @@ function getSchemaName(ref: string): string {
 }
 
 // ===== Main Component =====
+
+const methodColors: Record<string, string> = {
+  get: "#4CAF50",
+  post: "#2196F3",
+  put: "#FF9800",
+  patch: "#FF9800",
+  delete: "#F44336",
+};
+
 export function ApiDocsClient({ initialSpec }: { initialSpec: ApiSpec }) {
   const [spec] = useState<ApiSpec>(initialSpec);
   const [expandedEndpoints, setExpandedEndpoints] = useState<Set<string>>(new Set());
@@ -146,14 +155,6 @@ export function ApiDocsClient({ initialSpec }: { initialSpec: ApiSpec }) {
     }
   }
 
-  const methodColors: Record<string, string> = {
-    get: "#4CAF50",
-    post: "#2196F3",
-    put: "#FF9800",
-    patch: "#FF9800",
-    delete: "#F44336",
-  };
-
   return (
     <div style={pageStyle}>
       {/* Header */}
@@ -169,6 +170,7 @@ export function ApiDocsClient({ initialSpec }: { initialSpec: ApiSpec }) {
             <span style={{ fontSize: 13, color: "#666" }}>🔐 Bearer Token:</span>
             <input
               type="text"
+              aria-label="Bearer Token"
               placeholder="Paste access token here..."
               value={authToken}
               onChange={(e) => setAuthToken(e.target.value)}
@@ -302,7 +304,8 @@ function EndpointCard({
 }) {
   return (
     <div style={endpointCardStyle}>
-      <div
+      <button
+        type="button"
         onClick={onToggle}
         style={{
           display: "flex",
@@ -310,6 +313,13 @@ function EndpointCard({
           gap: 12,
           cursor: "pointer",
           padding: "12px 16px",
+          background: "none",
+          border: "none",
+          width: "100%",
+          textAlign: "left",
+          fontFamily: "inherit",
+          fontSize: "inherit",
+          color: "inherit",
         }}
       >
         <span
@@ -329,7 +339,7 @@ function EndpointCard({
           </span>
         )}
         <span style={{ fontSize: 12, color: "#999" }}>{isExpanded ? "▲" : "▼"}</span>
-      </div>
+      </button>
 
       {isExpanded && (
         <div style={{ padding: "0 16px 16px", borderTop: "1px solid #F0F0F0" }}>
@@ -493,7 +503,7 @@ function TryItOutSection({
     <div style={{ marginTop: 12, border: "1px solid #E0E0E0", borderRadius: 8, overflow: "hidden" }}>
       <div style={{ padding: 12, backgroundColor: "#F5F5F5" }}>
         <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
-          <span style={{ ...methodBadgeStyle, backgroundColor: method === "get" ? "#4CAF50" : "#2196F3", fontSize: 11 }}>
+          <span style={{ ...methodBadgeStyle, backgroundColor: method === "get" ? "#4CAF50" : "#2196F3", fontSize: 12 }}>
             {method.toUpperCase()}
           </span>
           <code style={{ fontSize: 13, color: "#333" }}>{path}</code>
@@ -519,10 +529,11 @@ function TryItOutSection({
 
         {requestBody && (
           <div>
-            <label style={{ fontSize: 12, color: "#666", display: "block", marginBottom: 4 }}>
+            <label htmlFor="request-body-textarea" style={{ fontSize: 12, color: "#666", display: "block", marginBottom: 4 }}>
               Request Body (JSON):
             </label>
             <textarea
+              id="request-body-textarea"
               value={body}
               onChange={(e) => setBody(e.target.value)}
               style={{
@@ -579,16 +590,17 @@ function SchemaCard({
 }) {
   return (
     <div style={endpointCardStyle}>
-      <div
+      <button
+        type="button"
         onClick={onToggle}
-        style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer", padding: "10px 16px" }}
+        style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer", padding: "10px 16px", background: "none", border: "none", width: "100%", textAlign: "left", fontFamily: "inherit", fontSize: "inherit", color: "inherit" }}
       >
         <span style={{ fontSize: 13, fontWeight: 600, color: "#880E4F" }}>{name}</span>
         {schema.description && (
           <span style={{ color: "#666", fontSize: 12 }}>{schema.description}</span>
         )}
         <span style={{ marginLeft: "auto", fontSize: 12, color: "#999" }}>{isExpanded ? "▲" : "▼"}</span>
-      </div>
+      </button>
       {isExpanded && (
         <div style={{ padding: "0 16px 16px", borderTop: "1px solid #F0F0F0" }}>
           <SchemaDetail name={name} schema={schema} spec={spec} depth={0} />
@@ -659,7 +671,7 @@ function PropertiesTable({
               </td>
               <td style={tdStyle}>
                 <code style={{ fontSize: 12, color: "#1565C0" }}>{displayType}</code>
-                {prop.nullable && <span style={{ color: "#999", fontSize: 11 }}> (nullable)</span>}
+                {prop.nullable && <span style={{ color: "#999", fontSize: 12 }}> (nullable)</span>}
               </td>
               <td style={tdStyle}>
                 {required?.includes(fieldName) ? (
@@ -675,7 +687,7 @@ function PropertiesTable({
               </td>
               <td style={tdStyle}>
                 {prop.example !== undefined && (
-                  <code style={{ fontSize: 11, color: "#666" }}>{String(prop.example)}</code>
+                  <code style={{ fontSize: 12, color: "#666" }}>{String(prop.example)}</code>
                 )}
               </td>
             </tr>
@@ -729,7 +741,7 @@ const methodBadgeStyle: React.CSSProperties = {
   borderRadius: 4,
   color: "white",
   fontWeight: 700,
-  fontSize: 11,
+  fontSize: 12,
   fontFamily: "monospace",
   letterSpacing: 0.5,
   minWidth: 52,

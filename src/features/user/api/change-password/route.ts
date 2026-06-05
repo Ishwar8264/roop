@@ -53,28 +53,27 @@ export const POST = createApiHandler<ChangePasswordInput, { message: string }>({
       throw new AuthWrongPasswordError();
     }
 
-    // 4. Hash new password and update
+    // 4. Hash new password, then update + fetch other sessions (parallel — independent)
     const hashedNewPassword = await hashPassword(newPassword);
 
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { password: hashedNewPassword },
-    });
+    const [, otherSessions] = await Promise.all([
+      prisma.user.update({
+        where: { id: user.id },
+        data: { password: hashedNewPassword },
+      }),
+      prisma.session.findMany({
+        where: {
+          userId: user.id,
+          NOT: { id: payload.sessionId },
+        },
+        select: { id: true },
+      }),
+    ]);
 
     // 5. Revoke all OTHER sessions — keep current session alive
-    // Get all sessions except the current one
-    const otherSessions = await prisma.session.findMany({
-      where: {
-        userId: user.id,
-        NOT: { id: payload.sessionId },
-      },
-      select: { id: true },
-    });
-
-    // Revoke each other session
-    for (const session of otherSessions) {
-      await revokeSession(session.id, user.id);
-    }
+    await Promise.all(
+      otherSessions.map((session) => revokeSession(session.id, user.id))
+    );
 
     // 6. Log auth event
     await logAuthEvent("PASSWORD_CHANGED", request, {

@@ -33,6 +33,11 @@ export function LoginClient() {
   );
 }
 
+function handleSwitchToRegister(mobile?: string) {
+  const params = mobile ? `?mobile=${mobile}` : "";
+  window.location.href = `/register${params}`;
+}
+
 function LoginClientContent() {
   const searchParams = useSearchParams();
   const { login } = useAuthStore();
@@ -45,11 +50,6 @@ function LoginClientContent() {
     setTimeout(() => {
       window.location.href = redirectTo;
     }, 100);
-  }
-
-  function handleSwitchToRegister(mobile?: string) {
-    const params = mobile ? `?mobile=${mobile}` : "";
-    window.location.href = `/register${params}`;
   }
 
   return (

@@ -49,26 +49,26 @@ export const POST = createApiHandler<ResendVerificationInput, { message: string 
     const otp = generateOtp(6);
     const hashedOtp = await hashOtp(otp);
 
-    // 5. Invalidate previous unused EMAIL_OTP tokens for this email
-    await prisma.verificationToken.updateMany({
-      where: {
-        identifier: fullUser.email,
-        type: "EMAIL_OTP",
-        usedAt: null,
-      },
-      data: { usedAt: new Date() },
-    });
-
-    // 6. Store the new OTP in VerificationToken table
-    await prisma.verificationToken.create({
-      data: {
-        userId: fullUser.id,
-        identifier: fullUser.email,
-        token: hashedOtp,
-        type: "EMAIL_OTP",
-        expiresAt: new Date(Date.now() + EMAIL_OTP_EXPIRY_SECONDS * 1000),
-      },
-    });
+    // 5. Invalidate previous tokens + store new OTP (parallel — independent operations)
+    await Promise.all([
+      prisma.verificationToken.updateMany({
+        where: {
+          identifier: fullUser.email,
+          type: "EMAIL_OTP",
+          usedAt: null,
+        },
+        data: { usedAt: new Date() },
+      }),
+      prisma.verificationToken.create({
+        data: {
+          userId: fullUser.id,
+          identifier: fullUser.email,
+          token: hashedOtp,
+          type: "EMAIL_OTP",
+          expiresAt: new Date(Date.now() + EMAIL_OTP_EXPIRY_SECONDS * 1000),
+        },
+      }),
+    ]);
 
     // 7. Send email with OTP (stubbed — replace with real email service)
     console.log(

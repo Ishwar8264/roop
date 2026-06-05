@@ -22,18 +22,20 @@ export function BottomNav() {
   const { t } = useTranslation();
 
   // Bottom nav items — subset (5 items for mobile, no Blog)
-  const bottomNavItems: NavItem[] = allNavItems
-    .filter((item) => bottomNavItemHrefs.includes(item.href))
-    .map((item) => ({
-      href: item.href,
-      icon: item.icon,
-      label: t(item.labelKey),
-      iconName: item.iconName,
-    }));
+  const bottomNavItems: NavItem[] = allNavItems.reduce<NavItem[]>((acc, item) => {
+    if (bottomNavItemHrefs.includes(item.href)) {
+      acc.push({
+        href: item.href,
+        icon: item.icon,
+        label: t(item.labelKey),
+        iconName: item.iconName,
+      });
+    }
+    return acc;
+  }, []);
 
   return (
     <nav
-      role="navigation"
       aria-label="Mobile navigation"
       className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
     >

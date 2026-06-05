@@ -184,10 +184,11 @@ export const POST = createApiHandler({
     // 1. Verify authenticated user
     const { user } = await requireActiveUser(request);
 
-    // 2. Check booking exists and belongs to user
-    const booking = await prisma.booking.findUnique({
-      where: { id: bookingId },
-    });
+    // 2. Check booking exists and check for existing review (parallel)
+    const [booking, existingReview] = await Promise.all([
+      prisma.booking.findUnique({ where: { id: bookingId } }),
+      prisma.review.findUnique({ where: { bookingId } }),
+    ]);
 
     if (!booking) {
       throw new NotFoundError("Booking not found");
@@ -203,10 +204,6 @@ export const POST = createApiHandler({
     }
 
     // 4. Check if review already exists for this booking (one per booking)
-    const existingReview = await prisma.review.findUnique({
-      where: { bookingId },
-    });
-
     if (existingReview) {
       throw new ConflictError("A review already exists for this booking");
     }

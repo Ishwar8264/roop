@@ -79,19 +79,18 @@ export const POST = createApiHandler<ResetPasswordInput, { message: string }>({
 
     const hashedPassword = await hashPassword(password);
 
-    await prisma.user.update({
-      where: { id: userId },
-      data: { password: hashedPassword },
-    });
-
-    // 7. Revoke ALL user sessions — force re-login on all devices
-    await revokeAllUserSessions(userId);
-
-    // 8. Log auth event
-    await logAuthEvent("PASSWORD_RESET_COMPLETED", request, {
-      userId,
-      identifier: matchedToken.identifier,
-    });
+    // 6. Update password, revoke sessions, and log event (parallel — independent operations)
+    await Promise.all([
+      prisma.user.update({
+        where: { id: userId },
+        data: { password: hashedPassword },
+      }),
+      revokeAllUserSessions(userId),
+      logAuthEvent("PASSWORD_RESET_COMPLETED", request, {
+        userId,
+        identifier: matchedToken.identifier,
+      }),
+    ]);
 
     return {
       message:

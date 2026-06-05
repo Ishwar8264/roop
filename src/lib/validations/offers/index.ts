@@ -34,8 +34,8 @@ export const createOfferSchema = z.object({
   discountValue: decimalString,
   minOrder: decimalString.optional(),
   maxDiscount: decimalString.optional(),
-  validFrom: z.string().datetime("Must be a valid ISO datetime"),
-  validUntil: z.string().datetime("Must be a valid ISO datetime"),
+  validFrom: z.iso.datetime("Must be a valid ISO datetime"),
+  validUntil: z.iso.datetime("Must be a valid ISO datetime"),
   usageLimit: z.number().int().positive("Usage limit must be a positive integer").optional(),
 });
 

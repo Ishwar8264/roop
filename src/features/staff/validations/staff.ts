@@ -83,7 +83,6 @@ export const createStaffSchema = z
       .trim()
       .optional(),
     photoUrl: z
-      .string()
       .url("अमान्य URL / Invalid URL")
       .nullable()
       .optional(),
@@ -126,7 +125,6 @@ export const updateStaffSchema = z
       .trim()
       .optional(),
     photoUrl: z
-      .string()
       .url("अमान्य URL / Invalid URL")
       .nullable()
       .optional(),

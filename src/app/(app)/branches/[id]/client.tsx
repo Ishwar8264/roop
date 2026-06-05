@@ -107,7 +107,7 @@ export function BranchDetailClient({ initialBranch }: BranchDetailClientProps) {
                     {t("branches.location")}
                   </p>
                   <p>
-                    {branch.city} — {branch.address}
+                    {branch.city}{"\u2014"}{branch.address}
                   </p>
                 </div>
               </div>

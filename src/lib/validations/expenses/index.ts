@@ -20,7 +20,7 @@ export const createExpenseSchema = z.object({
   amount: decimalString,
   description: nonEmptyString,
   date: dateString,
-  receiptUrl: z.string().url("Must be a valid URL").optional(),
+  receiptUrl: z.url("Must be a valid URL").optional(),
 });
 
 export type CreateExpenseInput = z.infer<typeof createExpenseSchema>;

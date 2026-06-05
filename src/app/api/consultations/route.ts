@@ -173,8 +173,7 @@ export const GET = createApiHandler({
           ...s,
           specialization: s.specialization
             .split(",")
-            .map((item) => item.trim())
-            .filter(Boolean),
+            .flatMap((item) => { const t = item.trim(); return t ? [t] : []; }),
           rating: s.rating.toNumber(),
         });
       }
@@ -208,22 +207,16 @@ export const POST = createApiHandler({
     // 1. Require authentication
     const { user } = await requireActiveUser(request);
 
-    // 2. Check branch exists
-    const branch = await prisma.branch.findUnique({
-      where: { id: branchId },
-    });
+    // 2. Check branch and staff exist (parallel)
+    const [branch, staffResult] = await Promise.all([
+      prisma.branch.findUnique({ where: { id: branchId } }),
+      staffId ? prisma.staff.findUnique({ where: { id: staffId } }) : Promise.resolve(null),
+    ]);
     if (!branch) {
       throw new NotFoundError("Branch not found");
     }
-
-    // 3. Check staff exists (if provided)
-    if (staffId) {
-      const staff = await prisma.staff.findUnique({
-        where: { id: staffId },
-      });
-      if (!staff) {
-        throw new NotFoundError("Staff not found");
-      }
+    if (staffId && !staffResult) {
+      throw new NotFoundError("Staff not found");
     }
 
     // 4. Create consultation with status=PENDING

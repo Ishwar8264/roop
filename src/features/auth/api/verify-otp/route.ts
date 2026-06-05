@@ -50,14 +50,14 @@ export async function POST(request: NextRequest) {
       throw new AuthAccountSuspendedError();
     }
 
-    // 4. Clear failed attempts
-    await recordSuccessfulLogin(phone);
+    // 4. Clear failed attempts, create session, and get full user (parallel)
+    const [, sessionResult, fullUser] = await Promise.all([
+      recordSuccessfulLogin(phone),
+      createSession(user.id, user.role as "USER" | "STAFF" | "ADMIN", request),
+      getUserWithProviders(user.id),
+    ]);
 
-    // 5. Create session
-    const { accessToken, refreshToken } = await createSession(user.id, user.role as "USER" | "STAFF" | "ADMIN", request);
-
-    // 6. Get user with providers
-    const fullUser = await getUserWithProviders(user.id);
+    const { accessToken, refreshToken } = sessionResult;
 
     // 7. Build response — tokens are HttpOnly cookies only
     const response = NextResponse.json({

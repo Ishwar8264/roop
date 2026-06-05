@@ -74,48 +74,49 @@ export const POST = createApiHandler({
     }
 
     // 5. For each user, check if they still have points to expire
-    // (they might have already redeemed some)
-    let totalPointsExpired = 0;
-    let expiredUsers = 0;
+    // (they might have already redeemed some) — process users in parallel
+    const results = await Promise.all(
+      Array.from(userExpiredPoints).map(async ([userId, expiredEarned]) => {
+        // Get user's current balance
+        const dbUser = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { loyaltyPoints: true },
+        });
 
-    for (const [userId, expiredEarned] of userExpiredPoints) {
-      // Get user's current balance
-      const dbUser = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { loyaltyPoints: true },
-      });
+        if (!dbUser || dbUser.loyaltyPoints <= 0) return 0;
 
-      if (!dbUser || dbUser.loyaltyPoints <= 0) continue;
+        // Calculate how many points to expire
+        // (can't expire more than user currently has)
+        const pointsToExpire = Math.min(expiredEarned, dbUser.loyaltyPoints);
 
-      // Calculate how many points to expire
-      // (can't expire more than user currently has)
-      const pointsToExpire = Math.min(expiredEarned, dbUser.loyaltyPoints);
+        if (pointsToExpire <= 0) return 0;
 
-      if (pointsToExpire <= 0) continue;
+        // Create EXPIRE transaction and deduct from user balance (parallel)
+        await Promise.all([
+          prisma.loyaltyTransaction.create({
+            data: {
+              userId,
+              type: "EXPIRE",
+              points: -pointsToExpire,
+              reason: `Points expired — older than ${olderThanMonths} months`,
+            },
+          }),
+          prisma.user.update({
+            where: { id: userId },
+            data: {
+              loyaltyPoints: {
+                decrement: pointsToExpire,
+              },
+            },
+          }),
+        ]);
 
-      // Create EXPIRE transaction
-      await prisma.loyaltyTransaction.create({
-        data: {
-          userId,
-          type: "EXPIRE",
-          points: -pointsToExpire,
-          reason: `Points expired — older than ${olderThanMonths} months`,
-        },
-      });
+        return pointsToExpire;
+      })
+    );
 
-      // Deduct from user balance
-      await prisma.user.update({
-        where: { id: userId },
-        data: {
-          loyaltyPoints: {
-            decrement: pointsToExpire,
-          },
-        },
-      });
-
-      totalPointsExpired += pointsToExpire;
-      expiredUsers++;
-    }
+    const totalPointsExpired = results.reduce((sum, p) => sum + p, 0);
+    const expiredUsers = results.filter((p) => p > 0).length;
 
     // 6. Return summary
     return {

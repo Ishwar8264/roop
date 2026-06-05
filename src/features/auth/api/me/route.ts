@@ -12,10 +12,11 @@ export async function GET(request: NextRequest) {
   try {
     const { payload } = await requireAuthWithSession(request);
 
-    // Throttled touch — updates DB at most once per 5 minutes
-    await touchSessionThrottled(payload.sessionId);
-
-    const user = await getUserWithProviders(payload.userId);
+    // Throttled touch + fetch user (parallel — independent operations)
+    const [, user] = await Promise.all([
+      touchSessionThrottled(payload.sessionId),
+      getUserWithProviders(payload.userId),
+    ]);
     if (!user) {
       return NextResponse.json({ success: false, error: ERROR_CODES.AUTH_INVALID_TOKEN, message: "User not found." }, { status: 401 });
     }

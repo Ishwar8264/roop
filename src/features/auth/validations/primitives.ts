@@ -20,7 +20,6 @@ export const otp6 = z
 
 /** Email address — normalized to lowercase + trimmed */
 export const email = z
-  .string()
   .email("Invalid email address")
   .toLowerCase()
   .trim();

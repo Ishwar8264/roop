@@ -171,24 +171,24 @@ export async function redeemPoints(
 
   // 3. Create REDEEM transaction and update user in same transaction
   const result = await prisma.$transaction(async (tx) => {
-    // Create REDEEM transaction
-    const transaction = await tx.loyaltyTransaction.create({
-      data: {
-        userId,
-        type: "REDEEM",
-        points: data.points,
-        bookingId: data.bookingId ?? null,
-        reason: data.bookingId
-          ? `${data.points} अंक रिडीम किए गए / ${data.points} points redeemed`
-          : `${data.points} अंक रिडीम किए गए / ${data.points} points redeemed`,
-      },
-    });
-
-    // Deduct from user's loyalty points
-    const updatedUser = await tx.user.update({
-      where: { id: userId },
-      data: { loyaltyPoints: { decrement: data.points } },
-    });
+    // Create REDEEM transaction and deduct points (parallel)
+    const [transaction, updatedUser] = await Promise.all([
+      tx.loyaltyTransaction.create({
+        data: {
+          userId,
+          type: "REDEEM",
+          points: data.points,
+          bookingId: data.bookingId ?? null,
+          reason: data.bookingId
+            ? `${data.points} अंक रिडीम किए गए / ${data.points} points redeemed`
+            : `${data.points} अंक रिडीम किए गए / ${data.points} points redeemed`,
+        },
+      }),
+      tx.user.update({
+        where: { id: userId },
+        data: { loyaltyPoints: { decrement: data.points } },
+      }),
+    ]);
 
     return {
       transactionId: transaction.id,
@@ -252,60 +252,61 @@ export async function expirePoints(
   }
 
   // For each user, calculate how much has already been redeemed/expired
-  // and expire only the remaining unredeemed amount
-  let totalExpiredCount = 0;
-  let totalPointsExpired = 0;
+  // and expire only the remaining unredeemed amount — process users in parallel
+  const results = await Promise.all(
+    Array.from(userEarnMap).map(async ([userId, earnData]) => {
+      // Get total redeemed + expired for this user (from old transactions)
+      const [redeemed, expired] = await Promise.all([
+        prisma.loyaltyTransaction.aggregate({
+          where: { userId, type: "REDEEM" },
+          _sum: { points: true },
+        }),
+        prisma.loyaltyTransaction.aggregate({
+          where: { userId, type: "EXPIRE" },
+          _sum: { points: true },
+        }),
+      ]);
 
-  for (const [userId, earnData] of userEarnMap) {
-    // Get total redeemed + expired for this user (from old transactions)
-    const [redeemed, expired] = await Promise.all([
-      prisma.loyaltyTransaction.aggregate({
-        where: { userId, type: "REDEEM" },
-        _sum: { points: true },
-      }),
-      prisma.loyaltyTransaction.aggregate({
-        where: { userId, type: "EXPIRE" },
-        _sum: { points: true },
-      }),
-    ]);
+      const totalRedeemedOrExpired = (redeemed._sum.points ?? 0) + (expired._sum.points ?? 0);
+      const pointsToExpire = Math.max(0, earnData.totalEarned - totalRedeemedOrExpired);
 
-    const totalRedeemedOrExpired = (redeemed._sum.points ?? 0) + (expired._sum.points ?? 0);
-    const pointsToExpire = Math.max(0, earnData.totalEarned - totalRedeemedOrExpired);
+      if (pointsToExpire === 0) return 0;
 
-    if (pointsToExpire === 0) continue;
+      // Create EXPIRE transaction and update user in same transaction
+      await prisma.$transaction(async (tx) => {
+        // Create EXPIRE transaction
+        await tx.loyaltyTransaction.create({
+          data: {
+            userId,
+            type: "EXPIRE",
+            points: pointsToExpire,
+            reason: `${data.olderThanDays} दिनों से अधिक पुराने ${pointsToExpire} अंक समाप्त हो गए / ${pointsToExpire} points expired (older than ${data.olderThanDays} days)`,
+          },
+        });
 
-    // Create EXPIRE transaction and update user in same transaction
-    await prisma.$transaction(async (tx) => {
-      // Create EXPIRE transaction
-      await tx.loyaltyTransaction.create({
-        data: {
-          userId,
-          type: "EXPIRE",
-          points: pointsToExpire,
-          reason: `${data.olderThanDays} दिनों से अधिक पुराने ${pointsToExpire} अंक समाप्त हो गए / ${pointsToExpire} points expired (older than ${data.olderThanDays} days)`,
-        },
-      });
+        // Deduct from user's loyalty points (but don't go below 0)
+        const user = await tx.user.findUnique({
+          where: { id: userId },
+          select: { loyaltyPoints: true },
+        });
 
-      // Deduct from user's loyalty points (but don't go below 0)
-      const user = await tx.user.findUnique({
-        where: { id: userId },
-        select: { loyaltyPoints: true },
-      });
-
-      if (user) {
-        const deduction = Math.min(pointsToExpire, user.loyaltyPoints);
-        if (deduction > 0) {
-          await tx.user.update({
-            where: { id: userId },
-            data: { loyaltyPoints: { decrement: deduction } },
-          });
+        if (user) {
+          const deduction = Math.min(pointsToExpire, user.loyaltyPoints);
+          if (deduction > 0) {
+            await tx.user.update({
+              where: { id: userId },
+              data: { loyaltyPoints: { decrement: deduction } },
+            });
+          }
         }
-      }
-    });
+      });
 
-    totalExpiredCount++;
-    totalPointsExpired += pointsToExpire;
-  }
+      return pointsToExpire;
+    })
+  );
+
+  const totalExpiredCount = results.filter((p) => p > 0).length;
+  const totalPointsExpired = results.reduce((sum, p) => sum + p, 0);
 
   return {
     expiredCount: totalExpiredCount,

@@ -736,7 +736,13 @@ export async function listStaffByService(serviceId: string): Promise<StaffRespon
   });
 
   // Only return available staff
-  return staffServices
-    .filter((ss) => ss.staff.isAvailable)
-    .map((ss) => mapStaffToResponse(ss.staff));
+  return staffServices.reduce<StaffResponse[]>(
+    (acc, ss) => {
+      if (ss.staff.isAvailable) {
+        acc.push(mapStaffToResponse(ss.staff));
+      }
+      return acc;
+    },
+    [],
+  );
 }

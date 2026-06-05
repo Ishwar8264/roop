@@ -23,7 +23,7 @@ import {
 export const updateProfileSchema = z.object({
   name: fullName.optional(),
   email: email.optional(),
-  avatarUrl: z.string().url("Invalid avatar URL").optional(),
+  avatarUrl: z.url("Invalid avatar URL").optional(),
 });
 
 /** User changes own password */

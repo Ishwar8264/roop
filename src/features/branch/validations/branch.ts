@@ -52,7 +52,6 @@ export const createBranchSchema = z
     latitude: z.number().min(-90).max(90).optional(),
     longitude: z.number().min(-180).max(180).optional(),
     googleMapsUrl: z
-      .string()
       .url("Invalid Google Maps URL")
       .nullable()
       .optional(),
@@ -99,7 +98,6 @@ export const updateBranchSchema = z
     latitude: z.number().min(-90).max(90).nullable().optional(),
     longitude: z.number().min(-180).max(180).nullable().optional(),
     googleMapsUrl: z
-      .string()
       .url("Invalid Google Maps URL")
       .nullable()
       .optional(),

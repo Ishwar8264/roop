@@ -40,7 +40,7 @@ export const createBlogPostSchema = z.object({
   contentEn: nonEmptyString.optional(),
   excerptHi: nonEmptyString.optional(),
   excerptEn: nonEmptyString.optional(),
-  coverImageUrl: z.string().url("Must be a valid URL").optional(),
+  coverImageUrl: z.url("Must be a valid URL").optional(),
   categoryId: cuid,
   authorId: cuid.optional(), // Defaults to current admin user in route handler
 });
@@ -56,7 +56,7 @@ export const updateBlogPostSchema = z.object({
   contentEn: nonEmptyString.optional(),
   excerptHi: nonEmptyString.optional(),
   excerptEn: nonEmptyString.optional(),
-  coverImageUrl: z.string().url("Must be a valid URL").optional(),
+  coverImageUrl: z.url("Must be a valid URL").optional(),
   categoryId: cuid.optional(),
 });
 

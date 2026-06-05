@@ -232,32 +232,25 @@ export const POST = createApiHandler({
     // 1. Require authentication
     const { user } = await requireActiveUser(request);
 
-    // 2. Verify service exists
-    const service = await prisma.service.findUnique({
-      where: { id: serviceId },
-    });
+    // 2. Verify service, variant, and branch exist (parallel)
+    const [service, variantResult, branch] = await Promise.all([
+      prisma.service.findUnique({ where: { id: serviceId } }),
+      variantId
+        ? prisma.serviceVariant.findFirst({ where: { id: variantId, serviceId, isActive: true } })
+        : Promise.resolve(null),
+      prisma.branch.findUnique({ where: { id: branchId } }),
+    ]);
+    const variant: Awaited<ReturnType<typeof prisma.serviceVariant.findFirst>> = variantResult;
+
     if (!service) {
       throw new NotFoundError("Service not found");
     }
     if (!service.isActive) {
       throw new NotFoundError("Service is not available");
     }
-
-    // 3. Verify variant if provided
-    let variant: Awaited<ReturnType<typeof prisma.serviceVariant.findFirst>> = null;
-    if (variantId) {
-      variant = await prisma.serviceVariant.findFirst({
-        where: { id: variantId, serviceId, isActive: true },
-      });
-      if (!variant) {
-        throw new NotFoundError("Service variant not found");
-      }
+    if (variantId && !variant) {
+      throw new NotFoundError("Service variant not found");
     }
-
-    // 4. Verify branch exists
-    const branch = await prisma.branch.findUnique({
-      where: { id: branchId },
-    });
     if (!branch) {
       throw new NotFoundError("Branch not found");
     }
@@ -274,28 +267,28 @@ export const POST = createApiHandler({
         throw new ValidationError("Staff member is not available");
       }
 
-      // Check if staff is on leave
-      const leave = await prisma.staffLeave.findUnique({
-        where: {
-          staffId_date: {
-            staffId,
-            date: new Date(bookingDate),
+      // Check if staff is on leave and can perform this service (parallel)
+      const [leave, staffService] = await Promise.all([
+        prisma.staffLeave.findUnique({
+          where: {
+            staffId_date: {
+              staffId,
+              date: new Date(bookingDate),
+            },
           },
-        },
-      });
+        }),
+        prisma.staffService.findUnique({
+          where: {
+            staffId_serviceId: {
+              staffId,
+              serviceId,
+            },
+          },
+        }),
+      ]);
       if (leave) {
         throw new ConflictError("Staff member is on leave on this date");
       }
-
-      // Check if staff can perform this service
-      const staffService = await prisma.staffService.findUnique({
-        where: {
-          staffId_serviceId: {
-            staffId,
-            serviceId,
-          },
-        },
-      });
       if (!staffService) {
         throw new ValidationError("Staff member cannot perform this service");
       }

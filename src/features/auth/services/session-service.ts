@@ -100,26 +100,24 @@ export async function createSession(
     family
   );
 
-  // 6. Update session with refresh token hash
+  // 6. Update session hash, store token family in Redis, update lastLoginAt (parallel)
   const refreshTokenHash = await hashTokenSha256(refreshToken);
-  await prisma.session.update({
-    where: { id: session.id },
-    data: { refreshTokenHash },
-  });
-
-  // 7. Store token family in Redis for reuse detection
-  await redis.set(
-    `${REDIS_KEYS.REFRESH_FAMILY_PREFIX}${session.id}`,
-    JSON.stringify({ family, tokens: [refreshTokenHash] }),
-    "EX",
-    SESSION_CONFIG.REFRESH_TOKEN_DAYS * 24 * 60 * 60
-  );
-
-  // 8. Update user's lastLoginAt
-  await prisma.user.update({
-    where: { id: userId },
-    data: { lastLoginAt: new Date() },
-  });
+  await Promise.all([
+    prisma.session.update({
+      where: { id: session.id },
+      data: { refreshTokenHash },
+    }),
+    redis.set(
+      `${REDIS_KEYS.REFRESH_FAMILY_PREFIX}${session.id}`,
+      JSON.stringify({ family, tokens: [refreshTokenHash] }),
+      "EX",
+      SESSION_CONFIG.REFRESH_TOKEN_DAYS * 24 * 60 * 60
+    ),
+    prisma.user.update({
+      where: { id: userId },
+      data: { lastLoginAt: new Date() },
+    }),
+  ]);
 
   return { accessToken, refreshToken, sessionId: session.id };
 }
