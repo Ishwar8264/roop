@@ -93,49 +93,49 @@ export const GET = createApiHandler({
       where.categoryId = categoryId;
     }
 
-    // 3. Count total matching posts
-    const total = await prisma.blogPost.count({ where });
-
-    // 4. Fetch paginated posts with category and author info
-    const items = await prisma.blogPost.findMany({
-      where,
-      select: {
-        id: true,
-        titleHi: true,
-        titleEn: true,
-        slug: true,
-        excerptHi: true,
-        excerptEn: true,
-        coverImageUrl: true,
-        status: true,
-        categoryId: true,
-        authorId: true,
-        publishedAt: true,
-        createdAt: true,
-        updatedAt: true,
-        category: {
-          select: {
-            id: true,
-            nameHi: true,
-            nameEn: true,
-            slug: true,
+    // 3. Count total and fetch paginated posts with category and author info
+    const [total, items] = await Promise.all([
+      prisma.blogPost.count({ where }),
+      prisma.blogPost.findMany({
+        where,
+        select: {
+          id: true,
+          titleHi: true,
+          titleEn: true,
+          slug: true,
+          excerptHi: true,
+          excerptEn: true,
+          coverImageUrl: true,
+          status: true,
+          categoryId: true,
+          authorId: true,
+          publishedAt: true,
+          createdAt: true,
+          updatedAt: true,
+          category: {
+            select: {
+              id: true,
+              nameHi: true,
+              nameEn: true,
+              slug: true,
+            },
+          },
+          author: {
+            select: {
+              id: true,
+              name: true,
+              avatarUrl: true,
+            },
           },
         },
-        author: {
-          select: {
-            id: true,
-            name: true,
-            avatarUrl: true,
-          },
-        },
-      },
-      orderBy: [
-        { publishedAt: "desc" },
-        { createdAt: "desc" },
-      ],
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    });
+        orderBy: [
+          { publishedAt: "desc" },
+          { createdAt: "desc" },
+        ],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
 
     // 5. Return with pagination
     return {

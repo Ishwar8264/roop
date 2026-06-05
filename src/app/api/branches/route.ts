@@ -67,16 +67,16 @@ export const GET = createApiHandler({
     if (city) where.city = city;
     if (isActive !== undefined) where.isActive = isActive;
 
-    // 3. Count total matching branches
-    const total = await prisma.branch.count({ where });
-
-    // 4. Fetch paginated branches
-    const branches = await prisma.branch.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    });
+    // 3. Count total and fetch paginated branches
+    const [total, branches] = await Promise.all([
+      prisma.branch.count({ where }),
+      prisma.branch.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
 
     // 5. Return with pagination
     return {

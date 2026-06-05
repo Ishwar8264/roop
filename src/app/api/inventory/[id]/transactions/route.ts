@@ -71,18 +71,18 @@ export const GET = createApiHandler({
     const page = parseInt(url.searchParams.get("page") || "1", 10);
     const pageSize = Math.min(parseInt(url.searchParams.get("pageSize") || "20", 10), 100);
 
-    // 4. Count total transactions
-    const total = await prisma.inventoryTransaction.count({
-      where: { inventoryItemId: id },
-    });
-
-    // 5. Fetch paginated transactions
-    const items = await prisma.inventoryTransaction.findMany({
-      where: { inventoryItemId: id },
-      orderBy: { createdAt: "desc" },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    });
+    // 4. Count total and fetch paginated transactions
+    const [total, items] = await Promise.all([
+      prisma.inventoryTransaction.count({
+        where: { inventoryItemId: id },
+      }),
+      prisma.inventoryTransaction.findMany({
+        where: { inventoryItemId: id },
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
 
     // 6. Return with pagination
     return {

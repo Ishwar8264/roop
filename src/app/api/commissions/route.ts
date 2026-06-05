@@ -68,41 +68,41 @@ export const GET = createApiHandler({
     if (staffId) where.staffId = staffId;
     if (status) where.status = status;
 
-    // 4. Count total matching commissions
-    const total = await prisma.staffCommission.count({ where });
-
-    // 5. Fetch paginated commissions
-    const items = await prisma.staffCommission.findMany({
-      where,
-      select: {
-        id: true,
-        staffId: true,
-        bookingId: true,
-        amount: true,
-        rate: true,
-        status: true,
-        paidAt: true,
-        createdAt: true,
-        updatedAt: true,
-        staff: {
-          select: {
-            id: true,
-            userId: true,
-            specialization: true,
-            user: {
-              select: {
-                id: true,
-                name: true,
-                mobile: true,
+    // 4. Count total and fetch paginated commissions
+    const [total, items] = await Promise.all([
+      prisma.staffCommission.count({ where }),
+      prisma.staffCommission.findMany({
+        where,
+        select: {
+          id: true,
+          staffId: true,
+          bookingId: true,
+          amount: true,
+          rate: true,
+          status: true,
+          paidAt: true,
+          createdAt: true,
+          updatedAt: true,
+          staff: {
+            select: {
+              id: true,
+              userId: true,
+              specialization: true,
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  mobile: true,
+                },
               },
             },
           },
         },
-      },
-      orderBy: { createdAt: "desc" },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    });
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
 
     // 6. Return with pagination and serialized decimals
     return {

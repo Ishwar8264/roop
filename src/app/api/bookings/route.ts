@@ -133,56 +133,56 @@ export const GET = createApiHandler({
     if (status) where.status = status;
     if (date) where.bookingDate = new Date(date);
 
-    // 4. Count total matching bookings
-    const total = await prisma.booking.count({ where });
-
-    // 5. Fetch paginated bookings
-    const bookings = await prisma.booking.findMany({
-      where,
-      select: {
-        id: true,
-        bookingDisplayId: true,
-        userId: true,
-        serviceId: true,
-        variantId: true,
-        staffId: true,
-        branchId: true,
-        bookingDate: true,
-        slotStart: true,
-        slotEnd: true,
-        status: true,
-        advanceAmount: true,
-        totalAmount: true,
-        cancellationReason: true,
-        notes: true,
-        createdAt: true,
-        updatedAt: true,
-        user: {
-          select: { id: true, name: true, mobile: true },
-        },
-        service: {
-          select: { id: true, nameHi: true, nameEn: true, price: true, durationMinutes: true },
-        },
-        variant: {
-          select: { id: true, nameHi: true, nameEn: true, price: true, durationMinutes: true },
-        },
-        staff: {
-          select: {
-            id: true,
-            user: { select: { id: true, name: true } },
+    // 4. Count total and fetch paginated bookings
+    const [total, bookings] = await Promise.all([
+      prisma.booking.count({ where }),
+      prisma.booking.findMany({
+        where,
+        select: {
+          id: true,
+          bookingDisplayId: true,
+          userId: true,
+          serviceId: true,
+          variantId: true,
+          staffId: true,
+          branchId: true,
+          bookingDate: true,
+          slotStart: true,
+          slotEnd: true,
+          status: true,
+          advanceAmount: true,
+          totalAmount: true,
+          cancellationReason: true,
+          notes: true,
+          createdAt: true,
+          updatedAt: true,
+          user: {
+            select: { id: true, name: true, mobile: true },
+          },
+          service: {
+            select: { id: true, nameHi: true, nameEn: true, price: true, durationMinutes: true },
+          },
+          variant: {
+            select: { id: true, nameHi: true, nameEn: true, price: true, durationMinutes: true },
+          },
+          staff: {
+            select: {
+              id: true,
+              user: { select: { id: true, name: true } },
+            },
+          },
+          branch: {
+            select: { id: true, nameHi: true, nameEn: true },
+          },
+          _count: {
+            select: { addOns: true },
           },
         },
-        branch: {
-          select: { id: true, nameHi: true, nameEn: true },
-        },
-        _count: {
-          select: { addOns: true },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    });
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
 
     // 6. Return with serialized decimals
     return {

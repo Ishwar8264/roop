@@ -101,38 +101,38 @@ export const GET = createApiHandler({
       where.date = new Date(date);
     }
 
-    // 4. Count total matching consultations
-    const total = await prisma.consultation.count({ where });
-
-    // 5. Fetch paginated consultations with user and staff details
-    const consultations = await prisma.consultation.findMany({
-      where,
-      select: {
-        id: true,
-        userId: true,
-        bookingId: true,
-        staffId: true,
-        branchId: true,
-        date: true,
-        time: true,
-        status: true,
-        notes: true,
-        createdAt: true,
-        updatedAt: true,
-        user: {
-          select: {
-            id: true,
-            name: true,
-            mobile: true,
-            email: true,
-            avatarUrl: true,
+    // 4. Count total and fetch paginated consultations with user details
+    const [total, consultations] = await Promise.all([
+      prisma.consultation.count({ where }),
+      prisma.consultation.findMany({
+        where,
+        select: {
+          id: true,
+          userId: true,
+          bookingId: true,
+          staffId: true,
+          branchId: true,
+          date: true,
+          time: true,
+          status: true,
+          notes: true,
+          createdAt: true,
+          updatedAt: true,
+          user: {
+            select: {
+              id: true,
+              name: true,
+              mobile: true,
+              email: true,
+              avatarUrl: true,
+            },
           },
         },
-      },
-      orderBy: { createdAt: "desc" },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    });
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
 
     // 6. Enrich with staff info (manual lookup since no Prisma relation)
     const staffIds = consultations
@@ -169,7 +169,14 @@ export const GET = createApiHandler({
         },
       });
       for (const s of staffRecords) {
-        staffMap.set(s.id, { ...s, rating: s.rating.toNumber() });
+        staffMap.set(s.id, {
+          ...s,
+          specialization: s.specialization
+            .split(",")
+            .map((item) => item.trim())
+            .filter(Boolean),
+          rating: s.rating.toNumber(),
+        });
       }
     }
 

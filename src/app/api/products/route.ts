@@ -78,39 +78,39 @@ export const GET = createApiHandler({
       where.categoryId = categoryId;
     }
 
-    // 3. Count total matching products
-    const total = await prisma.product.count({ where });
-
-    // 4. Fetch paginated products with category info
-    const items = await prisma.product.findMany({
-      where,
-      select: {
-        id: true,
-        nameHi: true,
-        nameEn: true,
-        slug: true,
-        descriptionHi: true,
-        descriptionEn: true,
-        price: true,
-        costPrice: true,
-        imageUrl: true,
-        categoryId: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-        category: {
-          select: {
-            id: true,
-            nameHi: true,
-            nameEn: true,
-            slug: true,
+    // 3. Count total and fetch paginated products with category info
+    const [total, items] = await Promise.all([
+      prisma.product.count({ where }),
+      prisma.product.findMany({
+        where,
+        select: {
+          id: true,
+          nameHi: true,
+          nameEn: true,
+          slug: true,
+          descriptionHi: true,
+          descriptionEn: true,
+          price: true,
+          costPrice: true,
+          imageUrl: true,
+          categoryId: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true,
+          category: {
+            select: {
+              id: true,
+              nameHi: true,
+              nameEn: true,
+              slug: true,
+            },
           },
         },
-      },
-      orderBy: { createdAt: "desc" },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    });
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
 
     // 5. Return with pagination and serialized decimals
     return {

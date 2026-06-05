@@ -13,6 +13,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { RegisterForm } from "@/features/auth/components/register-form";
 import { useAuthStore } from "@/stores/auth-store";
 import type { RegisterSuccessData } from "@/features/auth/logic/auth-schemas";
@@ -26,6 +27,14 @@ function getSafeRedirectPath(value: string | null): string {
 }
 
 export function RegisterClient() {
+  return (
+    <Suspense fallback={null}>
+      <RegisterClientContent />
+    </Suspense>
+  );
+}
+
+function RegisterClientContent() {
   const searchParams = useSearchParams();
   const { login } = useAuthStore();
 

@@ -12,6 +12,7 @@
 
 "use client";
 
+import Image from "next/image";
 import { useRef, useState, useCallback } from "react";
 import {
   Camera,
@@ -374,9 +375,11 @@ export function AvatarUpload() {
                           )
                         }
                       >
-                        <img
+                        <Image
                           src={image.url}
                           alt="Avatar option"
+                          fill
+                          sizes="96px"
                           className="w-full h-full object-cover"
                         />
                         {isSelected && (

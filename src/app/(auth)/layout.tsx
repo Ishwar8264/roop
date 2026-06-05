@@ -1,9 +1,12 @@
 /**
- * @file Auth pages layout — premium gradient background
- *
- * PURPOSE: Centered layout with a beautiful gradient background
- * for login and register pages. Dark mode fully supported.
+ * Purpose: Auth pages layout
+ * Responsibility: Center login and register pages inside the branded auth background
+ * Important Notes:
+ *   - Shared by login and register routes
+ *   - Uses the optimized app logo image
  */
+
+import Image from "next/image";
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -15,9 +18,11 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       <div className="w-full max-w-md">
         {/* Brand */}
         <div className="text-center mb-8">
-          <img
+          <Image
             src="/logo.png"
             alt="Nikharta Roop"
+            width={80}
+            height={80}
             className="h-20 w-20 mx-auto rounded-2xl object-contain shadow-lg shadow-rose-200/50 dark:shadow-rose-900/30 mb-3"
           />
           <h1 className="text-3xl font-bold text-rose-600 dark:text-rose-400">

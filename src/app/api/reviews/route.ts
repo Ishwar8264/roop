@@ -93,59 +93,59 @@ export const GET = createApiHandler({
     if (staffId) where.staffId = staffId;
     if (rating) where.rating = rating;
 
-    // 3. Count total matching reviews
-    const total = await prisma.review.count({ where });
-
-    // 4. Fetch paginated reviews
-    const reviews = await prisma.review.findMany({
-      where,
-      select: {
-        id: true,
-        userId: true,
-        bookingId: true,
-        staffId: true,
-        serviceId: true,
-        rating: true,
-        commentHi: true,
-        commentEn: true,
-        isApproved: true,
-        createdAt: true,
-        updatedAt: true,
-        user: {
-          select: {
-            id: true,
-            name: true,
-            avatarUrl: true,
+    // 3. Count total and fetch paginated reviews
+    const [total, reviews] = await Promise.all([
+      prisma.review.count({ where }),
+      prisma.review.findMany({
+        where,
+        select: {
+          id: true,
+          userId: true,
+          bookingId: true,
+          staffId: true,
+          serviceId: true,
+          rating: true,
+          commentHi: true,
+          commentEn: true,
+          isApproved: true,
+          createdAt: true,
+          updatedAt: true,
+          user: {
+            select: {
+              id: true,
+              name: true,
+              avatarUrl: true,
+            },
           },
-        },
-        staff: {
-          select: {
-            id: true,
-            bioHi: true,
-            bioEn: true,
-            rating: true,
-            user: {
-              select: {
-                id: true,
-                name: true,
-                avatarUrl: true,
+          staff: {
+            select: {
+              id: true,
+              bioHi: true,
+              bioEn: true,
+              rating: true,
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  avatarUrl: true,
+                },
               },
             },
           },
-        },
-        service: {
-          select: {
-            id: true,
-            nameHi: true,
-            nameEn: true,
-            price: true,
+          service: {
+            select: {
+              id: true,
+              nameHi: true,
+              nameEn: true,
+              price: true,
+            },
           },
         },
-      },
-      orderBy: { createdAt: "desc" },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    });
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
 
     // 5. Return with pagination and serialized decimals
     return {

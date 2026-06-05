@@ -76,37 +76,37 @@ export const GET = createApiHandler({
       where.branchId = branchId;
     }
 
-    // 3. Count total matching packages
-    const total = await prisma.package.count({ where });
-
-    // 4. Fetch paginated packages with service count
-    const packages = await prisma.package.findMany({
-      where,
-      select: {
-        id: true,
-        nameHi: true,
-        nameEn: true,
-        slug: true,
-        descriptionHi: true,
-        descriptionEn: true,
-        price: true,
-        originalPrice: true,
-        durationMinutes: true,
-        imageUrl: true,
-        isActive: true,
-        branchId: true,
-        validFrom: true,
-        validUntil: true,
-        createdAt: true,
-        updatedAt: true,
-        _count: {
-          select: { packageServices: true },
+    // 3. Count total and fetch paginated packages with service count
+    const [total, packages] = await Promise.all([
+      prisma.package.count({ where }),
+      prisma.package.findMany({
+        where,
+        select: {
+          id: true,
+          nameHi: true,
+          nameEn: true,
+          slug: true,
+          descriptionHi: true,
+          descriptionEn: true,
+          price: true,
+          originalPrice: true,
+          durationMinutes: true,
+          imageUrl: true,
+          isActive: true,
+          branchId: true,
+          validFrom: true,
+          validUntil: true,
+          createdAt: true,
+          updatedAt: true,
+          _count: {
+            select: { packageServices: true },
+          },
         },
-      },
-      orderBy: { createdAt: "desc" },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    });
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
 
     // 5. Return with pagination
     return {

@@ -75,38 +75,38 @@ export const GET = createApiHandler({
       where.isActive = true;
     }
 
-    // 3. Count total matching offers
-    const total = await prisma.offer.count({ where });
-
-    // 4. Fetch paginated offers
-    const offers = await prisma.offer.findMany({
-      where,
-      select: {
-        id: true,
-        code: true,
-        titleHi: true,
-        titleEn: true,
-        descriptionHi: true,
-        descriptionEn: true,
-        discountType: true,
-        discountValue: true,
-        minOrder: true,
-        maxDiscount: true,
-        validFrom: true,
-        validUntil: true,
-        usageLimit: true,
-        usageCount: true,
-        isActive: true,
-        createdAt: true,
-        updatedAt: true,
-        _count: {
-          select: { offerServices: true },
+    // 3. Count total and fetch paginated offers
+    const [total, offers] = await Promise.all([
+      prisma.offer.count({ where }),
+      prisma.offer.findMany({
+        where,
+        select: {
+          id: true,
+          code: true,
+          titleHi: true,
+          titleEn: true,
+          descriptionHi: true,
+          descriptionEn: true,
+          discountType: true,
+          discountValue: true,
+          minOrder: true,
+          maxDiscount: true,
+          validFrom: true,
+          validUntil: true,
+          usageLimit: true,
+          usageCount: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true,
+          _count: {
+            select: { offerServices: true },
+          },
         },
-      },
-      orderBy: { createdAt: "desc" },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    });
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
 
     // 5. Return with pagination and serialized decimals
     return {

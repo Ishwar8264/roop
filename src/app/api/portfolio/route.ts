@@ -59,44 +59,44 @@ export const GET = createApiHandler({
       where.staffId = staffId;
     }
 
-    // 3. Count total matching items
-    const total = await prisma.portfolioItem.count({ where });
-
-    // 4. Fetch paginated portfolio items with staff info
-    const items = await prisma.portfolioItem.findMany({
-      where,
-      select: {
-        id: true,
-        staffId: true,
-        titleHi: true,
-        titleEn: true,
-        imageUrl: true,
-        isFeatured: true,
-        createdAt: true,
-        staff: {
-          select: {
-            id: true,
-            bioHi: true,
-            bioEn: true,
-            photoUrl: true,
-            rating: true,
-            user: {
-              select: {
-                id: true,
-                name: true,
-                avatarUrl: true,
+    // 3. Count total and fetch paginated portfolio items with staff info
+    const [total, items] = await Promise.all([
+      prisma.portfolioItem.count({ where }),
+      prisma.portfolioItem.findMany({
+        where,
+        select: {
+          id: true,
+          staffId: true,
+          titleHi: true,
+          titleEn: true,
+          imageUrl: true,
+          isFeatured: true,
+          createdAt: true,
+          staff: {
+            select: {
+              id: true,
+              bioHi: true,
+              bioEn: true,
+              photoUrl: true,
+              rating: true,
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  avatarUrl: true,
+                },
               },
             },
           },
         },
-      },
-      orderBy: [
-        { isFeatured: "desc" },
-        { createdAt: "desc" },
-      ],
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    });
+        orderBy: [
+          { isFeatured: "desc" },
+          { createdAt: "desc" },
+        ],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
 
     // 5. Return with pagination and serialized decimals
     return {
