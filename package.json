@@ -17,6 +17,7 @@
     "prepare": "husky",
     "lint-staged": "lint-staged",
     "typecheck": "tsc --noEmit",
+    "doctor": "react-doctor --score .",
     "doctors": "react-doctor --score .",
     "check-all": "npm run lint && npm run typecheck && npm run doctors"
   },
