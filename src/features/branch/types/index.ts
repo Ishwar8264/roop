@@ -16,6 +16,8 @@ export interface BranchResponse {
   nameEn: string;
   city: string;
   address: string;
+  latitude: number | null;
+  longitude: number | null;
   googleMapsUrl: string | null;
   phone: string;
   openTime: string; // "09:00"

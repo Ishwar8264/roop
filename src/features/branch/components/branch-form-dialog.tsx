@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -13,14 +13,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/i18n/use-translation";
-import { useCreateBranch } from "@/features/branch/hooks/use-create-branch";
-import { useUpdateBranch } from "@/features/branch/hooks/use-update-branch";
+import { useAuthStore } from "@/stores/auth-store";
+import { toast } from "sonner";
 import type { BranchResponse } from "@/features/branch/types";
 
 interface BranchFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   branch?: BranchResponse | null;
+  onMutated?: () => void;
 }
 
 interface FormState {
@@ -30,6 +31,8 @@ interface FormState {
   address: string;
   phone: string;
   googleMapsUrl: string;
+  latitude: string;
+  longitude: string;
   openTime: string;
   closeTime: string;
 }
@@ -41,6 +44,8 @@ const initialForm: FormState = {
   address: "",
   phone: "",
   googleMapsUrl: "",
+  latitude: "",
+  longitude: "",
   openTime: "09:00",
   closeTime: "20:00",
 };
@@ -49,11 +54,11 @@ export function BranchFormDialog({
   open,
   onOpenChange,
   branch,
+  onMutated,
 }: BranchFormDialogProps) {
   const { t } = useTranslation();
-  const createBranch = useCreateBranch();
-  const updateBranch = useUpdateBranch();
   const isEditing = !!branch;
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const defaultForm = useMemo<FormState>(
     () =>
@@ -65,6 +70,8 @@ export function BranchFormDialog({
             address: branch.address,
             phone: branch.phone,
             googleMapsUrl: branch.googleMapsUrl || "",
+            latitude: branch.latitude != null ? String(branch.latitude) : "",
+            longitude: branch.longitude != null ? String(branch.longitude) : "",
             openTime: branch.openTime,
             closeTime: branch.closeTime,
           }
@@ -107,8 +114,12 @@ export function BranchFormDialog({
     return Object.keys(e).length === 0;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = useCallback(async () => {
     if (!validate()) return;
+
+    const lat = form.latitude ? parseFloat(form.latitude) : undefined;
+    const lng = form.longitude ? parseFloat(form.longitude) : undefined;
+
     const payload = {
       nameHi: form.nameHi.trim(),
       nameEn: form.nameEn.trim(),
@@ -116,22 +127,40 @@ export function BranchFormDialog({
       address: form.address.trim(),
       phone: form.phone.trim(),
       googleMapsUrl: form.googleMapsUrl.trim() || null,
+      ...(lat != null && !isNaN(lat) ? { latitude: lat } : {}),
+      ...(lng != null && !isNaN(lng) ? { longitude: lng } : {}),
       openTime: form.openTime,
       closeTime: form.closeTime,
     };
-    if (isEditing && branch) {
-      updateBranch.mutate(
-        { id: branch.id, ...payload },
-        { onSuccess: () => onOpenChange(false) }
-      );
-    } else {
-      createBranch.mutate(payload, {
-        onSuccess: () => onOpenChange(false),
-      });
-    }
-  };
 
-  const isLoading = createBranch.isPending || updateBranch.isPending;
+    setIsSubmitting(true);
+    try {
+      const token = useAuthStore.getState().token;
+      const url = isEditing && branch ? `/api/branches/${branch.id}` : "/api/branches";
+      const method = isEditing ? "PATCH" : "POST";
+
+      const res = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        credentials: "same-origin",
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Error");
+
+      toast.success(isEditing ? t("branches.branchUpdated") ?? "Branch updated" : t("branches.branchCreated") ?? "Branch created");
+      onOpenChange(false);
+      onMutated?.();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("common.somethingWrong"));
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [form, isEditing, branch, t, onOpenChange, onMutated]);
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -203,6 +232,30 @@ export function BranchFormDialog({
               <p className="text-xs text-destructive">{errors.phone}</p>
             )}
           </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="latitude">Latitude</Label>
+              <Input
+                id="latitude"
+                type="number"
+                step="any"
+                value={form.latitude}
+                onChange={(e) => updateField("latitude", e.target.value)}
+                placeholder="28.6139"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="longitude">Longitude</Label>
+              <Input
+                id="longitude"
+                type="number"
+                step="any"
+                value={form.longitude}
+                onChange={(e) => updateField("longitude", e.target.value)}
+                placeholder="77.2090"
+              />
+            </div>
+          </div>
           <div className="space-y-1.5">
             <Label htmlFor="googleMapsUrl">
               {t("branches.googleMapsUrl")}
@@ -247,16 +300,16 @@ export function BranchFormDialog({
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
-            disabled={isLoading}
+            disabled={isSubmitting}
           >
             {t("common.cancel")}
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={isLoading}
+            disabled={isSubmitting}
             className="bg-primary hover:bg-primary/90 text-primary-foreground"
           >
-            {isLoading ? t("common.loading") : t("common.save")}
+            {isSubmitting ? t("common.loading") : t("common.save")}
           </Button>
         </DialogFooter>
       </DialogContent>

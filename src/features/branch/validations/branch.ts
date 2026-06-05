@@ -49,6 +49,8 @@ export const createBranchSchema = z
       .min(1, "पता आवश्यक है")
       .max(500, "Address must be under 500 characters")
       .trim(),
+    latitude: z.number().min(-90).max(90).optional(),
+    longitude: z.number().min(-180).max(180).optional(),
     googleMapsUrl: z
       .string()
       .url("Invalid Google Maps URL")
@@ -94,6 +96,8 @@ export const updateBranchSchema = z
       .max(500, "Address must be under 500 characters")
       .trim()
       .optional(),
+    latitude: z.number().min(-90).max(90).nullable().optional(),
+    longitude: z.number().min(-180).max(180).nullable().optional(),
     googleMapsUrl: z
       .string()
       .url("Invalid Google Maps URL")

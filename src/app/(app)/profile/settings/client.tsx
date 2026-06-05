@@ -31,7 +31,7 @@ import { useTranslation } from "@/i18n/use-translation";
 export function SettingsClient() {
   const router = useRouter();
   const { t } = useTranslation();
-  const { data: profileData, isLoading } = useProfile();
+  const { data: profileData, isLoading, refetch: refetchProfile } = useProfile();
   const user = useAuthStore((s) => s.user);
   const updateProfile = useUpdateProfile();
 
@@ -53,12 +53,11 @@ export function SettingsClient() {
       return;
     }
 
-    updateProfile.mutate(payload, {
-      onSuccess: () => {
-        setIsEditing(false);
-      },
+    updateProfile.mutate(payload, () => {
+      setIsEditing(false);
+      void refetchProfile();
     });
-  }, [name, email, phone, displayUser, updateProfile]);
+  }, [name, email, phone, displayUser, updateProfile, refetchProfile]);
 
   const handleCancel = useCallback(() => {
     setName(displayUser?.name || "");

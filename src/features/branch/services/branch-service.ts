@@ -10,7 +10,6 @@
  */
 
 import { prisma } from "@/lib/database/prisma";
-import { requireAdmin } from "@/lib/server/auth-hooks";
 import {
   BranchNotFoundError,
   BranchAlreadyInactiveError,
@@ -26,7 +25,7 @@ import type {
   HolidayListQuery,
 } from "@/features/branch/types";
 import type { CreateBranchInput, UpdateBranchInput, AddHolidayInput } from "@/features/branch/validations/branch";
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 
 // Re-export requireAdmin for backward compatibility with existing branch routes
 export { requireAdmin } from "@/lib/server/auth-hooks";
@@ -87,6 +86,8 @@ function mapBranchToResponse(branch: {
   nameEn: string;
   city: string;
   address: string;
+  latitude: number | null;
+  longitude: number | null;
   googleMapsUrl: string | null;
   phone: string;
   openTime: Date;
@@ -101,6 +102,8 @@ function mapBranchToResponse(branch: {
     nameEn: branch.nameEn,
     city: branch.city,
     address: branch.address,
+    latitude: branch.latitude,
+    longitude: branch.longitude,
     googleMapsUrl: branch.googleMapsUrl,
     phone: branch.phone,
     openTime: dateToTimeString(branch.openTime),
@@ -221,6 +224,8 @@ export async function createBranch(data: CreateBranchInput): Promise<BranchRespo
       nameEn: data.nameEn,
       city: data.city,
       address: data.address,
+      latitude: data.latitude ?? null,
+      longitude: data.longitude ?? null,
       googleMapsUrl: data.googleMapsUrl ?? null,
       phone: data.phone,
       openTime: timeStringToDate(data.openTime),
@@ -251,6 +256,8 @@ export async function updateBranch(id: string, data: UpdateBranchInput): Promise
   if (data.nameEn !== undefined) updateData.nameEn = data.nameEn;
   if (data.city !== undefined) updateData.city = data.city;
   if (data.address !== undefined) updateData.address = data.address;
+  if (data.latitude !== undefined) updateData.latitude = data.latitude ?? null;
+  if (data.longitude !== undefined) updateData.longitude = data.longitude ?? null;
   if (data.googleMapsUrl !== undefined) updateData.googleMapsUrl = data.googleMapsUrl ?? null;
   if (data.phone !== undefined) updateData.phone = data.phone;
   if (data.openTime !== undefined) updateData.openTime = timeStringToDate(data.openTime);

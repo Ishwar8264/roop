@@ -4,7 +4,7 @@
  * Important Notes:
  *   - Server component — only wraps children, no client logic
  *   - ThemeProvider wraps AuthProvider for theme context
- *   - AuthProvider handles: auth init, QueryClientProvider, loading state
+ *   - AuthProvider handles: auth init, loading state
  *   - Toaster at root level for global toast notifications
  *   - Default lang="en" — language switching is client-side via Zustand
  *   - suppressHydrationWarning required for next-themes

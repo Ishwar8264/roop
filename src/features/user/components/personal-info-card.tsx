@@ -66,11 +66,9 @@ export function PersonalInfoCard({ profile, onVerifyEmail, onChangePhone }: Pers
     if (editingField === "name") payload.name = editValue.trim();
     if (editingField === "email") payload.email = editValue.trim();
 
-    updateProfile.mutate(payload, {
-      onSuccess: () => {
-        setEditingField(null);
-        setEditValue("");
-      },
+    updateProfile.mutate(payload, () => {
+      setEditingField(null);
+      setEditValue("");
     });
   }, [editingField, editValue, updateProfile]);
 

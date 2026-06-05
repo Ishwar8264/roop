@@ -1,25 +1,56 @@
 /**
- * Purpose: React Query hook to fetch current user profile
- * Responsibility: Fetch and cache user profile data from /api/auth/me
+ * Purpose: Fetch current user profile
+ * Responsibility: Fetch user profile data from /api/auth/me
  * Important Notes:
- *   - Caches for 5 minutes (staleTime)
+ *   - Uses plain fetch (no TanStack Query)
  *   - Returns typed UserProfile data
- *   - Uses apiClient for authenticated requests
+ *   - Auto-fetches on mount
  */
 
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { apiClient } from "@/services/api-client";
+import { useState, useCallback, useEffect, useRef } from "react";
+import { useAuthStore } from "@/stores/auth-store";
 import type { ApiResponse, UserProfile } from "@/types";
 
 export function useProfile() {
-  return useQuery({
-    queryKey: ["profile"],
-    queryFn: async () => {
-      const res = await apiClient.get<ApiResponse<{ user: UserProfile }>>("/auth/me");
-      return res.data;
-    },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  });
+  const [data, setData] = useState<{ user: UserProfile } | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+  const hasFetched = useRef(false);
+
+  const refetch = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const token = useAuthStore.getState().token;
+      const res = await fetch("/api/auth/me", {
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        credentials: "same-origin",
+      });
+      const json: ApiResponse<{ user: UserProfile }> = await res.json();
+      if (!res.ok) throw new Error(json.message || "Error fetching profile");
+      setData(json.data ?? null);
+      if (json.data?.user) {
+        useAuthStore.getState().setUser(json.data.user);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error("Unknown error"));
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Auto-fetch on mount (only once)
+  useEffect(() => {
+    if (!hasFetched.current) {
+      hasFetched.current = true;
+      void refetch();
+    }
+  }, [refetch]);
+
+  return { data, isLoading, error, refetch };
 }

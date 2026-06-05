@@ -47,10 +47,8 @@ export function DangerZoneCard() {
     deactivate.mutate({
       confirmation: "DELETE_MY_ACCOUNT",
       reason: reason.trim() || undefined,
-    }, {
-      onSuccess: () => {
-        setAlertOpen(false);
-      },
+    }, () => {
+      setAlertOpen(false);
     });
   }, [isConfirmationValid, reason, deactivate]);
 

@@ -1,60 +1,55 @@
 "use client";
 
-import { useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   MapPin,
   Clock,
   Phone,
-  ExternalLink,
   Pencil,
+  Navigation,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useBranch } from "@/features/branch/hooks/use-branch";
+import { BranchMap } from "@/features/branch/components/branch-map";
 import { BranchStatusBadge } from "@/features/branch/components/branch-status-badge";
 import { BranchFormDialog } from "@/features/branch/components/branch-form-dialog";
 import { HolidayManager } from "@/features/branch/components/holiday-manager";
 import { useAuthStore } from "@/stores/auth-store";
 import { useTranslation } from "@/i18n/use-translation";
 import { useLocaleStore } from "@/i18n/locale-store";
-import type { BranchResponse } from "@/features/branch/types";
+import type { BranchDetailResponse, BranchResponse } from "@/features/branch/types";
 
-export function BranchDetailClient() {
-  const params = useParams();
+interface BranchDetailClientProps {
+  initialBranch: BranchDetailResponse;
+}
+
+export function BranchDetailClient({ initialBranch }: BranchDetailClientProps) {
   const router = useRouter();
   const { t } = useTranslation();
   const { locale } = useLocaleStore();
   const { user } = useAuthStore();
   const isAdmin = user?.role === "ADMIN";
-  const id = params.id as string;
-
-  const { data: branch, isLoading } = useBranch(id);
   const [dialogOpen, setDialogOpen] = useState(false);
-
-  if (isLoading) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-32" />
-        <Skeleton className="h-40 w-full" />
-        <Skeleton className="h-60 w-full" />
-      </div>
-    );
-  }
-
-  if (!branch) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 text-center">
-        <MapPin className="h-12 w-12 text-muted-foreground/40 mb-3" />
-        <p className="text-muted-foreground">{t("branches.noBranches")}</p>
-      </div>
-    );
-  }
+  const [branch, setBranch] = useState<BranchDetailResponse>(initialBranch);
 
   const displayName = locale === "hi" ? branch.nameHi : branch.nameEn;
-  const displayAddress = locale === "hi" ? branch.address : branch.address;
+
+  const handleMutated = useCallback(async () => {
+    // Refetch branch data after mutations
+    try {
+      const res = await fetch(`/api/branches/${branch.id}`, {
+        credentials: "same-origin",
+      });
+      const json = await res.json();
+      if (json.success && json.data) {
+        setBranch(json.data);
+      }
+    } catch {
+      // Keep existing data on error
+    }
+  }, [branch.id]);
 
   return (
     <div className="space-y-6">
@@ -87,6 +82,14 @@ export function BranchDetailClient() {
         )}
       </div>
 
+      {/* Map Section */}
+      <BranchMap
+        latitude={branch.latitude}
+        longitude={branch.longitude}
+        address={branch.address}
+        className="h-40 w-full rounded-lg"
+      />
+
       {/* Branch Info Card */}
       <Card>
         <CardHeader className="pb-3">
@@ -104,7 +107,7 @@ export function BranchDetailClient() {
                     {t("branches.location")}
                   </p>
                   <p>
-                    {branch.city} — {displayAddress}
+                    {branch.city} — {branch.address}
                   </p>
                 </div>
               </div>
@@ -132,14 +135,14 @@ export function BranchDetailClient() {
               </div>
               {branch.googleMapsUrl && (
                 <div className="flex items-center gap-2 text-sm">
-                  <ExternalLink className="h-4 w-4 text-primary shrink-0" />
+                  <Navigation className="h-4 w-4 text-primary shrink-0" />
                   <a
                     href={branch.googleMapsUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-primary hover:underline"
                   >
-                    Google Maps
+                    {t("branches.getDirections") ?? "Get Directions"}
                   </a>
                 </div>
               )}
@@ -149,13 +152,18 @@ export function BranchDetailClient() {
       </Card>
 
       {/* Holiday Manager */}
-      <HolidayManager branchId={branch.id} />
+      <HolidayManager
+        branchId={branch.id}
+        initialHolidays={branch.holidays}
+        onMutated={handleMutated}
+      />
 
       {/* Edit Dialog */}
       <BranchFormDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         branch={branch as unknown as BranchResponse}
+        onMutated={handleMutated}
       />
     </div>
   );

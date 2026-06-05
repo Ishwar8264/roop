@@ -34,6 +34,8 @@ model Branch {
   nameEn        String // "Rajouri Garden Branch"
   city          String // Delhi, Jaipur, Lucknow
   address       String // Full address
+  latitude      Float? // GPS latitude for static map
+  longitude     Float? // GPS longitude for static map
   googleMapsUrl String? // Direct Google Maps link
   phone         String // Branch contact number (10 digits)
   openTime      DateTime // "09:00" — shift start
@@ -78,25 +80,25 @@ model BranchHoliday {
 
 /// All platform users — customers, staff, and admins
 model User {
-  id            String   @id @default(cuid())
-  username      String?  @unique // Unique username for profile URL & login — nullable for Google users
-  mobile        String?  @unique // Indian 10-digit mobile — nullable for Google/email-only users. Unique when present.
-  phone         String?  @unique // Alias for mobile — used by profile API. Nullable, unique when present.
+  id            String    @id @default(cuid())
+  username      String?   @unique // Unique username for profile URL & login — nullable for Google users
+  mobile        String?   @unique // Indian 10-digit mobile — nullable for Google/email-only users. Unique when present.
+  phone         String?   @unique // Alias for mobile — used by profile API. Nullable, unique when present.
   name          String? // Full name (optional at registration)
-  email         String?  @unique // Email for email login + Google — unique when present
-  emailVerified Boolean  @default(false) // Whether email has been verified
-  phoneVerified Boolean  @default(false) // Whether phone has been verified
+  email         String?   @unique // Email for email login + Google — unique when present
+  emailVerified Boolean   @default(false) // Whether email has been verified
+  phoneVerified Boolean   @default(false) // Whether phone has been verified
   password      String? // Hashed password (bcrypt) — for email login only
-  googleId      String?  @unique // Google OAuth sub ID — unique when present
-  authProvider  String   @default("MOBILE") // Primary auth method: MOBILE | EMAIL | GOOGLE
-  role          String   @default("USER") // GUEST | USER | STAFF | ADMIN — enum enforced
+  googleId      String?   @unique // Google OAuth sub ID — unique when present
+  authProvider  String    @default("MOBILE") // Primary auth method: MOBILE | EMAIL | GOOGLE
+  role          String    @default("USER") // GUEST | USER | STAFF | ADMIN — enum enforced
   branchId      String? // For STAFF/ADMIN — which branch they belong to
   avatarUrl     String? // Profile photo URL (Cloudinary/S3)
-  loyaltyPoints Int      @default(0) // Accumulated loyalty points
-  isActive      Boolean  @default(true) // false = account suspended by admin
-  createdAt     DateTime @default(now()) // Account creation timestamp
+  loyaltyPoints Int       @default(0) // Accumulated loyalty points
+  isActive      Boolean   @default(true) // false = account suspended by admin
+  createdAt     DateTime  @default(now()) // Account creation timestamp
   lastLoginAt   DateTime? // Last login timestamp (any method)
-  updatedAt     DateTime @updatedAt
+  updatedAt     DateTime  @updatedAt
 
   // Relations
   sessions            Session[]
@@ -127,20 +129,20 @@ model User {
 
 /// Active auth sessions — JWT token tracking with refresh token rotation & device info
 model Session {
-  id              String   @id @default(cuid())
-  userId          String // Which user owns this session
-  refreshTokenHash String  @unique // SHA-256 hash of the refresh token — for rotation + reuse detection
-  deviceName      String? // "Chrome / Android" — parsed device name
-  deviceType      String? // mobile | desktop | tablet | unknown
-  browser         String? // Chrome, Firefox, Safari, etc.
-  os              String? // Windows, macOS, Android, iOS, etc.
-  ip              String? // IP address at login
-  country         String? // Country from IP geo
-  city            String? // City from IP geo
-  userAgent       String? // Raw User-Agent header
-  lastActiveAt    DateTime @default(now()) // Last time session was used
-  expiresAt       DateTime // Session expiry time (same as refresh token expiry)
-  createdAt       DateTime @default(now())
+  id               String   @id @default(cuid())
+  userId           String // Which user owns this session
+  refreshTokenHash String   @unique // SHA-256 hash of the refresh token — for rotation + reuse detection
+  deviceName       String? // "Chrome / Android" — parsed device name
+  deviceType       String? // mobile | desktop | tablet | unknown
+  browser          String? // Chrome, Firefox, Safari, etc.
+  os               String? // Windows, macOS, Android, iOS, etc.
+  ip               String? // IP address at login
+  country          String? // Country from IP geo
+  city             String? // City from IP geo
+  userAgent        String? // Raw User-Agent header
+  lastActiveAt     DateTime @default(now()) // Last time session was used
+  expiresAt        DateTime // Session expiry time (same as refresh token expiry)
+  createdAt        DateTime @default(now())
 
   // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -552,7 +554,7 @@ model Payment {
   bookingId       String // FK → Bookings
   amount          Decimal // Payment amount
   provider        String // RAZORPAY | CASH | UPI
-  status          String   @default("PENDING") // PENDING | SUCCESS | FAILED | REFUNDED
+  status          String    @default("PENDING") // PENDING | SUCCESS | FAILED | REFUNDED
   providerRefId   String? // Razorpay payment_id / UPI ref
   providerOrderId String? // Razorpay order_id
   receiptUrl      String? // Payment receipt URL
@@ -579,7 +581,7 @@ model Refund {
   paymentId     String // FK → Payments
   amount        Decimal // Refund amount
   reason        String // Why refund was requested
-  status        String   @default("PENDING") // PENDING | APPROVED | REJECTED | PROCESSED
+  status        String    @default("PENDING") // PENDING | APPROVED | REJECTED | PROCESSED
   processedBy   String? // Admin userId who processed
   providerRefId String? // Razorpay refund_id
   metadata      String? // Full provider response
@@ -600,17 +602,17 @@ model Refund {
 
 /// Pre-booking consultations — free consultations before actual service
 model Consultation {
-  id        String    @id @default(cuid())
+  id        String   @id @default(cuid())
   userId    String // FK → Users
-  bookingId String?   @unique // FK → Bookings (if consultation leads to booking)
+  bookingId String?  @unique // FK → Bookings (if consultation leads to booking)
   staffId   String? // Assigned staff for consultation
   branchId  String // Which branch
   date      DateTime // Consultation date
   time      DateTime // Consultation time
-  status    String    @default("PENDING") // PENDING | COMPLETED | CANCELLED
+  status    String   @default("PENDING") // PENDING | COMPLETED | CANCELLED
   notes     String? // Consultation notes by staff
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
   user    User     @relation(fields: [userId], references: [id], onDelete: Restrict)
@@ -749,16 +751,16 @@ model OfferRedemption {
 
 /// Notification log — audit trail for all messages sent
 model Notification {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   userId    String // Recipient user
   trigger   String? // What triggered this notification
   channel   String // WHATSAPP | SMS | EMAIL | PUSH
   title     String // Notification title
   message   String // Full message body
-  status    String   @default("PENDING") // PENDING | SENT | FAILED
+  status    String    @default("PENDING") // PENDING | SENT | FAILED
   sentAt    DateTime? // When actually sent
   metadata  String? // Extra delivery info (provider response, etc.)
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -871,15 +873,15 @@ model Product {
 
 /// Product sale — a retail sale transaction (like an order)
 model ProductSale {
-  id            String    @id @default(cuid())
+  id            String   @id @default(cuid())
   customerId    String // FK → Users (customer who bought)
   branchId      String // Which branch sold
   totalAmount   Decimal // Total sale amount
-  status        String    @default("PENDING") // PENDING | COMPLETED | CANCELLED
+  status        String   @default("PENDING") // PENDING | COMPLETED | CANCELLED
   paymentMethod String? // How they paid
   notes         String? // Any notes
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   // Relations
   customer User              @relation(fields: [customerId], references: [id], onDelete: Restrict)

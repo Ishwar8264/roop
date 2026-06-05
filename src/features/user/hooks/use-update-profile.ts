@@ -1,16 +1,15 @@
 /**
- * Purpose: React Query mutation to update user profile
+ * Purpose: Mutation hook to update user profile
  * Responsibility: Update name/email/phone via PATCH /api/user/profile
  * Important Notes:
+ *   - Uses plain fetch (no TanStack Query)
  *   - On success: updates Zustand store via setUser()
- *   - On success: invalidates profile query to refetch fresh data
  *   - Shows success/error toast
  */
 
 "use client";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "@/services/api-client";
+import { useState, useCallback } from "react";
 import { useAuthStore } from "@/stores/auth-store";
 import { toast } from "sonner";
 import { useTranslation } from "@/i18n/use-translation";
@@ -23,29 +22,38 @@ interface UpdateProfilePayload {
 }
 
 export function useUpdateProfile() {
-  const queryClient = useQueryClient();
+  const [isPending, setIsPending] = useState(false);
   const { t } = useTranslation();
 
-  return useMutation({
-    mutationFn: async (payload: UpdateProfilePayload) => {
-      const res = await apiClient.patch<ApiResponse<{ user: UserProfile }>>(
-        "/user/profile",
-        payload
-      );
-      return res.data;
-    },
-    onSuccess: (data) => {
-      // Update Zustand store
-      const { setUser } = useAuthStore.getState();
-      setUser(data.user as Partial<UserProfile>);
+  const mutate = useCallback(
+    async (payload: UpdateProfilePayload, onSuccess?: () => void) => {
+      setIsPending(true);
+      try {
+        const token = useAuthStore.getState().token;
+        const res = await fetch("/api/user/profile", {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          credentials: "same-origin",
+          body: JSON.stringify(payload),
+        });
+        const json: ApiResponse<{ user: UserProfile }> = await res.json();
+        if (!res.ok) throw new Error(json.message || "Error");
 
-      // Invalidate profile query to refetch
-      queryClient.invalidateQueries({ queryKey: ["profile"] });
+        const { setUser } = useAuthStore.getState();
+        setUser(json.data!.user as Partial<UserProfile>);
+        toast.success(t("profile.profileUpdated"));
+        onSuccess?.();
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : t("common.somethingWrong"));
+      } finally {
+        setIsPending(false);
+      }
+    },
+    [t]
+  );
 
-      toast.success(t("profile.profileUpdated"));
-    },
-    onError: (error: Error) => {
-      toast.error(error.message || t("common.somethingWrong"));
-    },
-  });
+  return { mutate, isPending };
 }

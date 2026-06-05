@@ -1,16 +1,16 @@
 /**
- * Purpose: React Query hook to fetch user's avatar gallery from Cloudinary
- * Responsibility: Fetch and cache gallery images for the avatar dialog
+ * Purpose: Fetch user's avatar gallery from Cloudinary
+ * Responsibility: Fetch gallery images for the avatar dialog
  * Important Notes:
- *   - Caches for 2 minutes (staleTime)
+ *   - Uses plain fetch (no TanStack Query)
  *   - Returns typed gallery image data
- *   - Uses apiClient for authenticated requests
+ *   - Manual trigger only (call refetch when needed)
  */
 
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { apiClient } from "@/services/api-client";
+import { useState, useCallback } from "react";
+import { useAuthStore } from "@/stores/auth-store";
 import type { ApiResponse } from "@/types";
 
 export interface GalleryImage {
@@ -27,13 +27,31 @@ interface GalleryData {
 }
 
 export function useAvatarGallery() {
-  return useQuery({
-    queryKey: ["avatar-gallery"],
-    queryFn: async () => {
-      const res = await apiClient.get<ApiResponse<GalleryData>>("/user/avatar/gallery");
-      return res.data;
-    },
-    staleTime: 2 * 60 * 1000, // 2 minutes
-    enabled: false, // Only fetch when explicitly triggered (on tab switch)
-  });
+  const [data, setData] = useState<GalleryData | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  const refetch = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const token = useAuthStore.getState().token;
+      const res = await fetch("/api/user/avatar/gallery", {
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        credentials: "same-origin",
+      });
+      const json: ApiResponse<GalleryData> = await res.json();
+      if (!res.ok) throw new Error(json.message || "Error");
+      setData(json.data ?? null);
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error("Unknown error"));
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  return { data, isLoading, error, refetch };
 }

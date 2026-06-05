@@ -1,51 +1,97 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Plus, Trash2, CalendarDays } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useHolidays } from "@/features/branch/hooks/use-holidays";
-import { useAddHoliday } from "@/features/branch/hooks/use-add-holiday";
-import { useRemoveHoliday } from "@/features/branch/hooks/use-remove-holiday";
 import { useAuthStore } from "@/stores/auth-store";
 import { useTranslation } from "@/i18n/use-translation";
 import { useLocaleStore } from "@/i18n/locale-store";
-import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
+import type { BranchHolidayResponse } from "@/features/branch/types";
 
-export function HolidayManager({ branchId }: { branchId: string }) {
+interface HolidayManagerProps {
+  branchId: string;
+  initialHolidays: BranchHolidayResponse[];
+  onMutated?: () => void;
+}
+
+export function HolidayManager({ branchId, initialHolidays, onMutated }: HolidayManagerProps) {
   const { t } = useTranslation();
   const { locale } = useLocaleStore();
   const { user } = useAuthStore();
   const isAdmin = user?.role === "ADMIN";
-  const { data: holidays, isLoading } = useHolidays(branchId);
-  const addHoliday = useAddHoliday(branchId);
-  const removeHoliday = useRemoveHoliday(branchId);
 
+  const [holidays, setHolidays] = useState<BranchHolidayResponse[]>(initialHolidays);
   const [showForm, setShowForm] = useState(false);
   const [date, setDate] = useState("");
   const [reasonHi, setReasonHi] = useState("");
   const [reasonEn, setReasonEn] = useState("");
+  const [isAdding, setIsAdding] = useState(false);
+  const [removingId, setRemovingId] = useState<string | null>(null);
 
-  const handleAdd = () => {
+  const handleAdd = useCallback(async () => {
     if (!date || !reasonHi.trim()) return;
-    addHoliday.mutate(
-      {
-        date,
-        reasonHi: reasonHi.trim(),
-        reasonEn: reasonEn.trim() || undefined,
-      },
-      {
-        onSuccess: () => {
-          setDate("");
-          setReasonHi("");
-          setReasonEn("");
-          setShowForm(false);
+    setIsAdding(true);
+    try {
+      const token = useAuthStore.getState().token;
+      const res = await fetch(`/api/branches/${branchId}/holidays`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-      }
-    );
-  };
+        credentials: "same-origin",
+        body: JSON.stringify({
+          date,
+          reasonHi: reasonHi.trim(),
+          reasonEn: reasonEn.trim() || undefined,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message || "Error");
+
+      toast.success(t("branches.holidayAdded") ?? "Holiday added");
+      setHolidays((prev) => [...prev, json.data]);
+      setDate("");
+      setReasonHi("");
+      setReasonEn("");
+      setShowForm(false);
+      onMutated?.();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("common.somethingWrong"));
+    } finally {
+      setIsAdding(false);
+    }
+  }, [date, reasonHi, reasonEn, branchId, t, onMutated]);
+
+  const handleRemove = useCallback(async (holidayId: string) => {
+    if (!confirm(t("branches.removeHolidayConfirm"))) return;
+    setRemovingId(holidayId);
+    try {
+      const token = useAuthStore.getState().token;
+      const res = await fetch(`/api/branches/${branchId}/holidays/${holidayId}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        credentials: "same-origin",
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message || "Error");
+
+      toast.success(t("branches.holidayRemoved") ?? "Holiday removed");
+      setHolidays((prev) => prev.filter((h) => h.id !== holidayId));
+      onMutated?.();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("common.somethingWrong"));
+    } finally {
+      setRemovingId(null);
+    }
+  }, [branchId, t, onMutated]);
 
   return (
     <Card>
@@ -106,14 +152,10 @@ export function HolidayManager({ branchId }: { branchId: string }) {
               <Button
                 size="sm"
                 onClick={handleAdd}
-                disabled={
-                  addHoliday.isPending || !date || !reasonHi.trim()
-                }
+                disabled={isAdding || !date || !reasonHi.trim()}
                 className="h-7 text-xs bg-primary hover:bg-primary/90 text-primary-foreground"
               >
-                {addHoliday.isPending
-                  ? t("common.loading")
-                  : t("common.save")}
+                {isAdding ? t("common.loading") : t("common.save")}
               </Button>
               <Button
                 size="sm"
@@ -127,13 +169,7 @@ export function HolidayManager({ branchId }: { branchId: string }) {
           </div>
         )}
 
-        {isLoading ? (
-          <div className="space-y-2">
-            {[1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-10 w-full" />
-            ))}
-          </div>
-        ) : holidays && holidays.length > 0 ? (
+        {holidays.length > 0 ? (
           <div className="space-y-1.5">
             {holidays.map((h) => (
               <div
@@ -153,10 +189,8 @@ export function HolidayManager({ branchId }: { branchId: string }) {
                     size="icon"
                     variant="ghost"
                     className="h-7 w-7 text-destructive hover:text-destructive"
-                    onClick={() => {
-                      if (confirm(t("branches.removeHolidayConfirm")))
-                        removeHoliday.mutate(h.id);
-                    }}
+                    disabled={removingId === h.id}
+                    onClick={() => handleRemove(h.id)}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>

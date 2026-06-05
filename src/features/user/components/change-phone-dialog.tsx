@@ -33,7 +33,7 @@ interface ChangePhoneDialogProps {
 
 export function ChangePhoneDialog({ open, onOpenChange }: ChangePhoneDialogProps) {
   const { t } = useTranslation();
-  const { sendOtp, verifyOtp, step, setStep } = useChangePhone();
+  const { sendOtp, verifyOtp, step, setStep, isSending, isVerifying } = useChangePhone();
 
   const [newPhone, setNewPhone] = useState("");
   const [otp, setOtp] = useState("");
@@ -59,19 +59,17 @@ export function ChangePhoneDialog({ open, onOpenChange }: ChangePhoneDialogProps
     }
 
     setPhoneError("");
-    sendOtp.mutate(newPhone.replace(/\D/g, ""));
+    sendOtp(newPhone.replace(/\D/g, ""));
   }, [newPhone, sendOtp, t]);
 
   const handleVerifyOtp = useCallback(() => {
     if (otp.length !== 6) return;
 
-    verifyOtp.mutate(
+    verifyOtp(
       { newPhone: newPhone.replace(/\D/g, ""), otp },
-      {
-        onSuccess: () => {
-          resetForm();
-          onOpenChange(false);
-        },
+      () => {
+        resetForm();
+        onOpenChange(false);
       }
     );
   }, [otp, newPhone, verifyOtp, resetForm, onOpenChange]);
@@ -125,7 +123,7 @@ export function ChangePhoneDialog({ open, onOpenChange }: ChangePhoneDialogProps
               <OtpInput
                 value={otp}
                 onChange={setOtp}
-                disabled={verifyOtp.isPending}
+                disabled={isVerifying}
               />
             </div>
           )}
@@ -137,16 +135,16 @@ export function ChangePhoneDialog({ open, onOpenChange }: ChangePhoneDialogProps
               <Button
                 variant="ghost"
                 onClick={() => handleOpenChange(false)}
-                disabled={sendOtp.isPending}
+                disabled={isSending}
               >
                 {t("common.cancel")}
               </Button>
               <Button
                 className="bg-rose-500 hover:bg-rose-600 text-white"
                 onClick={handleSendOtp}
-                disabled={sendOtp.isPending || !newPhone.trim()}
+                disabled={isSending || !newPhone.trim()}
               >
-                {sendOtp.isPending ? t("common.loading") : t("auth.sendOtp")}
+                {isSending ? t("common.loading") : t("auth.sendOtp")}
               </Button>
             </>
           ) : (
@@ -154,16 +152,16 @@ export function ChangePhoneDialog({ open, onOpenChange }: ChangePhoneDialogProps
               <Button
                 variant="ghost"
                 onClick={() => setStep(1)}
-                disabled={verifyOtp.isPending}
+                disabled={isVerifying}
               >
                 {t("auth.changeNumber")}
               </Button>
               <Button
                 className="bg-rose-500 hover:bg-rose-600 text-white"
                 onClick={handleVerifyOtp}
-                disabled={verifyOtp.isPending || otp.length !== 6}
+                disabled={isVerifying || otp.length !== 6}
               >
-                {verifyOtp.isPending ? t("common.loading") : t("auth.verifyOtp")}
+                {isVerifying ? t("common.loading") : t("auth.verifyOtp")}
               </Button>
             </>
           )}

@@ -93,11 +93,9 @@ export function ChangePasswordDialog({ open, onOpenChange }: ChangePasswordDialo
         currentPassword,
         newPassword,
       },
-      {
-        onSuccess: () => {
-          resetForm();
-          onOpenChange(false);
-        },
+      () => {
+        resetForm();
+        onOpenChange(false);
       }
     );
   }, [currentPassword, newPassword, confirmNewPassword, changePassword, resetForm, onOpenChange]);

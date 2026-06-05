@@ -1,6 +1,6 @@
 /**
- * Purpose: Auth initialization provider, React Query wrapper, and client-side auth state sync
- * Responsibility: Initialize auth state on mount, sync Zustand with /api/auth/me, provide QueryClient
+ * Purpose: Auth initialization provider
+ * Responsibility: Initialize auth state on mount, sync Zustand with /api/auth/me
  * Important Notes:
  *   - Must be "use client" — uses useEffect, useState
  *   - Wrap this around {children} in root layout — ONE time only
@@ -19,37 +19,10 @@
 
 import { useState, useEffect, useCallback, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useAuthStore } from "@/stores/auth-store";
 import { apiClient } from "@/services/api-client";
 import type { ApiResponse } from "@/types";
 import type { UserProfile } from "@/types";
-
-// ==================== Query Client ====================
-
-function makeQueryClient() {
-  return new QueryClient({
-    defaultOptions: {
-      queries: {
-        staleTime: 60 * 1000,
-        retry: 1,
-        refetchOnWindowFocus: false,
-      },
-    },
-  });
-}
-
-let browserQueryClient: QueryClient | undefined;
-
-function getQueryClient() {
-  if (typeof window === "undefined") {
-    return makeQueryClient();
-  }
-  if (!browserQueryClient) {
-    browserQueryClient = makeQueryClient();
-  }
-  return browserQueryClient;
-}
 
 // ==================== Auth Pages ====================
 
@@ -93,7 +66,6 @@ function waitForRehydration(): Promise<void> {
 // ==================== Auth Provider ====================
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const queryClient = getQueryClient();
   const pathname = usePathname();
   const [isReady, setIsReady] = useState(false);
 
@@ -135,6 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const controller = new AbortController();
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- auth init must set ready state
     initAuth(controller.signal);
 
     // Safety timeout — don't block UI forever if API is slow
@@ -172,7 +145,5 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
   }
 
-  return (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-  );
+  return <>{children}</>;
 }
