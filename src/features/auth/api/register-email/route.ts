@@ -8,9 +8,9 @@ import { prisma } from "@/lib/database/prisma";
 import { hashPassword } from "@/lib/server/crypto";
 import { logAuthEvent } from "@/features/auth/services/auth-event-service";
 import { createSession, getUserWithProviders } from "@/features/auth/services/session-service";
-import { setRefreshTokenCookie } from "@/lib/server/cookies";
+import { setAccessTokenCookie, setRefreshTokenCookie } from "@/lib/server/cookies";
 import { registerEmailSchema } from "@/features/auth/validations/auth";
-import { AuthEmailExistsError, AuthPhoneExistsError, isAppError, toAppError } from "@/lib/server/errors";
+import { AuthEmailExistsError, AuthPhoneExistsError, isAppError } from "@/lib/server/errors";
 import { HTTP_STATUS, ERROR_CODES } from "@/shared/constants";
 import { Prisma } from "@prisma/client";
 
@@ -54,14 +54,15 @@ export async function POST(request: NextRequest) {
     // Get user with providers
     const fullUser = await getUserWithProviders(user.id);
 
-    // Build response — accessToken in JSON, refreshToken in HttpOnly cookie ONLY
+    // Build response — tokens are HttpOnly cookies only
     const response = NextResponse.json({
       success: true,
-      data: { user: fullUser, tokens: { accessToken } },
+      data: { user: fullUser },
       message: "Registration successful! Welcome to Nikharta Roop.",
     }, { status: 201 });
 
     setRefreshTokenCookie(response, refreshToken);
+    setAccessTokenCookie(response, accessToken);
 
     await logAuthEvent("REGISTER_EMAIL", request, { userId: user.id, identifier: email, metadata: { authProvider: "EMAIL" } });
 

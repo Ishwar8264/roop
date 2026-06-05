@@ -73,6 +73,18 @@ export function getRefreshTokenFromCookie(
   return request.cookies.get(SESSION_CONFIG.REFRESH_TOKEN_COOKIE)?.value ?? null;
 }
 
+// ==================== GET ACCESS TOKEN FROM COOKIE ====================
+
+/**
+ * Extract access token from the HttpOnly request cookie
+ * Used by server-side auth guards for browser requests
+ */
+export function getAccessTokenFromCookie(
+  request: NextRequest
+): string | null {
+  return request.cookies.get(SESSION_CONFIG.ACCESS_TOKEN_COOKIE)?.value ?? null;
+}
+
 // ==================== CLEAR AUTH COOKIES ====================
 
 /**

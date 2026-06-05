@@ -1,15 +1,16 @@
 /**
  * Purpose: API client for Nikharta Roop backend communication
- * Responsibility: Handle all HTTP requests, responses, error normalization, and auth token management
+ * Responsibility: Handle HTTP requests, responses, error normalization, and cookie refresh
  * Important Notes:
  *   - Never call APIs directly from UI components — use this service layer
- *   - Access token read from Zustand store (RAM) — NOT from storage
- *   - Auto-refresh on 401 with retry — user never sees token expiry
- *   - Refresh token sent via HttpOnly cookie (browser auto-includes)
+ *   - Tokens are never readable by client JavaScript
+ *   - Access + refresh tokens are sent through HttpOnly same-origin cookies
+ *   - Auto-refresh on 401 with retry keeps normal API calls smooth
  *   - Refresh mutex prevents concurrent refresh calls
  */
 
 import type { ApiResponse, ApiError } from "@/types";
+import { useAuthStore } from "@/stores/auth-store";
 
 // ==================== Base Config ====================
 
@@ -35,23 +36,6 @@ let isRefreshing = false;
 let refreshPromise: Promise<boolean> | null = null;
 
 /**
- * Get the current access token from Zustand store
- * Import is deferred to avoid circular dependency at module load time
- */
-function getStoreToken(): string | null {
-  const { useAuthStore } = require("@/stores/auth-store");
-  return useAuthStore.getState().token;
-}
-
-/**
- * Set new access token in Zustand store after refresh
- */
-function setStoreToken(token: string): void {
-  const { useAuthStore } = require("@/stores/auth-store");
-  useAuthStore.getState().setToken(token);
-}
-
-/**
  * Attempt to refresh the access token using the HttpOnly refresh cookie
  * Returns true if refresh succeeded, false otherwise
  * Uses mutex to prevent concurrent refresh calls
@@ -75,15 +59,8 @@ async function refreshAccessToken(): Promise<boolean> {
 
       if (!response.ok) return false;
 
-      const data: ApiResponse<{ tokens: { accessToken: string; refreshToken: string } }> =
-        await response.json();
-
-      if (data.success && data.data?.tokens?.accessToken) {
-        setStoreToken(data.data.tokens.accessToken);
-        return true;
-      }
-
-      return false;
+      const data: ApiResponse<Record<string, never>> = await response.json();
+      return !!data.success;
     } catch {
       return false;
     } finally {
@@ -101,11 +78,8 @@ async function request<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const token = getStoreToken();
-
   const headers: HeadersInit = {
     "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...((options.headers as Record<string, string>) || {}),
   };
 
@@ -115,21 +89,20 @@ async function request<T>(
     credentials: "same-origin", // Ensure cookies are sent AND received (Set-Cookie processed)
   });
 
-  // Auto-refresh on 401 — token expired
-  if (response.status === 401 && token) {
+  // Auto-refresh on 401 — access cookie expired or missing but refresh cookie may still be valid
+  if (response.status === 401 && endpoint !== "/auth/refresh") {
     const refreshed = await refreshAccessToken();
 
     if (refreshed) {
-      const newToken = getStoreToken();
       const retryHeaders: HeadersInit = {
         "Content-Type": "application/json",
-        ...(newToken ? { Authorization: `Bearer ${newToken}` } : {}),
         ...((options.headers as Record<string, string>) || {}),
       };
 
       const retryResponse = await fetch(`${API_BASE_URL}${endpoint}`, {
         ...options,
         headers: retryHeaders,
+        credentials: "same-origin",
       });
 
       const retryData = await retryResponse.json();
@@ -145,7 +118,6 @@ async function request<T>(
 
       return retryData as T;
     } else {
-      const { useAuthStore } = require("@/stores/auth-store");
       useAuthStore.getState().logout();
       if (typeof window !== "undefined") {
         window.location.href = "/login";
@@ -217,14 +189,13 @@ export const apiClient = {
 // ==================== Legacy Token Helpers ====================
 
 export function setAuthToken(token: string): void {
-  setStoreToken(token);
+  void token;
 }
 
 export function removeAuthToken(): void {
-  const { useAuthStore } = require("@/stores/auth-store");
-  useAuthStore.getState().setToken(null as unknown as string);
+  // Tokens are HttpOnly cookies; clearing happens through /api/auth/logout.
 }
 
 export function getAuthToken(): string | null {
-  return getStoreToken();
+  return null;
 }

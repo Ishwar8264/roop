@@ -30,7 +30,6 @@ export interface User {
 export interface AuthSession {
   id: string;
   userId: string;
-  token: string;
   device: string | null;
   ip: string | null;
   expiresAt: Date;
@@ -63,8 +62,7 @@ export interface AuthEvent {
 // ==================== Frontend State ====================
 
 export interface AuthState {
-  user: User | null;
-  token: string | null;
+  user: UserProfile | null;
   isAuthenticated: boolean;
   isLoading: boolean;
 }
@@ -84,16 +82,9 @@ export interface UserProfile {
   authProvider: AuthProvider;
 }
 
-/** JWT token pair returned after login/refresh */
-export interface TokenPair {
-  accessToken: string;
-  refreshToken: string;
-}
-
 /** Response from verify-otp endpoint */
 export interface OTPVerifyResponse {
   user: UserProfile;
-  tokens: TokenPair;
   isNewUser: boolean;
 }
 
@@ -109,26 +100,21 @@ export interface SendOtpResponse {
 /** Response from register-email endpoint */
 export interface RegisterEmailResponse {
   user: UserProfile;
-  tokens: TokenPair;
 }
 
 /** Response from login-email endpoint */
 export interface LoginEmailResponse {
   user: UserProfile;
-  tokens: TokenPair;
 }
 
 /** Response from google auth endpoint */
 export interface GoogleAuthResponse {
   user: UserProfile;
-  tokens: TokenPair;
   isNewUser: boolean;
 }
 
 /** Response from refresh endpoint */
-export interface RefreshTokenResponse {
-  tokens: TokenPair;
-}
+export type RefreshTokenResponse = Record<string, never>;
 
 /** Response from logout endpoint */
 export interface LogoutResponse {

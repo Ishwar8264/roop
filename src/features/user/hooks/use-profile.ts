@@ -23,11 +23,9 @@ export function useProfile() {
     setIsLoading(true);
     setError(null);
     try {
-      const token = useAuthStore.getState().token;
       const res = await fetch("/api/auth/me", {
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         credentials: "same-origin",
       });

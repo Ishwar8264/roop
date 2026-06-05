@@ -13,10 +13,10 @@
  *   3. Backend verifies idToken with Google
  *   4. Extracts email, name, googleId (sub) from token
  *   5. Finds existing user by googleId or email, or creates new user
- *   6. Returns JWT tokens
+ *   6. Sets HttpOnly auth cookies and returns public user data
  *
  * Responses:
- *   200: { success: true, data: { user, tokens, isNewUser }, message }
+ *   200: { success: true, data: { user, isNewUser }, message }
  *   400: { success: false, error: "VAL_INVALID_INPUT", message, statusCode: 400 }
  *   401: { success: false, error: "AUTH_GOOGLE_TOKEN_INVALID", message, statusCode: 401 }
  */
@@ -167,7 +167,6 @@ export const POST = createApiHandler({
         success: true,
         data: {
           ...publicData,
-          tokens: tokenData ? { accessToken: tokenData.accessToken } : undefined,
         },
         message: "Google login successful!",
       },

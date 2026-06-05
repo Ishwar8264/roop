@@ -10,7 +10,6 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { useAuthStore } from "@/stores/auth-store";
 import { toast } from "sonner";
 import { useTranslation } from "@/i18n/use-translation";
 import type { ApiResponse } from "@/types";
@@ -28,12 +27,10 @@ export function useChangePassword() {
     async (payload: ChangePasswordPayload, onSuccess?: () => void) => {
       setIsPending(true);
       try {
-        const token = useAuthStore.getState().token;
         const res = await fetch("/api/auth/change-password", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
           credentials: "same-origin",
           body: JSON.stringify(payload),

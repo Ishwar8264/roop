@@ -1,3 +1,11 @@
+/**
+ * Purpose: Branch summary card
+ * Responsibility: Render branch details and admin branch actions
+ * Important Notes:
+ *   - Client component for admin action state
+ *   - Auth is sent through HttpOnly same-origin cookies
+ */
+
 "use client";
 
 import { useState } from "react";
@@ -48,10 +56,9 @@ export function BranchCard({ branch, onEdit, variant = "app", onMutated }: Branc
     if (isToggling) return;
     setIsToggling(true);
     try {
-      const token = useAuthStore.getState().token;
       const res = await fetch(`/api/branches/${branch.id}/toggle-active`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        headers: { "Content-Type": "application/json" },
         credentials: "same-origin",
       });
       const data = await res.json();
@@ -71,10 +78,9 @@ export function BranchCard({ branch, onEdit, variant = "app", onMutated }: Branc
     if (!confirm(t("branches.deactivateConfirm"))) return;
     setIsDeactivating(true);
     try {
-      const token = useAuthStore.getState().token;
       const res = await fetch(`/api/branches/${branch.id}`, {
         method: "DELETE",
-        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        headers: { "Content-Type": "application/json" },
         credentials: "same-origin",
       });
       const data = await res.json();

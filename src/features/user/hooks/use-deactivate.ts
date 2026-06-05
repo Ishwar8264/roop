@@ -30,12 +30,10 @@ export function useDeactivate() {
     async (payload: DeactivatePayload, onSuccess?: () => void) => {
       setIsPending(true);
       try {
-        const token = useAuthStore.getState().token;
         const res = await fetch("/api/user/deactivate", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
           credentials: "same-origin",
           body: JSON.stringify(payload),

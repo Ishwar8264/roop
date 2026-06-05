@@ -7,6 +7,7 @@
  */
 
 import { z } from "zod";
+import type { UserProfile } from "@/types";
 
 // ==================== Primitives ====================
 
@@ -103,12 +104,10 @@ export type RegisterOtpForm = z.infer<typeof registerOtpSchema>;
 // ==================== Callback Types ====================
 
 export interface LoginSuccessData {
-  user: { id: string; name: string | null; mobile: string | null; email: string | null };
-  token: string;
+  user: UserProfile;
   isNewUser?: boolean;
 }
 
 export interface RegisterSuccessData {
-  user: { id: string; name: string | null; mobile: string | null; email: string | null };
-  token: string;
+  user: UserProfile;
 }

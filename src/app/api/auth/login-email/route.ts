@@ -9,7 +9,7 @@
  *   password: string (required)
  *
  * Responses:
- *   200: { success: true, data: { user, tokens }, message }
+ *   200: { success: true, data: { user }, message }
  *   400: { success: false, error: "VAL_INVALID_INPUT", message, statusCode: 400 }
  *   401: { success: false, error: "AUTH_INVALID_CREDENTIALS"|"AUTH_ACCOUNT_SUSPENDED", message, statusCode: 401 }
  */
@@ -87,7 +87,6 @@ export const POST = createApiHandler({
         success: true,
         data: {
           ...publicData,
-          tokens: tokenData ? { accessToken: tokenData.accessToken } : undefined,
         },
         message: "Login successful!",
       },
