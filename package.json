@@ -3,10 +3,12 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack -p 3000",
+    "dev": "next dev",
     "build": "next build",
-    "start": "next start -p 3000",
+    "start": "next start",
     "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "doctor": "react-doctor --score .",
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
@@ -14,12 +16,7 @@
     "db:seed": "npx tsx prisma/seed.ts",
     "db:studio": "prisma studio",
     "postinstall": "prisma generate",
-    "prepare": "husky",
-    "lint-staged": "lint-staged",
-    "typecheck": "tsc --noEmit",
-    "doctor": "react-doctor --score .",
-    "doctors": "react-doctor --score .",
-    "check-all": "npm run lint && npm run typecheck && npm run doctors"
+    "prepare": "husky"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
