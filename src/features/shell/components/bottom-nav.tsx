@@ -50,6 +50,3 @@ export function BottomNav() {
     </nav>
   );
 }
-
-// Re-export for backward compatibility
-export { bottomNavItemHrefs as bottomNavItems };
