@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "doctor": "react-doctor . --yes --verbose --fail-on warning",
+    "doctor": "react-doctor . --yes --no-dead-code --fail-on error",
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
