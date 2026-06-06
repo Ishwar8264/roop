@@ -154,7 +154,7 @@ async function isPageAuthenticated(request: NextRequest): Promise<boolean> {
   // Debug: log which cookies are present when auth fails (dev only)
   if (process.env.NODE_ENV === "development") {
     const allCookies = request.cookies.getAll().map(c => c.name);
-    console.log(`[PROXY] Page auth FAILED for ${request.nextUrl.pathname}. Cookies present: [${allCookies.join(", ")}]`);
+    console.warn(`[PROXY] Page auth FAILED for ${request.nextUrl.pathname}. Cookies present: [${allCookies.join(", ")}]`);
   }
 
   return false;

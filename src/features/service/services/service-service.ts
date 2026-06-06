@@ -24,7 +24,7 @@ import {
   ServiceAddOnNotFoundError,
   ServiceAddOnAlreadyInactiveError,
 } from "@/lib/server/errors";
-import type { NextRequest } from "next/server";
+import type { NextRequest as _NextRequest } from "next/server";
 import type {
   ServiceCategoryResponse,
   ServiceCategoryListResponse,
@@ -46,7 +46,7 @@ import type {
   CreateServiceAddOnInput,
   UpdateServiceAddOnInput,
 } from "@/features/service/validations/service";
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 
 // Re-export requireAdmin for convenience in route files
 export { requireAdmin };
@@ -57,7 +57,7 @@ export { requireAdmin };
  * Extract service category ID from URL pathname
  * Works for /api/service-categories/[id] patterns
  */
-export function extractCategoryIdFromUrl(url: string): string {
+function _extractCategoryIdFromUrl(url: string): string {
   const pathname = new URL(url).pathname;
   const segments = pathname.split("/").filter(Boolean);
   // /api/service-categories/[id] → segments: ['api', 'service-categories', 'id']
@@ -79,7 +79,7 @@ export function extractServiceIdFromUrl(url: string): string {
  * Extract variant ID from URL pathname
  * Works for /api/services/[id]/variants/[variantId]
  */
-export function extractVariantIdFromUrl(url: string): string {
+function _extractVariantIdFromUrl(url: string): string {
   const pathname = new URL(url).pathname;
   const segments = pathname.split("/").filter(Boolean);
   // /api/services/[id]/variants/[variantId] → segments: ['api', 'services', 'id', 'variants', 'variantId']
@@ -232,7 +232,7 @@ function mapAddOnToResponse(addOn: {
  * List service categories
  * Public endpoint — no auth required
  */
-export async function listServiceCategories(query: ServiceCategoryListQuery): Promise<ServiceCategoryListResponse> {
+async function _listServiceCategories(query: ServiceCategoryListQuery): Promise<ServiceCategoryListResponse> {
   const { includeInactive = false } = query;
 
   const where: Prisma.ServiceCategoryWhereInput = {};
@@ -259,7 +259,7 @@ export async function listServiceCategories(query: ServiceCategoryListQuery): Pr
  * Create a new service category
  * Admin only
  */
-export async function createServiceCategory(data: CreateServiceCategoryInput): Promise<ServiceCategoryResponse> {
+async function _createServiceCategory(data: CreateServiceCategoryInput): Promise<ServiceCategoryResponse> {
   try {
     const category = await prisma.serviceCategory.create({
       data: {
@@ -288,7 +288,7 @@ export async function createServiceCategory(data: CreateServiceCategoryInput): P
  * Update an existing service category (partial update)
  * Admin only
  */
-export async function updateServiceCategory(id: string, data: UpdateServiceCategoryInput): Promise<ServiceCategoryResponse> {
+async function _updateServiceCategory(id: string, data: UpdateServiceCategoryInput): Promise<ServiceCategoryResponse> {
   const existing = await prisma.serviceCategory.findUnique({ where: { id } });
   if (!existing) {
     throw new ServiceCategoryNotFoundError();
@@ -325,7 +325,7 @@ export async function updateServiceCategory(id: string, data: UpdateServiceCateg
  * Soft delete service category — sets isActive = false
  * Admin only
  */
-export async function deactivateServiceCategory(id: string): Promise<ServiceCategoryResponse> {
+async function _deactivateServiceCategory(id: string): Promise<ServiceCategoryResponse> {
   const existing = await prisma.serviceCategory.findUnique({ where: { id } });
   if (!existing) {
     throw new ServiceCategoryNotFoundError();
@@ -349,7 +349,7 @@ export async function deactivateServiceCategory(id: string): Promise<ServiceCate
  * List services with filtering and pagination
  * Public endpoint — no auth required
  */
-export async function listServices(query: ServiceListQuery): Promise<ServiceListResponse> {
+async function _listServices(query: ServiceListQuery): Promise<ServiceListResponse> {
   const { branchId, categoryId, includeInactive = false, page = 1, limit = 20 } = query;
 
   const where: Prisma.ServiceWhereInput = {};
@@ -400,7 +400,7 @@ export async function listServices(query: ServiceListQuery): Promise<ServiceList
  * Get single service with category, variants, and addOns
  * Public endpoint — no auth required
  */
-export async function getServiceById(id: string): Promise<ServiceDetailResponse> {
+async function _getServiceById(id: string): Promise<ServiceDetailResponse> {
   const service = await prisma.service.findUnique({
     where: { id },
     include: {
@@ -434,7 +434,7 @@ export async function getServiceById(id: string): Promise<ServiceDetailResponse>
  * Create a new service
  * Admin only
  */
-export async function createService(data: CreateServiceInput): Promise<ServiceResponse> {
+async function _createService(data: CreateServiceInput): Promise<ServiceResponse> {
   try {
     const service = await prisma.service.create({
       data: {
@@ -477,7 +477,7 @@ export async function createService(data: CreateServiceInput): Promise<ServiceRe
  * Update an existing service (partial update)
  * Admin only
  */
-export async function updateService(id: string, data: UpdateServiceInput): Promise<ServiceResponse> {
+async function _updateService(id: string, data: UpdateServiceInput): Promise<ServiceResponse> {
   const existing = await prisma.service.findUnique({ where: { id } });
   if (!existing) {
     throw new ServiceNotFoundError();
@@ -528,7 +528,7 @@ export async function updateService(id: string, data: UpdateServiceInput): Promi
  * Soft delete service — sets isActive = false
  * Admin only
  */
-export async function deactivateService(id: string): Promise<ServiceResponse> {
+async function _deactivateService(id: string): Promise<ServiceResponse> {
   const existing = await prisma.service.findUnique({ where: { id } });
   if (!existing) {
     throw new ServiceNotFoundError();
@@ -560,7 +560,7 @@ export async function deactivateService(id: string): Promise<ServiceResponse> {
  * List variants for a service
  * Public endpoint
  */
-export async function listServiceVariants(serviceId: string): Promise<ServiceVariantResponse[]> {
+async function _listServiceVariants(serviceId: string): Promise<ServiceVariantResponse[]> {
   // Verify service exists
   const service = await prisma.service.findUnique({ where: { id: serviceId } });
   if (!service) {
@@ -579,7 +579,7 @@ export async function listServiceVariants(serviceId: string): Promise<ServiceVar
  * Create a new service variant
  * Admin only
  */
-export async function createServiceVariant(
+async function _createServiceVariant(
   serviceId: string,
   data: CreateServiceVariantInput
 ): Promise<ServiceVariantResponse> {
@@ -607,7 +607,7 @@ export async function createServiceVariant(
  * Update a service variant
  * Admin only
  */
-export async function updateServiceVariant(
+async function _updateServiceVariant(
   serviceId: string,
   variantId: string,
   data: UpdateServiceVariantInput
@@ -641,7 +641,7 @@ export async function updateServiceVariant(
  * Soft delete service variant — sets isActive = false
  * Admin only
  */
-export async function deactivateServiceVariant(
+async function _deactivateServiceVariant(
   serviceId: string,
   variantId: string
 ): Promise<ServiceVariantResponse> {

@@ -15,7 +15,7 @@ import { cuid, nonEmptyString, decimalString, pageParam, pageSizeParam } from ".
 // ==================== DISCOUNT TYPE ENUM ====================
 
 /** Discount type enum matching Prisma DiscountType */
-export const discountTypeEnum = z.enum(["PERCENTAGE", "FLAT_AMOUNT"]);
+const discountTypeEnum = z.enum(["PERCENTAGE", "FLAT_AMOUNT"]);
 
 // ==================== CREATE OFFER ====================
 

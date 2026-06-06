@@ -12,7 +12,7 @@
 
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, User, Shield, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,12 @@ import { useUpdateProfile } from "@/features/user/hooks/use-update-profile";
 import { useAuthStore } from "@/stores/auth-store";
 import { useTranslation } from "@/i18n/use-translation";
 
+type SettingsDraft = {
+  name: string;
+  email: string;
+  phone: string;
+};
+
 export function SettingsClient() {
   const router = useRouter();
   const { t } = useTranslation();
@@ -37,43 +43,38 @@ export function SettingsClient() {
 
   const displayUser = profileData?.user || user;
 
-  const [name, setName] = useState(displayUser?.name || "");
-  const [email, setEmail] = useState(displayUser?.email || "");
-  const [phone, setPhone] = useState(displayUser?.mobile || "");
-  const [isEditing, setIsEditing] = useState(false);
+  const [draft, setDraft] = useState<SettingsDraft | null>(null);
 
-  // Sync form state when profile data loads or changes
-  useEffect(() => {
-    if (!isEditing) {
-      setName(displayUser?.name || "");
-      setEmail(displayUser?.email || "");
-      setPhone(displayUser?.mobile || "");
-    }
-  }, [displayUser, isEditing]);
+  const startEditing = useCallback(() => {
+    setDraft({
+      name: displayUser?.name || "",
+      email: displayUser?.email || "",
+      phone: displayUser?.mobile || "",
+    });
+  }, [displayUser]);
 
   const handleSave = useCallback(() => {
+    if (!draft) return;
+
     const payload: Record<string, string> = {};
-    if (name !== (displayUser?.name || "")) payload.name = name;
-    if (email !== (displayUser?.email || "")) payload.email = email;
-    if (phone !== (displayUser?.mobile || "")) payload.phone = phone;
+    if (draft.name !== (displayUser?.name || "")) payload.name = draft.name;
+    if (draft.email !== (displayUser?.email || "")) payload.email = draft.email;
+    if (draft.phone !== (displayUser?.mobile || "")) payload.phone = draft.phone;
 
     if (Object.keys(payload).length === 0) {
-      setIsEditing(false);
+      setDraft(null);
       return;
     }
 
     updateProfile.mutate(payload, () => {
-      setIsEditing(false);
+      setDraft(null);
       void refetchProfile();
     });
-  }, [name, email, phone, displayUser, updateProfile, refetchProfile]);
+  }, [draft, displayUser, updateProfile, refetchProfile]);
 
   const handleCancel = useCallback(() => {
-    setName(displayUser?.name || "");
-    setEmail(displayUser?.email || "");
-    setPhone(displayUser?.mobile || "");
-    setIsEditing(false);
-  }, [displayUser]);
+    setDraft(null);
+  }, []);
 
   if (isLoading) {
     return <ProfileSkeleton />;
@@ -123,12 +124,12 @@ export function SettingsClient() {
                   <User className="h-4 w-4 text-rose-500" />
                   {t("profile.personalInfo")}
                 </CardTitle>
-                {!isEditing ? (
+                {!draft ? (
                   <Button
                     variant="ghost"
                     size="sm"
                     className="text-rose-500 hover:text-rose-600"
-                    onClick={() => setIsEditing(true)}
+                    onClick={startEditing}
                   >
                     {t("common.edit")}
                   </Button>
@@ -136,26 +137,38 @@ export function SettingsClient() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {isEditing ? (
+              {draft ? (
                 <div className="space-y-4">
                   <FloatingLabelInput
                     label={t("profile.fullName")}
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    value={draft.name}
+                    onChange={(e) =>
+                      setDraft((prev) =>
+                        prev ? { ...prev, name: e.target.value } : prev
+                      )
+                    }
                     icon={<User className="h-4 w-4" />}
                   />
                   <FloatingLabelInput
                     label={t("profile.emailAddress")}
                     type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    value={draft.email}
+                    onChange={(e) =>
+                      setDraft((prev) =>
+                        prev ? { ...prev, email: e.target.value } : prev
+                      )
+                    }
                     icon={<Shield className="h-4 w-4" />}
                   />
                   <FloatingLabelInput
                     label={t("profile.phone")}
                     type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    value={draft.phone}
+                    onChange={(e) =>
+                      setDraft((prev) =>
+                        prev ? { ...prev, phone: e.target.value } : prev
+                      )
+                    }
                     icon={<AlertTriangle className="h-4 w-4" />}
                   />
                   <div className="flex gap-2 justify-end pt-2">

@@ -1,37 +1,15 @@
 /**
- * @file Generic floating-label input — reusable across the entire app
- *
- * PURPOSE:
- *   A premium-style input field with an animated floating label, optional
- *   left icon, optional right action slot, and error state support.
- *
- * WHY NOT JUST <input>?
- *   - Floating labels improve UX by keeping context visible while typing
- *   - Icon + right-action slots enable patterns like:  📱 [mobile input]  or  🔒 [password 👁]
- *   - Error state styling is built-in (red border + error message)
- *   - Works seamlessly with react-hook-form via `registerProps`
- *
- * USAGE:
- *   <FloatingLabelInput
- *     label="Mobile Number"
- *     type="tel"
- *     icon={<Phone />}
- *     registerProps={form.register("mobile")}
- *     error={errors.mobile?.message}
- *   />
- *
- * REUSABILITY:
- *   This is a GENERIC component — no auth-specific logic, no hardcoded
- *   colors beyond the theme tokens. Can be used in any form: booking,
- *   profile, settings, admin, etc.
+ * Purpose: Generic floating-label input used across app forms.
+ * Responsibility: Render an input with floating label, optional icon/action, and error display.
+ * Important Notes: Uses React 19 ref-as-prop instead of forwardRef.
  */
 
 "use client";
 
-import { useState, forwardRef, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-interface FloatingLabelInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+interface FloatingLabelInputProps extends React.ComponentProps<"input"> {
   /** Text shown as the floating label (e.g. "Mobile Number", "Email") */
   label: string;
   /** Optional icon rendered inside the left side of the input */
@@ -44,8 +22,17 @@ interface FloatingLabelInputProps extends React.InputHTMLAttributes<HTMLInputEle
   registerProps?: Record<string, unknown>;
 }
 
-export const FloatingLabelInput = forwardRef<HTMLInputElement, FloatingLabelInputProps>(
-  ({ label, icon, rightAction, error, registerProps, className, id, ...props }, ref) => {
+export function FloatingLabelInput({
+  label,
+  icon,
+  rightAction,
+  error,
+  registerProps,
+  className,
+  id,
+  ref,
+  ...props
+}: FloatingLabelInputProps) {
     /** Tracks focus state for label animation + border highlight */
     const [isFocused, setIsFocused] = useState(false);
 
@@ -136,7 +123,4 @@ export const FloatingLabelInput = forwardRef<HTMLInputElement, FloatingLabelInpu
         )}
       </div>
     );
-  }
-);
-
-FloatingLabelInput.displayName = "FloatingLabelInput";
+}

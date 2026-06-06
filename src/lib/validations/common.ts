@@ -12,12 +12,12 @@ import { z } from "zod";
 // ==================== PRIMITIVES ====================
 
 /** Indian mobile number — 10 digits starting with 6-9 */
-export const indianMobile = z
+const _indianMobile = z
   .string()
   .regex(/^[6-9]\d{9}$/, "Invalid Indian mobile number — must be 10 digits starting with 6-9");
 
 /** 6-digit OTP */
-export const otp6Digit = z
+const _otp6Digit = z
   .string()
   .regex(/^\d{6}$/, "OTP must be exactly 6 digits");
 
@@ -82,6 +82,6 @@ export const fullName = z
   .max(100, "Name must be less than 100 characters");
 
 /** Google ID token */
-export const googleIdToken = z
+const _googleIdToken = z
   .string()
   .min(1, "Google ID token is required");

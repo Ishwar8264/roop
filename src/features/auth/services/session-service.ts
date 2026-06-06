@@ -130,7 +130,7 @@ export async function createSession(
  *
  * Returns new token pair — the route handler is responsible for setting cookies
  */
-export async function refreshSession(
+async function _refreshSession(
   request: NextRequest
 ): Promise<{
   accessToken: string;
@@ -281,7 +281,7 @@ export async function listUserSessions(
  * Update lastActiveAt timestamp for a session
  * Called on each authenticated API request
  */
-export async function touchSession(sessionId: string): Promise<void> {
+async function _touchSession(sessionId: string): Promise<void> {
   await prisma.session.update({
     where: { id: sessionId },
     data: { lastActiveAt: new Date() },
@@ -296,7 +296,7 @@ export async function touchSession(sessionId: string): Promise<void> {
  */
 const TOUCH_THROTTLE_SECONDS = 300; // 5 minutes
 
-export async function touchSessionThrottled(sessionId: string): Promise<void> {
+async function _touchSessionThrottled(sessionId: string): Promise<void> {
   const key = `session:touch:${sessionId}`;
   const exists = await redis.exists(key);
   if (exists) return; // Throttled — skip update

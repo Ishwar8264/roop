@@ -217,7 +217,7 @@ export async function getBranchById(id: string): Promise<BranchDetailResponse> {
  * Create a new branch
  * Admin only
  */
-export async function createBranch(data: CreateBranchInput): Promise<BranchResponse> {
+async function _createBranch(data: CreateBranchInput): Promise<BranchResponse> {
   const branch = await prisma.branch.create({
     data: {
       nameHi: data.nameHi,
@@ -242,7 +242,7 @@ export async function createBranch(data: CreateBranchInput): Promise<BranchRespo
  * Update an existing branch (partial update)
  * Admin only
  */
-export async function updateBranch(id: string, data: UpdateBranchInput): Promise<BranchResponse> {
+async function _updateBranch(id: string, data: UpdateBranchInput): Promise<BranchResponse> {
   // Verify branch exists
   const existing = await prisma.branch.findUnique({ where: { id } });
   if (!existing) {
@@ -278,7 +278,7 @@ export async function updateBranch(id: string, data: UpdateBranchInput): Promise
  * NEVER hard deletes a branch
  * Admin only
  */
-export async function deactivateBranch(id: string): Promise<BranchResponse> {
+async function _deactivateBranch(id: string): Promise<BranchResponse> {
   const existing = await prisma.branch.findUnique({ where: { id } });
   if (!existing) {
     throw new BranchNotFoundError();
@@ -322,7 +322,7 @@ export async function toggleBranchActive(id: string): Promise<BranchResponse> {
  * List holidays for a branch with optional year/month filtering
  * Public endpoint
  */
-export async function listHolidays(
+async function _listHolidays(
   branchId: string,
   query: HolidayListQuery
 ): Promise<BranchHolidayResponse[]> {
@@ -366,7 +366,7 @@ export async function listHolidays(
  * Admin only
  * Handles unique constraint on [branchId, date]
  */
-export async function addHoliday(
+async function _addHoliday(
   branchId: string,
   data: AddHolidayInput
 ): Promise<BranchHolidayResponse> {

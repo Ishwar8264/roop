@@ -14,12 +14,12 @@ import { indianPhone } from "@/features/auth/validations/primitives";
 // ==================== SHARED PRIMITIVES ====================
 
 /** Time string — "HH:mm" format (24-hour) */
-export const timeString = z
+const timeString = z
   .string()
   .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Time must be in HH:mm format (e.g., 09:00)");
 
 /** Date string — "YYYY-MM-DD" format */
-export const dateString = z
+const dateString = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format")
   .refine((val) => !isNaN(Date.parse(val)), { message: "Invalid date" });
@@ -27,7 +27,7 @@ export const dateString = z
 // ==================== CREATE BRANCH ====================
 
 /** POST /api/branches */
-export const createBranchSchema = z
+const _createBranchSchema = z
   .object({
     nameHi: z
       .string()
@@ -64,12 +64,12 @@ export const createBranchSchema = z
     path: ["openTime"],
   });
 
-export type CreateBranchInput = z.infer<typeof createBranchSchema>;
+export type CreateBranchInput = z.infer<typeof _createBranchSchema>;
 
 // ==================== UPDATE BRANCH ====================
 
 /** PATCH /api/branches/[id] */
-export const updateBranchSchema = z
+const _updateBranchSchema = z
   .object({
     nameHi: z
       .string()
@@ -119,12 +119,12 @@ export const updateBranchSchema = z
     }
   );
 
-export type UpdateBranchInput = z.infer<typeof updateBranchSchema>;
+export type UpdateBranchInput = z.infer<typeof _updateBranchSchema>;
 
 // ==================== ADD HOLIDAY ====================
 
 /** POST /api/branches/[id]/holidays */
-export const addHolidaySchema = z.object({
+const _addHolidaySchema = z.object({
   date: dateString,
   reasonHi: z
     .string()
@@ -138,7 +138,7 @@ export const addHolidaySchema = z.object({
     .optional(),
 });
 
-export type AddHolidayInput = z.infer<typeof addHolidaySchema>;
+export type AddHolidayInput = z.infer<typeof _addHolidaySchema>;
 
 // ==================== TOGGLE ACTIVE ====================
 

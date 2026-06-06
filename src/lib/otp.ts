@@ -153,7 +153,7 @@ export function getOtpExpiry(): Date {
 /**
  * Check if an OTP has expired
  */
-export function isOtpExpired(expiresAt: Date): boolean {
+function _isOtpExpired(expiresAt: Date): boolean {
   return new Date() > expiresAt;
 }
 
@@ -188,7 +188,7 @@ export async function sendOtpSms(
 
   // Only log OTP in development — NEVER in production
   if (process.env.NODE_ENV === "development") {
-    console.log(
+    console.warn(
       `[OTP STUB] Sending OTP ${otp} to ${mobile} for purpose: ${purpose}`
     );
   }

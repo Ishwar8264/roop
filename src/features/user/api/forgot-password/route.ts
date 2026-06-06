@@ -59,10 +59,10 @@ export const POST = createApiHandler<ForgotPasswordInput, { message: string }>({
       });
 
       // Build the reset link — NO email in URL (PII protection)
-      const resetLink = `${APP_URL}/reset-password?token=${rawToken}`;
+      const _resetLink = `${APP_URL}/reset-password?token=${rawToken}`;
 
       // Send email (stubbed — no sensitive data in logs)
-      console.log(`[STUB_EMAIL] Password reset email sent to user ${user.id}`);
+      console.warn(`[STUB_EMAIL] Password reset email sent to user ${user.id}`);
 
       // Log auth event
       await logAuthEvent("PASSWORD_RESET_REQUESTED", request, {

@@ -188,14 +188,14 @@ export const apiClient = {
 
 // ==================== Legacy Token Helpers ====================
 
-export function setAuthToken(token: string): void {
+function _setAuthToken(token: string): void {
   void token;
 }
 
-export function removeAuthToken(): void {
+function _removeAuthToken(): void {
   // Tokens are HttpOnly cookies; clearing happens through /api/auth/logout.
 }
 
-export function getAuthToken(): string | null {
+function _getAuthToken(): string | null {
   return null;
 }

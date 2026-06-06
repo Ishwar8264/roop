@@ -14,7 +14,7 @@ import { z } from "zod";
 // ==================== SHARED PRIMITIVES ====================
 
 /** Slug — kebab-case, URL-safe identifier */
-export const slug = z
+const slug = z
   .string()
   .min(1, "Slug आवश्यक है / Slug is required")
   .max(100, "Slug 100 अक्षरों से कम होना चाहिए / Slug must be under 100 characters")
@@ -22,13 +22,13 @@ export const slug = z
   .trim();
 
 /** Price — positive number for Decimal(10,2) */
-export const price = z
+const price = z
   .number()
   .positive("कीमत शून्य से अधिक होनी चाहिए / Price must be greater than zero")
   .max(99999999.99, "कीमत अधिकतम ₹9,99,99,999.99 हो सकती है / Price must be under ₹9,99,99,999.99");
 
 /** Duration in minutes — positive integer */
-export const durationMinutes = z
+const durationMinutes = z
   .number()
   .int("अवधि पूर्णांक होनी चाहिए / Duration must be an integer")
   .positive("अवधि शून्य से अधिक होनी चाहिए / Duration must be greater than zero")
@@ -37,7 +37,7 @@ export const durationMinutes = z
 // ==================== SERVICE CATEGORY ====================
 
 /** POST /api/service-categories */
-export const createServiceCategorySchema = z.object({
+const _createServiceCategorySchema = z.object({
   nameHi: z
     .string()
     .min(1, "श्रेणी का नाम (हिंदी) आवश्यक है / Category name (Hindi) is required")
@@ -62,10 +62,10 @@ export const createServiceCategorySchema = z.object({
     .optional(),
 });
 
-export type CreateServiceCategoryInput = z.infer<typeof createServiceCategorySchema>;
+export type CreateServiceCategoryInput = z.infer<typeof _createServiceCategorySchema>;
 
 /** PATCH /api/service-categories/[id] */
-export const updateServiceCategorySchema = z.object({
+const _updateServiceCategorySchema = z.object({
   nameHi: z
     .string()
     .min(1, "श्रेणी का नाम (हिंदी) आवश्यक है / Category name (Hindi) is required")
@@ -92,12 +92,12 @@ export const updateServiceCategorySchema = z.object({
     .optional(),
 });
 
-export type UpdateServiceCategoryInput = z.infer<typeof updateServiceCategorySchema>;
+export type UpdateServiceCategoryInput = z.infer<typeof _updateServiceCategorySchema>;
 
 // ==================== SERVICE ====================
 
 /** POST /api/services */
-export const createServiceSchema = z.object({
+const _createServiceSchema = z.object({
   nameHi: z
     .string()
     .min(1, "सेवा का नाम (हिंदी) आवश्यक है / Service name (Hindi) is required")
@@ -137,10 +137,10 @@ export const createServiceSchema = z.object({
     .min(1, "श्रेणी आवश्यक है / Category ID is required"),
 });
 
-export type CreateServiceInput = z.infer<typeof createServiceSchema>;
+export type CreateServiceInput = z.infer<typeof _createServiceSchema>;
 
 /** PATCH /api/services/[id] */
-export const updateServiceSchema = z.object({
+const _updateServiceSchema = z.object({
   nameHi: z
     .string()
     .min(1, "सेवा का नाम (हिंदी) आवश्यक है / Service name (Hindi) is required")
@@ -185,12 +185,12 @@ export const updateServiceSchema = z.object({
     .optional(),
 });
 
-export type UpdateServiceInput = z.infer<typeof updateServiceSchema>;
+export type UpdateServiceInput = z.infer<typeof _updateServiceSchema>;
 
 // ==================== SERVICE VARIANT ====================
 
 /** POST /api/services/[id]/variants */
-export const createServiceVariantSchema = z.object({
+const _createServiceVariantSchema = z.object({
   nameHi: z
     .string()
     .min(1, "वेरिएंट का नाम (हिंदी) आवश्यक है / Variant name (Hindi) is required")
@@ -210,10 +210,10 @@ export const createServiceVariantSchema = z.object({
     .optional(),
 });
 
-export type CreateServiceVariantInput = z.infer<typeof createServiceVariantSchema>;
+export type CreateServiceVariantInput = z.infer<typeof _createServiceVariantSchema>;
 
 /** PATCH /api/services/[id]/variants/[variantId] */
-export const updateServiceVariantSchema = z.object({
+const _updateServiceVariantSchema = z.object({
   nameHi: z
     .string()
     .min(1, "वेरिएंट का नाम (हिंदी) आवश्यक है / Variant name (Hindi) is required")
@@ -235,7 +235,7 @@ export const updateServiceVariantSchema = z.object({
     .optional(),
 });
 
-export type UpdateServiceVariantInput = z.infer<typeof updateServiceVariantSchema>;
+export type UpdateServiceVariantInput = z.infer<typeof _updateServiceVariantSchema>;
 
 // ==================== SERVICE ADD-ON ====================
 

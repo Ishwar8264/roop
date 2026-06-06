@@ -47,7 +47,7 @@ export interface AvatarUploadResult extends CloudinaryUploadResult {
 
 // ==================== Folder Constants ====================
 
-export const CLOUDINARY_FOLDERS = {
+const CLOUDINARY_FOLDERS = {
   AVATARS: "nikharta-roop/avatars",
   PORTFOLIO: "nikharta-roop/portfolio",
   BLOG: "nikharta-roop/blog",
@@ -66,14 +66,14 @@ export const CLOUDINARY_FOLDERS = {
  * @param options - Cloudinary upload options (folder, public_id, etc.)
  * @returns Upload result with URL, publicId, dimensions
  */
-export async function uploadToCloudinary(
+async function uploadToCloudinary(
   fileBuffer: Buffer,
   options: UploadApiOptions
 ): Promise<CloudinaryUploadResult> {
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
       options,
-      (error, result: UploadApiResponse) => {
+      (error, result?: UploadApiResponse) => {
         if (error || !result) {
           reject(new Error(error?.message || "Cloudinary upload failed"));
           return;
@@ -154,7 +154,7 @@ export async function uploadAvatar(
  * @param publicId - Optional custom public_id (auto-generated if not provided)
  * @returns Upload result with URL and metadata
  */
-export async function uploadImage(
+async function _uploadImage(
   fileBuffer: Buffer,
   folder: string = CLOUDINARY_FOLDERS.GENERAL,
   publicId?: string
@@ -205,7 +205,7 @@ export async function deleteCloudinaryImage(publicId: string): Promise<boolean> 
  * @param options - Transformation options (width, height, crop, etc.)
  * @returns Optimized HTTPS URL
  */
-export function getOptimizedUrl(
+function _getOptimizedUrl(
   publicId: string,
   options: { width?: number; height?: number; crop?: string } = {}
 ): string {

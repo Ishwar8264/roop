@@ -7,7 +7,7 @@
  *   2. If user's email is already verified → return message
  *   3. Generate 6-digit OTP using generateOtp()
  *   4. Hash OTP, store in VerificationToken table with type EMAIL_OTP, expires in 10 min
- *   5. Send email with OTP (stubbed: console.log)
+ *   5. Send email with OTP (stubbed: console.warn)
  *   6. Return success message
  */
 
@@ -22,7 +22,7 @@ const EMAIL_OTP_EXPIRY_SECONDS = 10 * 60; // 10 minutes
 
 export const POST = createApiHandler<ResendVerificationInput, { message: string }>({
   schema: resendVerificationSchema,
-  handler: async ({ parsedBody, request }) => {
+  handler: async ({ parsedBody: _parsedBody, request }) => {
     // 1. Require authenticated user with valid session
     const { user } = await requireAuthWithSession(request);
 
@@ -71,7 +71,7 @@ export const POST = createApiHandler<ResendVerificationInput, { message: string 
     ]);
 
     // 7. Send email with OTP (stubbed — replace with real email service)
-    console.log(
+    console.warn(
       `[STUB_EMAIL] Email verification OTP sent to user ${fullUser.id}`
     );
 

@@ -83,6 +83,22 @@ function decimalToNumberOrNull(value: unknown): number | null {
   return Number(value);
 }
 
+function parseSpecialization(value: string): string[] {
+  return value.split(",").map((item) => item.trim()).filter(Boolean);
+}
+
+function serializeSpecialization(value: string[]): string {
+  return value.join(",");
+}
+
+function parseWorkDays(value: string): WorkDays {
+  return JSON.parse(value) as WorkDays;
+}
+
+function serializeWorkDays(value: WorkDays): string {
+  return JSON.stringify(value);
+}
+
 // ==================== URL HELPERS ====================
 
 /**
@@ -111,7 +127,7 @@ export function extractServiceIdFromStaffUrl(url: string): string {
  * Extract leave ID from URL pathname
  * Works for /api/staff/[id]/leaves/[leaveId]
  */
-export function extractLeaveIdFromUrl(url: string): string {
+function _extractLeaveIdFromUrl(url: string): string {
   const pathname = new URL(url).pathname;
   const segments = pathname.split("/").filter(Boolean);
   // /api/staff/[id]/leaves/[leaveId] → segments: ['api', 'staff', 'id', 'leaves', 'leaveId']
@@ -136,7 +152,7 @@ function mapStaffToResponse(staff: {
   id: string;
   userId: string;
   branchId: string;
-  specialization: string[];
+  specialization: string;
   experienceYears: number | null;
   bioHi: string | null;
   bioEn: string | null;
@@ -161,14 +177,14 @@ function mapStaffToResponse(staff: {
     userAvatarUrl: staff.user.avatarUrl,
     branchNameHi: staff.branch.nameHi,
     branchNameEn: staff.branch.nameEn,
-    specialization: staff.specialization,
+    specialization: parseSpecialization(staff.specialization),
     experienceYears: staff.experienceYears,
     bioHi: staff.bioHi,
     bioEn: staff.bioEn,
     photoUrl: staff.photoUrl,
     rating: decimalToNumber(staff.rating),
     isAvailable: staff.isAvailable,
-    workDays: staff.workDays as WorkDays,
+    workDays: parseWorkDays(String(staff.workDays)),
     workStart: dateToTimeString(staff.workStart),
     workEnd: dateToTimeString(staff.workEnd),
     commissionRate: decimalToNumberOrNull(staff.commissionRate),
@@ -200,7 +216,7 @@ function mapLeaveToResponse(leave: {
  * List staff with filtering and pagination
  * Public endpoint — no auth required
  */
-export async function listStaff(query: StaffListQuery): Promise<StaffListResponse> {
+async function _listStaff(query: StaffListQuery): Promise<StaffListResponse> {
   const { branchId, specialization, isAvailable, page = 1, limit = 20 } = query;
 
   const where: Prisma.StaffWhereInput = {};
@@ -212,7 +228,7 @@ export async function listStaff(query: StaffListQuery): Promise<StaffListRespons
 
   // Filter by specialization (has array contains)
   if (specialization) {
-    where.specialization = { has: specialization };
+    where.specialization = { contains: specialization };
   }
 
   // Filter by availability
@@ -257,7 +273,7 @@ export async function listStaff(query: StaffListQuery): Promise<StaffListRespons
  * Get single staff with user info, branch, services, and upcoming leaves
  * Public endpoint — no auth required
  */
-export async function getStaffById(id: string): Promise<StaffDetailResponse> {
+async function _getStaffById(id: string): Promise<StaffDetailResponse> {
   const staff = await prisma.staff.findUnique({
     where: { id },
     include: {
@@ -326,7 +342,7 @@ export async function getStaffById(id: string): Promise<StaffDetailResponse> {
  * Admin only
  * If user is USER role, promotes to STAFF role
  */
-export async function createStaff(data: CreateStaffInput): Promise<StaffResponse> {
+async function _createStaff(data: CreateStaffInput): Promise<StaffResponse> {
   // Verify user exists
   const user = await prisma.user.findUnique({ where: { id: data.userId } });
   if (!user) {
@@ -364,12 +380,12 @@ export async function createStaff(data: CreateStaffInput): Promise<StaffResponse
       data: {
         userId: data.userId,
         branchId: data.branchId,
-        specialization: data.specialization,
+        specialization: serializeSpecialization(data.specialization),
         experienceYears: data.experienceYears ?? null,
         bioHi: data.bioHi ?? null,
         bioEn: data.bioEn ?? null,
         photoUrl: data.photoUrl ?? null,
-        workDays: workDays as Prisma.JsonObject,
+        workDays: serializeWorkDays(workDays),
         workStart: timeStringToDate(data.workStart),
         workEnd: timeStringToDate(data.workEnd),
         commissionRate: data.commissionRate ?? null,
@@ -396,7 +412,7 @@ export async function createStaff(data: CreateStaffInput): Promise<StaffResponse
  * Update an existing staff profile (partial update)
  * Admin only
  */
-export async function updateStaff(id: string, data: UpdateStaffInput): Promise<StaffResponse> {
+async function _updateStaff(id: string, data: UpdateStaffInput): Promise<StaffResponse> {
   // Verify staff exists
   const existing = await prisma.staff.findUnique({ where: { id } });
   if (!existing) {
@@ -415,12 +431,12 @@ export async function updateStaff(id: string, data: UpdateStaffInput): Promise<S
   const updateData: Prisma.StaffUpdateInput = {};
 
   if (data.branchId !== undefined) updateData.branch = { connect: { id: data.branchId } };
-  if (data.specialization !== undefined) updateData.specialization = data.specialization;
+  if (data.specialization !== undefined) updateData.specialization = serializeSpecialization(data.specialization);
   if (data.experienceYears !== undefined) updateData.experienceYears = data.experienceYears;
   if (data.bioHi !== undefined) updateData.bioHi = data.bioHi ?? null;
   if (data.bioEn !== undefined) updateData.bioEn = data.bioEn ?? null;
   if (data.photoUrl !== undefined) updateData.photoUrl = data.photoUrl ?? null;
-  if (data.workDays !== undefined) updateData.workDays = data.workDays as Prisma.JsonObject;
+  if (data.workDays !== undefined) updateData.workDays = serializeWorkDays(data.workDays);
   if (data.workStart !== undefined) updateData.workStart = timeStringToDate(data.workStart);
   if (data.workEnd !== undefined) updateData.workEnd = timeStringToDate(data.workEnd);
   if (data.commissionRate !== undefined) updateData.commissionRate = data.commissionRate;
@@ -448,7 +464,7 @@ export async function updateStaff(id: string, data: UpdateStaffInput): Promise<S
  * NEVER hard deletes a staff member
  * Admin only
  */
-export async function deactivateStaff(id: string): Promise<StaffResponse> {
+async function _deactivateStaff(id: string): Promise<StaffResponse> {
   const existing = await prisma.staff.findUnique({ where: { id } });
   if (!existing) {
     throw new StaffNotFoundError();
@@ -480,7 +496,7 @@ export async function deactivateStaff(id: string): Promise<StaffResponse> {
  * List services a staff member can perform
  * Public endpoint
  */
-export async function listStaffServices(staffId: string): Promise<StaffServiceItemResponse[]> {
+async function _listStaffServices(staffId: string): Promise<StaffServiceItemResponse[]> {
   // Verify staff exists
   const staff = await prisma.staff.findUnique({ where: { id: staffId } });
   if (!staff) {
@@ -518,7 +534,7 @@ export async function listStaffServices(staffId: string): Promise<StaffServiceIt
  * Admin only
  * Skips already-assigned services gracefully (no error on duplicates)
  */
-export async function assignServices(
+async function _assignServices(
   staffId: string,
   serviceIds: string[]
 ): Promise<BulkAssignServicesResult> {
@@ -603,7 +619,7 @@ export async function removeStaffService(
  * List leaves for a staff member with optional year/month filtering
  * Public endpoint
  */
-export async function listStaffLeaves(
+async function _listStaffLeaves(
   staffId: string,
   query: StaffLeaveListQuery
 ): Promise<StaffLeaveResponse[]> {
@@ -645,7 +661,7 @@ export async function listStaffLeaves(
  * Admin only
  * Handles unique constraint on [staffId, date]
  */
-export async function addStaffLeave(
+async function _addStaffLeave(
   staffId: string,
   data: AddStaffLeaveInput
 ): Promise<StaffLeaveResponse> {
@@ -685,7 +701,7 @@ export async function addStaffLeave(
  * Remove a leave from a staff member
  * Admin only
  */
-export async function removeStaffLeave(
+async function _removeStaffLeave(
   staffId: string,
   leaveId: string
 ): Promise<{ deleted: boolean }> {

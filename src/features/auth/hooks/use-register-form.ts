@@ -26,7 +26,7 @@
  */
 
 import { useState, useCallback } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useOtpTimer } from "@/features/auth/hooks/use-otp-timer";
 import { useRegisterHandlers } from "@/features/auth/logic/register-handlers";
@@ -108,10 +108,10 @@ export function useRegisterForm(options: UseRegisterFormOptions): RegisterFormSt
   });
 
   /** Watch values for the "details summary" section in OTP step */
-  const watchedMobile = detailsForm.watch("mobile");
-  const nameValue = detailsForm.watch("name");
-  const usernameValue = detailsForm.watch("username");
-  const emailValue = detailsForm.watch("email");
+  const watchedMobile = useWatch({ control: detailsForm.control, name: "mobile" });
+  const nameValue = useWatch({ control: detailsForm.control, name: "name" });
+  const usernameValue = useWatch({ control: detailsForm.control, name: "username" });
+  const emailValue = useWatch({ control: detailsForm.control, name: "email" });
 
   /**
    * Send OTP after user fills in name + mobile.

@@ -24,7 +24,6 @@ import { APP_URL } from "@/shared/constants";
 
 const PENDING_VERIFICATION_EXPIRY_SECONDS = 120; // 2 minutes to exchange
 
-// oxlint-disable-next-line react-doctor/nextjs-no-side-effect-in-get-handler — Magic links inherently require a GET handler (email link clicks trigger GET). Session creation is moved to POST /api/auth/exchange-code. The only remaining side effect is marking the token as used, which is idempotent and safe.
 export async function GET(request: NextRequest) {
   try {
     const token = request.nextUrl.searchParams.get("token");

@@ -91,37 +91,37 @@ export class AuthRateLimitedError extends AppError {
   }
 }
 
-export class AuthLoginLockedError extends AppError {
+class _AuthLoginLockedError extends AppError {
   constructor(public readonly retryAfterSeconds: number) {
     super(ERROR_CODES.AUTH_LOGIN_LOCKED, HTTP_STATUS.RATE_LIMITED, `Account temporarily locked. Try again in ${Math.ceil(retryAfterSeconds / 60)} minutes.`);
   }
 }
 
-export class AuthInvalidCredentialsError extends AppError {
+class _AuthInvalidCredentialsError extends AppError {
   constructor() {
     super(ERROR_CODES.AUTH_INVALID_CREDENTIALS, HTTP_STATUS.UNAUTHORIZED, "Invalid email or password. Please try again.");
   }
 }
 
-export class AuthEmailExistsError extends AppError {
+class _AuthEmailExistsError extends AppError {
   constructor() {
     super(ERROR_CODES.AUTH_EMAIL_EXISTS, HTTP_STATUS.CONFLICT, "This email is already registered. Please login instead.");
   }
 }
 
-export class AuthPhoneExistsError extends AppError {
+class _AuthPhoneExistsError extends AppError {
   constructor() {
     super(ERROR_CODES.AUTH_PHONE_EXISTS, HTTP_STATUS.CONFLICT, "This phone number is already registered. Please login instead.");
   }
 }
 
-export class AuthGoogleTokenInvalidError extends AppError {
+class _AuthGoogleTokenInvalidError extends AppError {
   constructor() {
     super(ERROR_CODES.AUTH_GOOGLE_TOKEN_INVALID, HTTP_STATUS.UNAUTHORIZED, "Invalid Google token. Please try again.");
   }
 }
 
-export class AuthEmailNotVerifiedError extends AppError {
+class _AuthEmailNotVerifiedError extends AppError {
   constructor() {
     super(ERROR_CODES.AUTH_EMAIL_NOT_VERIFIED, HTTP_STATUS.UNAUTHORIZED, "Email not verified. Please check your email.");
   }
@@ -181,7 +181,7 @@ export class UserNotFoundError extends AppError {
   }
 }
 
-export class UserDeactivatedError extends AppError {
+class _UserDeactivatedError extends AppError {
   constructor() {
     super(ERROR_CODES.USER_DEACTIVATED, HTTP_STATUS.FORBIDDEN, "This account has been deactivated.");
   }
@@ -211,13 +211,13 @@ export class ValidationError extends AppError {
 
 // ==================== RESOURCE ERRORS ====================
 
-export class NotFoundError extends AppError {
+class _NotFoundError extends AppError {
   constructor(message?: string) {
     super(ERROR_CODES.RES_NOT_FOUND, HTTP_STATUS.NOT_FOUND, message || "Resource not found.");
   }
 }
 
-export class ConflictError extends AppError {
+class _ConflictError extends AppError {
   constructor(message: string) {
     super(ERROR_CODES.RES_CONFLICT, HTTP_STATUS.CONFLICT, message);
   }
@@ -225,7 +225,7 @@ export class ConflictError extends AppError {
 
 // ==================== PERMISSION ERRORS ====================
 
-export class ForbiddenError extends AppError {
+class _ForbiddenError extends AppError {
   constructor(message?: string) {
     super(ERROR_CODES.PERM_DENIED, HTTP_STATUS.FORBIDDEN, message || "You do not have permission to access this resource.");
   }
@@ -237,7 +237,7 @@ export class AdminRequiredError extends AppError {
   }
 }
 
-export class StaffRequiredError extends AppError {
+class _StaffRequiredError extends AppError {
   constructor() {
     super(ERROR_CODES.PERM_STAFF_REQUIRED, HTTP_STATUS.FORBIDDEN, "Staff or Admin access required.");
   }
@@ -406,113 +406,51 @@ export class BookingNotFoundError extends AppError {
   }
 }
 
-export class BookingSlotUnavailableError extends AppError {
+class _BookingSlotUnavailableError extends AppError {
   constructor() {
     super(ERROR_CODES.BOOKING_SLOT_UNAVAILABLE, HTTP_STATUS.CONFLICT, "यह स्लॉट अब उपलब्ध नहीं है। कृपया दूसरा स्लॉट चुनें। / This slot is no longer available. Please choose another slot.");
   }
 }
 
-export class BookingInvalidStatusTransitionError extends AppError {
+class _BookingInvalidStatusTransitionError extends AppError {
   constructor(from: string, to: string) {
     super(ERROR_CODES.BOOKING_INVALID_STATUS_TRANSITION, HTTP_STATUS.BAD_REQUEST, `बुकिंग स्थिति ${from} से ${to} में नहीं बदली जा सकती। / Cannot transition booking status from ${from} to ${to}.`);
   }
 }
 
-export class BookingAlreadyCancelledError extends AppError {
+class _BookingAlreadyCancelledError extends AppError {
   constructor() {
     super(ERROR_CODES.BOOKING_ALREADY_CANCELLED, HTTP_STATUS.BAD_REQUEST, "यह बुकिंग पहले से रद्द है। / This booking is already cancelled.");
   }
 }
 
-export class BookingCannotCancelError extends AppError {
+class _BookingCannotCancelError extends AppError {
   constructor() {
     super(ERROR_CODES.BOOKING_CANNOT_CANCEL, HTTP_STATUS.BAD_REQUEST, "इस बुकिंग को रद्द नहीं किया जा सकता। / Cannot cancel this booking.");
   }
 }
 
-export class BookingUnauthorizedError extends AppError {
+class _BookingUnauthorizedError extends AppError {
   constructor() {
     super(ERROR_CODES.BOOKING_UNAUTHORIZED, HTTP_STATUS.FORBIDDEN, "आप इस बुकिंग तक अधिकृत नहीं हैं। / You are not authorized to access this booking.");
   }
 }
 
-export class BookingOfferInvalidError extends AppError {
+class _BookingOfferInvalidError extends AppError {
   constructor() {
     super(ERROR_CODES.BOOKING_OFFER_INVALID, HTTP_STATUS.BAD_REQUEST, "यह ऑफर कोड अमान्य या समाप्त है। / This offer code is invalid or expired.");
   }
 }
 
-export class BookingOfferNotApplicableError extends AppError {
+class _BookingOfferNotApplicableError extends AppError {
   constructor() {
     super(ERROR_CODES.BOOKING_OFFER_NOT_APPLICABLE, HTTP_STATUS.BAD_REQUEST, "यह ऑफर इस सेवा पर लागू नहीं होता। / This offer is not applicable to this service.");
   }
 }
 
-export class BookingOfferLimitReachedError extends AppError {
+class _BookingOfferLimitReachedError extends AppError {
   constructor() {
     super(ERROR_CODES.BOOKING_OFFER_LIMIT_REACHED, HTTP_STATUS.BAD_REQUEST, "इस ऑफर की उपयोग सीमा समाप्त हो चुकी है। / This offer usage limit has been reached.");
-  }
-}
-
-// ==================== OFFER ERRORS ====================
-
-export class OfferNotFoundError extends AppError {
-  constructor() {
-    super(ERROR_CODES.OFFER_NOT_FOUND, HTTP_STATUS.NOT_FOUND, "ऑफर नहीं मिला। / Offer not found.");
-  }
-}
-
-export class OfferCodeExistsError extends AppError {
-  constructor() {
-    super(ERROR_CODES.OFFER_CODE_EXISTS, HTTP_STATUS.CONFLICT, "यह ऑफर कोड पहले से उपयोग में है। / This offer code is already in use.");
-  }
-}
-
-export class OfferExpiredError extends AppError {
-  constructor() {
-    super(ERROR_CODES.OFFER_EXPIRED, HTTP_STATUS.BAD_REQUEST, "यह ऑफर समाप्त हो चुका है। / This offer has expired.");
-  }
-}
-
-export class OfferNotYetActiveError extends AppError {
-  constructor() {
-    super(ERROR_CODES.OFFER_NOT_YET_ACTIVE, HTTP_STATUS.BAD_REQUEST, "यह ऑफर अभी सक्रिय नहीं हुआ है। / This offer is not yet active.");
-  }
-}
-
-export class OfferUsageLimitReachedError extends AppError {
-  constructor() {
-    super(ERROR_CODES.OFFER_USAGE_LIMIT_REACHED, HTTP_STATUS.BAD_REQUEST, "इस ऑफर की उपयोग सीमा समाप्त हो चुकी है। / This offer usage limit has been reached.");
-  }
-}
-
-export class OfferMinOrderNotMetError extends AppError {
-  constructor() {
-    super(ERROR_CODES.OFFER_MIN_ORDER_NOT_MET, HTTP_STATUS.BAD_REQUEST, "बुकिंग राशि न्यूनतम ऑर्डर राशि से कम है। / Booking amount is below the minimum order amount.");
-  }
-}
-
-export class OfferNotApplicableError extends AppError {
-  constructor() {
-    super(ERROR_CODES.OFFER_NOT_APPLICABLE, HTTP_STATUS.BAD_REQUEST, "यह ऑफर इस सेवा पर लागू नहीं होता। / This offer is not applicable to this service.");
-  }
-}
-
-export class OfferServiceAlreadyLinkedError extends AppError {
-  constructor() {
-    super(ERROR_CODES.OFFER_SERVICE_ALREADY_LINKED, HTTP_STATUS.CONFLICT, "यह सेवा पहले से ऑफर से जुड़ी है। / This service is already linked to the offer.");
-  }
-}
-
-export class OfferServiceLinkNotFoundError extends AppError {
-  constructor() {
-    super(ERROR_CODES.OFFER_SERVICE_LINK_NOT_FOUND, HTTP_STATUS.NOT_FOUND, "यह सेवा इस ऑफर से जुड़ी नहीं है। / This service is not linked to this offer.");
-  }
-}
-
-export class OfferCodeImmutableError extends AppError {
-  constructor() {
-    super(ERROR_CODES.OFFER_CODE_IMMUTABLE, HTTP_STATUS.BAD_REQUEST, "ऑफर कोड बदला नहीं जा सकता। / Offer code cannot be changed after creation.");
   }
 }
 
@@ -530,7 +468,7 @@ export class PaymentAlreadySuccessError extends AppError {
   }
 }
 
-export class PaymentVerificationFailedError extends AppError {
+class _PaymentVerificationFailedError extends AppError {
   constructor() {
     super(ERROR_CODES.PAYMENT_VERIFICATION_FAILED, HTTP_STATUS.BAD_REQUEST, "भुगतान सत्यापन विफल हुआ। / Payment verification failed.");
   }
@@ -560,73 +498,21 @@ export class RefundAmountExceedsError extends AppError {
   }
 }
 
-// ==================== REVIEW ERRORS ====================
-
-export class ReviewNotFoundError extends AppError {
-  constructor() {
-    super(ERROR_CODES.REVIEW_NOT_FOUND, HTTP_STATUS.NOT_FOUND, "समीक्षा नहीं मिली। / Review not found.");
-  }
-}
-
-export class ReviewAlreadyExistsError extends AppError {
-  constructor() {
-    super(ERROR_CODES.REVIEW_ALREADY_EXISTS, HTTP_STATUS.CONFLICT, "इस बुकिंग की समीक्षा पहले से है। / A review already exists for this booking.");
-  }
-}
-
-export class ReviewBookingNotCompletedError extends AppError {
-  constructor() {
-    super(ERROR_CODES.REVIEW_BOOKING_NOT_COMPLETED, HTTP_STATUS.BAD_REQUEST, "केवल पूरी हुई बुकिंग की समीक्षा की जा सकती है। / Only completed bookings can be reviewed.");
-  }
-}
-
-export class ReviewUnauthorizedError extends AppError {
-  constructor() {
-    super(ERROR_CODES.REVIEW_UNAUTHORIZED, HTTP_STATUS.FORBIDDEN, "आप इस समीक्षा को हटाने के अधिकृत नहीं हैं। / You are not authorized to delete this review.");
-  }
-}
-
-export class ReviewBookingNotOwnedError extends AppError {
-  constructor() {
-    super(ERROR_CODES.REVIEW_BOOKING_NOT_OWNED, HTTP_STATUS.FORBIDDEN, "यह बुकिंग आपकी नहीं है। / This booking does not belong to you.");
-  }
-}
-
-// ==================== LOYALTY ERRORS ====================
-
-export class LoyaltyInsufficientBalanceError extends AppError {
-  constructor() {
-    super(ERROR_CODES.LOYALTY_INSUFFICIENT_BALANCE, HTTP_STATUS.BAD_REQUEST, "पर्याप्त लॉयल्टी अंक नहीं हैं। / Insufficient loyalty points.");
-  }
-}
-
-export class LoyaltyMinRedeemNotMetError extends AppError {
-  constructor() {
-    super(ERROR_CODES.LOYALTY_MIN_REDEEM_NOT_MET, HTTP_STATUS.BAD_REQUEST, "न्यूनतम 100 अंक रिडीम करने चाहिए। / Minimum 100 points required to redeem.");
-  }
-}
-
-export class LoyaltyInvalidPointsError extends AppError {
-  constructor() {
-    super(ERROR_CODES.LOYALTY_INVALID_POINTS, HTTP_STATUS.BAD_REQUEST, "अंक शून्य से अधिक होने चाहिए। / Points must be greater than zero.");
-  }
-}
-
 // ==================== SYSTEM ERRORS ====================
 
-export class InternalError extends AppError {
+class InternalError extends AppError {
   constructor(message?: string) {
     super(ERROR_CODES.SYS_INTERNAL, HTTP_STATUS.INTERNAL_ERROR, message || "An unexpected error occurred.", false);
   }
 }
 
-export class DatabaseError extends AppError {
+class _DatabaseError extends AppError {
   constructor() {
     super(ERROR_CODES.SYS_DATABASE, HTTP_STATUS.INTERNAL_ERROR, "Database error. Please try again later.", false);
   }
 }
 
-export class RedisError extends AppError {
+class _RedisError extends AppError {
   constructor() {
     super(ERROR_CODES.SYS_REDIS_ERROR, HTTP_STATUS.INTERNAL_ERROR, "Service temporarily unavailable. Please try again.", false);
   }

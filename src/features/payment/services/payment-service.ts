@@ -24,7 +24,7 @@ import {
   BookingNotFoundError,
 } from "@/lib/server/errors";
 import type {
-  PaymentResponse,
+  PaymentResponse as _PaymentResponse,
   PaymentDetailResponse,
   BookingPaymentsResponse,
   CreateOrderResponse,
@@ -167,7 +167,7 @@ function mapPaymentToDetailResponse(payment: {
  *   3. Create Payment record with PENDING status
  *   4. Return order details + keyId for frontend
  */
-export async function createOrder(
+async function _createOrder(
   data: CreateOrderInput,
   userId: string
 ): Promise<CreateOrderResponse> {
@@ -232,7 +232,7 @@ export async function createOrder(
  *   4. Update payment status to SUCCESS
  *   5. Update booking advanceAmount if partial payment
  */
-export async function verifyPayment(
+async function _verifyPayment(
   data: {
     bookingId: string;
     razorpayOrderId: string;
@@ -283,11 +283,11 @@ export async function verifyPayment(
       status: "SUCCESS",
       providerRefId: data.razorpayPaymentId,
       paidAt: new Date(),
-      metadata: {
+      metadata: JSON.stringify({
         razorpayOrderId: data.razorpayOrderId,
         razorpayPaymentId: data.razorpayPaymentId,
         verifiedAt: new Date().toISOString(),
-      },
+      }),
     },
   });
 

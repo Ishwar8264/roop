@@ -19,8 +19,8 @@ import {
   ServiceNotFoundError,
   StaffNotFoundError,
   SlotInvalidDateError,
-  SlotBranchClosedError,
-  SlotServiceRequiredError,
+  SlotBranchClosedError as _SlotBranchClosedError,
+  SlotServiceRequiredError as _SlotServiceRequiredError,
   SlotNoStaffAvailableError,
   ServiceVariantNotFoundError,
 } from "@/lib/server/errors";

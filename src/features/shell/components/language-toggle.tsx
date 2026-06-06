@@ -20,7 +20,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useLocaleStore, type Locale } from "@/i18n/locale-store";
+import { useLocaleStore } from "@/i18n/locale-store";
 
 // SSR-safe mounted detection using useSyncExternalStore
 const emptySubscribe = () => () => {};

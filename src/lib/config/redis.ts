@@ -46,7 +46,7 @@ if (process.env.NODE_ENV !== "production") {
  * Check if Redis is connected and responsive
  * Use for health checks
  */
-export async function isRedisHealthy(): Promise<boolean> {
+async function _isRedisHealthy(): Promise<boolean> {
   try {
     const result = await redis.ping();
     return result === "PONG";

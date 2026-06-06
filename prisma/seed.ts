@@ -8,9 +8,50 @@
  *   - i18n pattern: nameHi + nameEn for all user-facing content
  */
 
-import { PrismaClient, UserRole, BookingStatus, DiscountType, NotificationChannel, NotificationStatus, AuthOtpPurpose, PaymentProvider, PaymentStatus, BlogPostStatus, ExpenseCategory, StaffCommissionStatus, LoyaltyTransactionType, NotificationTrigger } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
+
+const UserRole = {
+  ADMIN: "ADMIN",
+  STAFF: "STAFF",
+  USER: "USER",
+} as const;
+
+const BookingStatus = {
+  PENDING: "PENDING",
+  CONFIRMED: "CONFIRMED",
+  IN_PROGRESS: "IN_PROGRESS",
+  COMPLETED: "COMPLETED",
+} as const;
+
+const DiscountType = {
+  PERCENTAGE: "PERCENTAGE",
+  FLAT_AMOUNT: "FLAT_AMOUNT",
+} as const;
+
+const NotificationTrigger = {
+  BOOKING_CONFIRMED: "BOOKING_CONFIRMED",
+  BOOKING_REMINDER: "BOOKING_REMINDER",
+} as const;
+
+const NotificationChannel = {
+  WHATSAPP: "WHATSAPP",
+  SMS: "SMS",
+} as const;
+
+const NotificationStatus = {
+  SENT: "SENT",
+} as const;
+
+const LoyaltyTransactionType = {
+  EARN: "EARN",
+} as const;
+
+const BlogPostStatus = {
+  PUBLISHED: "PUBLISHED",
+  DRAFT: "DRAFT",
+} as const;
 
 async function main() {
   console.log("Seeding Nikharta Roop database (PostgreSQL)...\n");
@@ -174,13 +215,13 @@ async function main() {
       id: "staff_pooja",
       userId: "user_staff_pooja",
       branchId: branchDelhi.id,
-      specialization: ["facial", "bridal_makeup", "hair_color"],
+      specialization: "facial,bridal_makeup,hair_color",
       experienceYears: 8,
       bioHi: "8 \u0938\u093e\u0932 \u0915\u093e \u0905\u0928\u0941\u092d\u0935 \u2014 \u092c\u094d\u0930\u093e\u0907\u0921\u0932 \u092e\u0947\u0915\u0905\u092a \u092e\u0947\u0902 \u0935\u093f\u0936\u0947\u0937\u091c\u094d\u091e",
       bioEn: "8 years experience \u2014 Bridal Makeup specialist",
       rating: 4.9,
       isAvailable: true,
-      workDays: { mon: true, tue: true, wed: true, thu: true, fri: true, sat: true, sun: false },
+      workDays: "{\"mon\":true,\"tue\":true,\"wed\":true,\"thu\":true,\"fri\":true,\"sat\":true,\"sun\":false}",
       workStart: new Date("1970-01-01T09:00:00"),
       workEnd: new Date("1970-01-01T19:00:00"),
       commissionRate: 15.0,
@@ -189,13 +230,13 @@ async function main() {
       id: "staff_neha",
       userId: "user_staff_neha",
       branchId: branchDelhi.id,
-      specialization: ["hair_cutting", "hair_styling", "threading"],
+      specialization: "hair_cutting,hair_styling,threading",
       experienceYears: 5,
       bioHi: "\u0939\u0947\u092f\u0930 \u0938\u094d\u091f\u093e\u0907\u0932\u093f\u0902\u0917 \u0914\u0930 \u0925\u094d\u0930\u0947\u0921\u093f\u0902\u0917 \u092e\u0947\u0902 \u092e\u093e\u0939\u093f\u0930",
       bioEn: "Expert in Hair Styling and Threading",
       rating: 4.7,
       isAvailable: true,
-      workDays: { mon: true, tue: true, wed: false, thu: true, fri: true, sat: true, sun: true },
+      workDays: "{\"mon\":true,\"tue\":true,\"wed\":false,\"thu\":true,\"fri\":true,\"sat\":true,\"sun\":true}",
       workStart: new Date("1970-01-01T09:00:00"),
       workEnd: new Date("1970-01-01T18:00:00"),
       commissionRate: 12.0,
@@ -204,13 +245,13 @@ async function main() {
       id: "staff_anita",
       userId: "user_staff_anita",
       branchId: branchDelhi.id,
-      specialization: ["mehendi", "nail_art", "facial"],
+      specialization: "mehendi,nail_art,facial",
       experienceYears: 6,
       bioHi: "\u092e\u0947\u0939\u0902\u0926\u0940 \u0914\u0930 \u0928\u0947\u0932 \u0906\u0930\u094d\u091f \u0915\u0940 \u0935\u093f\u0936\u0947\u0937\u091c\u094d\u091e",
       bioEn: "Mehendi and Nail Art specialist",
       rating: 4.8,
       isAvailable: true,
-      workDays: { mon: true, tue: true, wed: true, thu: true, fri: true, sat: true, sun: false },
+      workDays: "{\"mon\":true,\"tue\":true,\"wed\":true,\"thu\":true,\"fri\":true,\"sat\":true,\"sun\":false}",
       workStart: new Date("1970-01-01T10:00:00"),
       workEnd: new Date("1970-01-01T19:00:00"),
       commissionRate: 10.0,

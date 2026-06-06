@@ -27,8 +27,8 @@
 import { createApiHandler } from "@/lib/api-handler";
 import { prisma } from "@/lib/prisma";
 import { requireActiveUser } from "@/lib/auth-helpers";
-import { NotFoundError, AdminRequiredError, ValidationError } from "@/lib/errors";
-import { HTTP_STATUS } from "@/lib/http";
+import { NotFoundError, AdminRequiredError, ValidationError as _ValidationError } from "@/lib/errors";
+import { HTTP_STATUS as _HTTP_STATUS } from "@/lib/http";
 import { generateSnapshotSchema } from "@/lib/validations/revenue";
 
 // ==================== POST — Generate Revenue Snapshot (Admin) ====================

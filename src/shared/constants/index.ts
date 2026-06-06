@@ -3,12 +3,12 @@
  * Responsibility: Application-wide constant values
  */
 
-export const APP_NAME = "निखरता रूप";
-export const APP_NAME_EN = "Nikharta Roop";
+const _APP_NAME = "निखरता रूप";
+const _APP_NAME_EN = "Nikharta Roop";
 export const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
 /** Deep Rose Pink — brand color */
-export const BRAND_COLOR = "#C2185B";
+const _BRAND_COLOR = "#C2185B";
 
 /** HTTP status codes — used everywhere */
 export const HTTP_STATUS = {

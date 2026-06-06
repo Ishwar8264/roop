@@ -15,17 +15,17 @@ import { cuid, decimalString, pageParam, pageSizeParam } from "../common";
 // ==================== PAYMENT PROVIDER ENUM ====================
 
 /** Payment provider enum matching Prisma PaymentProvider */
-export const paymentProviderEnum = z.enum(["RAZORPAY", "CASH", "UPI"]);
+const paymentProviderEnum = z.enum(["RAZORPAY", "CASH", "UPI"]);
 
 // ==================== PAYMENT STATUS ENUM ====================
 
 /** Payment status enum matching Prisma PaymentStatus */
-export const paymentStatusEnum = z.enum(["PENDING", "SUCCESS", "FAILED", "REFUNDED"]);
+const paymentStatusEnum = z.enum(["PENDING", "SUCCESS", "FAILED", "REFUNDED"]);
 
 // ==================== REFUND STATUS ENUM ====================
 
 /** Refund status enum matching Prisma RefundStatus */
-export const refundStatusEnum = z.enum(["PENDING", "APPROVED", "REJECTED", "PROCESSED"]);
+const refundStatusEnum = z.enum(["PENDING", "APPROVED", "REJECTED", "PROCESSED"]);
 
 // ==================== CREATE PAYMENT ====================
 

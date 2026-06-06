@@ -81,4 +81,4 @@ export const bottomNavItemHrefs = [
 ];
 
 // Header-only items (not shown in bottom nav on mobile)
-export const headerOnlyHrefs = ["/branches", "/blog", "/profile"];
+const _headerOnlyHrefs = ["/branches", "/blog", "/profile"];

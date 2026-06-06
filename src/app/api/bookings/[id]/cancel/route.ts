@@ -65,7 +65,7 @@ export const PATCH = createApiHandler({
 
     // 3. Access control
     const isAdmin = user.role === "ADMIN";
-    const isStaff = user.role === "STAFF";
+    const _isStaff = user.role === "STAFF";
     const isOwner = booking.userId === user.id;
     const isAssignedStaff = booking.staffId === user.id;
 
