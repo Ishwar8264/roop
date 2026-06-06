@@ -39,7 +39,7 @@ import type { ApiResponse } from "@/types";
 export function ProfileClient() {
   const router = useRouter();
   const { t } = useTranslation();
-  const { data: profileData, isLoading } = useProfile();
+  const { data: profileData, isLoading, refetch: refetchProfile } = useProfile();
   const { logout } = useAuthStore();
 
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
@@ -81,7 +81,7 @@ export function ProfileClient() {
       </div>
 
       {/* Profile Header */}
-      <ProfileHeader profile={profileData?.user} />
+      <ProfileHeader profile={profileData?.user} onProfileChange={refetchProfile} />
 
       {/* Personal Info Card */}
       <PersonalInfoCard
@@ -90,10 +90,11 @@ export function ProfileClient() {
           // Open verify email dialog via SecurityCard
         }}
         onChangePhone={() => setPhoneDialogOpen(true)}
+        onProfileChange={refetchProfile}
       />
 
       {/* Security Card */}
-      <SecurityCard profile={profileData?.user} />
+      <SecurityCard profile={profileData?.user} onProfileChange={refetchProfile} />
 
       {/* Logout Button */}
       <Button

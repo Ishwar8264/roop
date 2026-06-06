@@ -27,11 +27,12 @@ interface PersonalInfoCardProps {
   profile?: UserProfile | null;
   onVerifyEmail?: () => void;
   onChangePhone?: () => void;
+  onProfileChange?: () => void;
 }
 
 type EditingField = "name" | "email" | "phone" | null;
 
-export function PersonalInfoCard({ profile, onVerifyEmail, onChangePhone }: PersonalInfoCardProps) {
+export function PersonalInfoCard({ profile, onVerifyEmail, onChangePhone, onProfileChange }: PersonalInfoCardProps) {
   const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
   const updateProfile = useUpdateProfile();
@@ -69,8 +70,9 @@ export function PersonalInfoCard({ profile, onVerifyEmail, onChangePhone }: Pers
     updateProfile.mutate(payload, () => {
       setEditingField(null);
       setEditValue("");
+      onProfileChange?.();
     });
-  }, [editingField, editValue, updateProfile]);
+  }, [editingField, editValue, updateProfile, onProfileChange]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -253,13 +255,22 @@ export function PersonalInfoCard({ profile, onVerifyEmail, onChangePhone }: Pers
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap">
                 <p className="text-xs text-muted-foreground">{t("profile.phone")}</p>
-                {displayUser?.mobile && (
+                {displayUser?.mobile && displayUser.phoneVerified && (
                   <Badge
                     variant="outline"
                     className="text-[9px] gap-0.5 px-1 py-px border-green-200 text-green-700 dark:border-green-800 dark:text-green-400"
                   >
                     <CheckCircle2 className="h-2 w-2" />
                     {t("profile.verified")}
+                  </Badge>
+                )}
+                {displayUser?.mobile && !displayUser.phoneVerified && (
+                  <Badge
+                    variant="outline"
+                    className="text-[9px] gap-0.5 px-1 py-px border-amber-200 text-amber-700 dark:border-amber-800 dark:text-amber-400"
+                  >
+                    <AlertCircle className="h-2 w-2" />
+                    {t("profile.notVerified")}
                   </Badge>
                 )}
               </div>

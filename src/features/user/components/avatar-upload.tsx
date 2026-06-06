@@ -13,7 +13,7 @@
 "use client";
 
 import Image from "next/image";
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 import {
   Camera,
   Loader2,
@@ -45,7 +45,11 @@ import { cn } from "@/lib/utils";
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
-export function AvatarUpload() {
+interface AvatarUploadProps {
+  onProfileChange?: () => void;
+}
+
+export function AvatarUpload({ onProfileChange }: AvatarUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const user = useAuthStore((s) => s.user);
   const { upload, isUploading } = useUploadAvatar();
@@ -58,6 +62,13 @@ export function AvatarUpload() {
   );
   const [activeTab, setActiveTab] = useState("upload");
   const [isDragOver, setIsDragOver] = useState(false);
+
+  // Cleanup preview object URL on unmount or when preview changes
+  useEffect(() => {
+    return () => {
+      if (preview) URL.revokeObjectURL(preview);
+    };
+  }, [preview]);
 
   const {
     data: galleryData,
@@ -132,21 +143,37 @@ export function AvatarUpload() {
       setSelectedFile(null);
       setPreview(null);
       setDialogOpen(false);
+      onProfileChange?.();
     }
-  }, [selectedFile, upload]);
+  }, [selectedFile, upload, onProfileChange]);
 
   const handleGallerySelect = useCallback(async () => {
     if (!selectedGalleryUrl) return;
 
-    // Update the store with the selected gallery URL
-    const { setUser } = useAuthStore.getState();
-    setUser({ avatarUrl: selectedGalleryUrl } as Partial<
-      import("@/types").UserProfile
-    >);
-    toast.success(t("profile.avatarUpdated"));
-    setSelectedGalleryUrl(null);
-    setDialogOpen(false);
-  }, [selectedGalleryUrl, t]);
+    try {
+      // Update avatar on server so it persists across reloads
+      const res = await fetch("/api/user/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ avatarUrl: selectedGalleryUrl }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message || "Failed to update avatar");
+
+      // Update the store with the selected gallery URL
+      const { setUser } = useAuthStore.getState();
+      setUser({ avatarUrl: selectedGalleryUrl } as Partial<
+        import("@/types").UserProfile
+      >);
+      toast.success(t("profile.avatarUpdated"));
+      setSelectedGalleryUrl(null);
+      setDialogOpen(false);
+      onProfileChange?.();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t("common.somethingWrong"));
+    }
+  }, [selectedGalleryUrl, t, onProfileChange]);
 
   const handleTabChange = useCallback(
     (value: string) => {

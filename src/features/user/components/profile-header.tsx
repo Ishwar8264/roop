@@ -22,9 +22,10 @@ import type { UserProfile } from "@/types";
 
 interface ProfileHeaderProps {
   profile?: UserProfile | null;
+  onProfileChange?: () => void;
 }
 
-export function ProfileHeader({ profile }: ProfileHeaderProps) {
+export function ProfileHeader({ profile, onProfileChange }: ProfileHeaderProps) {
   const router = useRouter();
   const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
@@ -38,7 +39,7 @@ export function ProfileHeader({ profile }: ProfileHeaderProps) {
 
       <div className="relative flex flex-col items-center text-center gap-4">
         {/* Avatar */}
-        <AvatarUpload />
+        <AvatarUpload onProfileChange={onProfileChange} />
 
         {/* Name */}
         <div>
@@ -79,13 +80,23 @@ export function ProfileHeader({ profile }: ProfileHeaderProps) {
               <span className="text-sm text-muted-foreground">
                 {displayUser.mobile}
               </span>
-              <Badge
-                variant="outline"
-                className="text-[9px] gap-0.5 px-1 py-px border-green-200 text-green-600 dark:border-green-800 dark:text-green-400"
-              >
-                <CheckCircle2 className="h-2 w-2" />
-                {t("profile.verified")}
-              </Badge>
+              {displayUser.phoneVerified ? (
+                <Badge
+                  variant="outline"
+                  className="text-[9px] gap-0.5 px-1 py-px border-green-200 text-green-600 dark:border-green-800 dark:text-green-400"
+                >
+                  <CheckCircle2 className="h-2 w-2" />
+                  {t("profile.verified")}
+                </Badge>
+              ) : (
+                <Badge
+                  variant="outline"
+                  className="text-[9px] gap-0.5 px-1 py-px border-amber-200 text-amber-600 dark:border-amber-800 dark:text-amber-400"
+                >
+                  <AlertCircle className="h-2 w-2" />
+                  {t("profile.notVerified")}
+                </Badge>
+              )}
             </div>
           )}
         </div>

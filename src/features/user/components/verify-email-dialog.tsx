@@ -23,6 +23,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { OtpInput } from "@/components/ui/otp-input";
 import { apiClient } from "@/services/api-client";
+import { useAuthStore } from "@/stores/auth-store";
 import { toast } from "sonner";
 import { useTranslation } from "@/i18n/use-translation";
 import type { ApiResponse } from "@/types";
@@ -30,9 +31,10 @@ import type { ApiResponse } from "@/types";
 interface VerifyEmailDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onVerified?: () => void;
 }
 
-export function VerifyEmailDialog({ open, onOpenChange }: VerifyEmailDialogProps) {
+export function VerifyEmailDialog({ open, onOpenChange, onVerified }: VerifyEmailDialogProps) {
   const { t } = useTranslation();
 
   const [otpSent, setOtpSent] = useState(false);
@@ -70,8 +72,12 @@ export function VerifyEmailDialog({ open, onOpenChange }: VerifyEmailDialogProps
         "/user/verify-email/confirm",
         { otp }
       );
+      // Update store so emailVerified reflects immediately
+      const { setUser } = useAuthStore.getState();
+      setUser({ emailVerified: true } as Partial<import("@/types").UserProfile>);
       toast.success(t("profile.emailVerifiedSuccess"));
       resetForm();
+      onVerified?.();
       onOpenChange(false);
     } catch (error) {
       const message = error instanceof Error ? error.message : t("common.somethingWrong");
@@ -79,7 +85,7 @@ export function VerifyEmailDialog({ open, onOpenChange }: VerifyEmailDialogProps
     } finally {
       setIsVerifying(false);
     }
-  }, [otp, t, resetForm, onOpenChange]);
+  }, [otp, t, resetForm, onOpenChange, onVerified]);
 
   const handleOpenChange = useCallback(
     (newOpen: boolean) => {

@@ -77,6 +77,10 @@ export async function PATCH(request: NextRequest) {
       updateData.name = parsedBody.name;
     }
 
+    if (parsedBody.avatarUrl !== undefined) {
+      updateData.avatarUrl = parsedBody.avatarUrl;
+    }
+
     // 4. Update user + accounts in transaction (handles race conditions)
     try {
       await prisma.$transaction(async (tx) => {

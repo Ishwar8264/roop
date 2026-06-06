@@ -23,9 +23,10 @@ import type { UserProfile } from "@/types";
 
 interface SecurityCardProps {
   profile?: UserProfile | null;
+  onProfileChange?: () => void;
 }
 
-export function SecurityCard({ profile }: SecurityCardProps) {
+export function SecurityCard({ profile, onProfileChange }: SecurityCardProps) {
   const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
   const displayUser = profile || user;
@@ -123,7 +124,7 @@ export function SecurityCard({ profile }: SecurityCardProps) {
 
       {/* Dialogs */}
       <ChangePasswordDialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen} />
-      <VerifyEmailDialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen} />
+      <VerifyEmailDialog open={emailDialogOpen} onOpenChange={setEmailDialogOpen} onVerified={onProfileChange} />
     </>
   );
 }

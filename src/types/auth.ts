@@ -76,6 +76,7 @@ export interface UserProfile {
   name: string | null;
   email: string | null;
   emailVerified?: boolean;
+  phoneVerified?: boolean;
   role: UserRole;
   avatarUrl: string | null;
   loyaltyPoints: number;
