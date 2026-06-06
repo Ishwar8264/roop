@@ -1,5 +1,5 @@
 # Purpose: Runs full repository quality gates before pushing.
-# Responsibilities: Block pushes when the production build is broken.
-# Notes: Keep this hook small and deterministic.
+# Responsibilities: Block pushes when linting, types, React Doctor, or the production build fails.
+# Notes: This runs the full-project gate so pushes cannot bypass staged-only checks.
 
-pnpm run build
+pnpm run verify

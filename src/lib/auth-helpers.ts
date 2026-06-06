@@ -27,7 +27,7 @@ import type { AccessTokenPayload } from "@/shared/types/auth";
  * Extract access token from Authorization header or HttpOnly cookie
  * @returns The token string, or null if not found
  */
-export function extractAccessToken(request: NextRequest): string | null {
+function extractAccessToken(request: NextRequest): string | null {
   const authHeader = request.headers.get("authorization");
   if (authHeader?.startsWith("Bearer ")) {
     return authHeader.split(" ")[1];
@@ -40,7 +40,7 @@ export function extractAccessToken(request: NextRequest): string | null {
  * Extract Bearer token from Authorization header
  * Kept for backward compatibility with non-browser API clients
  */
-export function extractTokenFromHeader(request: NextRequest): string | null {
+function _extractTokenFromHeader(request: NextRequest): string | null {
   const authHeader = request.headers.get("authorization");
   return authHeader?.startsWith("Bearer ") ? authHeader.split(" ")[1] : null;
 }
@@ -49,14 +49,14 @@ export function extractTokenFromHeader(request: NextRequest): string | null {
  * Extract client IP from request headers
  * Checks x-forwarded-for (proxy) then falls back to x-real-ip
  */
-export function extractClientIp(request: NextRequest): string | null {
+function extractClientIp(request: NextRequest): string | null {
   return extractClientIpUtil(request);
 }
 
 /**
  * Extract user-agent from request headers
  */
-export function extractUserAgent(request: NextRequest): string | null {
+function _extractUserAgent(request: NextRequest): string | null {
   return request.headers.get("user-agent") || null;
 }
 
@@ -129,7 +129,7 @@ export async function requireAuth(request: NextRequest): Promise<AccessTokenPayl
  * Use this for routes where session invalidation matters (logout, me, etc.)
  * @returns Verified JWT payload + user record
  */
-export async function requireAuthWithSession(request: NextRequest): Promise<{
+async function _requireAuthWithSession(request: NextRequest): Promise<{
   payload: AccessTokenPayload;
   user: { id: string; isActive: boolean; role: string };
 }> {

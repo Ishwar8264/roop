@@ -8,7 +8,7 @@
 
 "use client";
 
-import { useState, useCallback } from "react";
+import { useReducer, useCallback, useState } from "react";
 
 // ===== Types =====
 export interface ApiSpec {
@@ -103,38 +103,69 @@ const methodColors: Record<string, string> = {
   delete: "#F44336",
 };
 
+type ApiDocsState = {
+  expandedEndpoints: Set<string>;
+  expandedSchemas: Set<string>;
+  authToken: string;
+  tryOutOpen: Set<string>;
+};
+
+type ApiDocsAction =
+  | { type: "toggleEndpoint"; value: string }
+  | { type: "toggleSchema"; value: string }
+  | { type: "setAuthToken"; value: string }
+  | { type: "toggleTryOut"; value: string };
+
+function toggleSetValue(values: Set<string>, value: string) {
+  const next = new Set(values);
+  if (next.has(value)) next.delete(value);
+  else next.add(value);
+  return next;
+}
+
+function apiDocsReducer(state: ApiDocsState, action: ApiDocsAction): ApiDocsState {
+  switch (action.type) {
+    case "toggleEndpoint":
+      return {
+        ...state,
+        expandedEndpoints: toggleSetValue(state.expandedEndpoints, action.value),
+      };
+    case "toggleSchema":
+      return {
+        ...state,
+        expandedSchemas: toggleSetValue(state.expandedSchemas, action.value),
+      };
+    case "setAuthToken":
+      return { ...state, authToken: action.value };
+    case "toggleTryOut":
+      return {
+        ...state,
+        tryOutOpen: toggleSetValue(state.tryOutOpen, action.value),
+      };
+    default:
+      return state;
+  }
+}
+
 export function ApiDocsClient({ initialSpec }: { initialSpec: ApiSpec }) {
-  const [spec] = useState<ApiSpec>(initialSpec);
-  const [expandedEndpoints, setExpandedEndpoints] = useState<Set<string>>(new Set());
-  const [expandedSchemas, setExpandedSchemas] = useState<Set<string>>(new Set());
-  const [authToken, setAuthToken] = useState("");
-  const [tryOutOpen, setTryOutOpen] = useState<Set<string>>(new Set());
+  const spec = initialSpec;
+  const [state, dispatch] = useReducer(apiDocsReducer, {
+    expandedEndpoints: new Set<string>(),
+    expandedSchemas: new Set<string>(),
+    authToken: "",
+    tryOutOpen: new Set<string>(),
+  });
 
   const toggleEndpoint = useCallback((key: string) => {
-    setExpandedEndpoints((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
+    dispatch({ type: "toggleEndpoint", value: key });
   }, []);
 
   const toggleSchema = useCallback((name: string) => {
-    setExpandedSchemas((prev) => {
-      const next = new Set(prev);
-      if (next.has(name)) next.delete(name);
-      else next.add(name);
-      return next;
-    });
+    dispatch({ type: "toggleSchema", value: name });
   }, []);
 
   const toggleTryOut = useCallback((key: string) => {
-    setTryOutOpen((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
+    dispatch({ type: "toggleTryOut", value: key });
   }, []);
 
   // Group endpoints by tag
@@ -172,8 +203,10 @@ export function ApiDocsClient({ initialSpec }: { initialSpec: ApiSpec }) {
               type="text"
               aria-label="Bearer Token"
               placeholder="Paste access token here..."
-              value={authToken}
-              onChange={(e) => setAuthToken(e.target.value)}
+              value={state.authToken}
+              onChange={(e) =>
+                dispatch({ type: "setAuthToken", value: e.target.value })
+              }
               style={{
                 flex: 1,
                 padding: "6px 10px",
@@ -207,7 +240,7 @@ export function ApiDocsClient({ initialSpec }: { initialSpec: ApiSpec }) {
               <p style={{ margin: "0 0 12px", color: "#666", fontSize: 14 }}>{tag.description}</p>
               {endpoints.map(({ path, method, info }) => {
                 const key = `${method}-${path}`;
-                const isExpanded = expandedEndpoints.has(key);
+                const isExpanded = state.expandedEndpoints.has(key);
                 return (
                   <EndpointCard
                     key={key}
@@ -218,8 +251,8 @@ export function ApiDocsClient({ initialSpec }: { initialSpec: ApiSpec }) {
                     isExpanded={isExpanded}
                     onToggle={() => toggleEndpoint(key)}
                     methodColor={methodColors[method] || "#999"}
-                    authToken={authToken}
-                    tryOutOpen={tryOutOpen.has(key)}
+                    authToken={state.authToken}
+                    tryOutOpen={state.tryOutOpen.has(key)}
                     onToggleTryOut={() => toggleTryOut(key)}
                   />
                 );
@@ -234,7 +267,7 @@ export function ApiDocsClient({ initialSpec }: { initialSpec: ApiSpec }) {
             <h2 style={tagTitleStyle}>Other Endpoints</h2>
             {untagged.map(({ path, method, info }) => {
               const key = `${method}-${path}`;
-              const isExpanded = expandedEndpoints.has(key);
+              const isExpanded = state.expandedEndpoints.has(key);
               return (
                 <EndpointCard
                   key={key}
@@ -245,8 +278,8 @@ export function ApiDocsClient({ initialSpec }: { initialSpec: ApiSpec }) {
                   isExpanded={isExpanded}
                   onToggle={() => toggleEndpoint(key)}
                   methodColor={methodColors[method] || "#999"}
-                  authToken={authToken}
-                  tryOutOpen={tryOutOpen.has(key)}
+                  authToken={state.authToken}
+                  tryOutOpen={state.tryOutOpen.has(key)}
                   onToggleTryOut={() => toggleTryOut(key)}
                 />
               );
@@ -259,7 +292,7 @@ export function ApiDocsClient({ initialSpec }: { initialSpec: ApiSpec }) {
           <div style={{ marginTop: 40 }}>
             <h2 style={{ ...tagTitleStyle, color: "#880E4F" }}>📦 Schemas</h2>
             {Object.entries(spec.components.schemas).map(([name, schema]) => {
-              const isExpanded = expandedSchemas.has(name);
+              const isExpanded = state.expandedSchemas.has(name);
               return (
                 <SchemaCard
                   key={name}
@@ -307,20 +340,7 @@ function EndpointCard({
       <button
         type="button"
         onClick={onToggle}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          cursor: "pointer",
-          padding: "12px 16px",
-          background: "none",
-          border: "none",
-          width: "100%",
-          textAlign: "left",
-          fontFamily: "inherit",
-          fontSize: "inherit",
-          color: "inherit",
-        }}
+        style={endpointToggleButtonStyle}
       >
         <span
           style={{
@@ -512,15 +532,9 @@ function TryItOutSection({
             onClick={execute}
             disabled={loading}
             style={{
-              marginLeft: "auto",
-              padding: "6px 16px",
+              ...sendButtonStyle,
               backgroundColor: loading ? "#ccc" : "#4CAF50",
-              color: "white",
-              border: "none",
-              borderRadius: 6,
               cursor: loading ? "not-allowed" : "pointer",
-              fontSize: 13,
-              fontWeight: 600,
             }}
           >
             {loading ? "Sending..." : "Send ⚡"}
@@ -536,16 +550,7 @@ function TryItOutSection({
               id="request-body-textarea"
               value={body}
               onChange={(e) => setBody(e.target.value)}
-              style={{
-                width: "100%",
-                minHeight: 120,
-                padding: 8,
-                border: "1px solid #E0E0E0",
-                borderRadius: 6,
-                fontFamily: "monospace",
-                fontSize: 12,
-                resize: "vertical",
-              }}
+              style={requestBodyTextareaStyle}
             />
           </div>
         )}
@@ -593,7 +598,7 @@ function SchemaCard({
       <button
         type="button"
         onClick={onToggle}
-        style={{ display: "flex", alignItems: "center", gap: 12, cursor: "pointer", padding: "10px 16px", background: "none", border: "none", width: "100%", textAlign: "left", fontFamily: "inherit", fontSize: "inherit", color: "inherit" }}
+        style={schemaToggleButtonStyle}
       >
         <span style={{ fontSize: 13, fontWeight: 600, color: "#880E4F" }}>{name}</span>
         {schema.description && (
@@ -735,6 +740,26 @@ const endpointCardStyle: React.CSSProperties = {
   transition: "box-shadow 0.2s",
 };
 
+const endpointToggleButtonStyle: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 12,
+  cursor: "pointer",
+  padding: "12px 16px",
+  background: "none",
+  border: "none",
+  width: "100%",
+  textAlign: "left",
+  fontFamily: "inherit",
+  fontSize: "inherit",
+  color: "inherit",
+};
+
+const schemaToggleButtonStyle: React.CSSProperties = {
+  ...endpointToggleButtonStyle,
+  padding: "10px 16px",
+};
+
 const methodBadgeStyle: React.CSSProperties = {
   display: "inline-block",
   padding: "3px 10px",
@@ -764,6 +789,27 @@ const tryButtonStyle: React.CSSProperties = {
   cursor: "pointer",
   fontSize: 13,
   fontWeight: 600,
+};
+
+const sendButtonStyle: React.CSSProperties = {
+  marginLeft: "auto",
+  padding: "6px 16px",
+  color: "white",
+  border: "none",
+  borderRadius: 6,
+  fontSize: 13,
+  fontWeight: 600,
+};
+
+const requestBodyTextareaStyle: React.CSSProperties = {
+  width: "100%",
+  minHeight: 120,
+  padding: 8,
+  border: "1px solid #E0E0E0",
+  borderRadius: 6,
+  fontFamily: "monospace",
+  fontSize: 12,
+  resize: "vertical",
 };
 
 const badgeRowStyle: React.CSSProperties = {

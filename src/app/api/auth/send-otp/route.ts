@@ -53,7 +53,7 @@ export const POST = createApiHandler({
     const isEmailOtp = !!email && !mobile;
 
     // 1. Check registration status based on purpose
-    let existingUser = null;
+    let existingUser: { id: string } | null = null;
 
     if (mobile) {
       existingUser = await prisma.user.findUnique({ where: { mobile } });
@@ -121,7 +121,7 @@ export const POST = createApiHandler({
       // Email OTP — currently stubbed (TODO: implement email sending)
       // For now, in development mode, the OTP is returned in the response
       // In production, you would call an email service here
-      console.log(`[EMAIL OTP] OTP for ${email}: ${plainOtp}`);
+      console.warn(`[EMAIL OTP] OTP for ${email}: ${plainOtp}`);
     } else {
       // Phone OTP — send via SMS
       const smsResult = await sendOtpSms(mobile!, plainOtp, purpose);

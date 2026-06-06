@@ -16,7 +16,7 @@ import { createApiHandler } from "@/lib/server/api-handler";
 import { prisma } from "@/lib/database/prisma";
 import {
   requireAuthWithSession,
-  revokeAllUserSessions,
+  revokeAllUserSessions as _revokeAllUserSessions,
   revokeSession,
 } from "@/features/auth/services/session-service";
 import { verifyPasswordHash, hashPassword } from "@/lib/server/crypto";

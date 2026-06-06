@@ -18,21 +18,21 @@ import { z } from "zod";
  * - Must be 10 digits
  * - Must start with 6, 7, 8, or 9 (Indian mobile numbering)
  */
-export const indianMobileSchema = z
+const indianMobileSchema = z
   .string()
   .regex(/^[6-9]\d{9}$/, "Invalid Indian mobile number — must be 10 digits starting with 6-9");
 
 /**
  * 6-digit OTP validation
  */
-export const otpSchema = z
+const otpSchema = z
   .string()
   .regex(/^\d{6}$/, "OTP must be exactly 6 digits");
 
 /**
  * OTP purpose enum — LOGIN = only existing users, REGISTER = new user creation
  */
-export const otpPurposeSchema = z.enum(["LOGIN", "REGISTER"]);
+const otpPurposeSchema = z.enum(["LOGIN", "REGISTER"]);
 
 // ==================== SEND OTP ====================
 
@@ -90,11 +90,11 @@ export type VerifyOtpInput = z.infer<typeof verifyOtpSchema>;
  * Body: { refreshToken?: "eyJhbGciOi..." }
  * Fallback: reads from HttpOnly cookie (nr_refresh_token) if body is empty
  */
-export const refreshTokenSchema = z.object({
+const _refreshTokenSchema = z.object({
   refreshToken: z.string().min(1, "Refresh token is required").optional(),
 });
 
-export type RefreshTokenInput = z.infer<typeof refreshTokenSchema>;
+export type RefreshTokenInput = z.infer<typeof _refreshTokenSchema>;
 
 // ==================== LOGOUT ====================
 
@@ -103,9 +103,9 @@ export type RefreshTokenInput = z.infer<typeof refreshTokenSchema>;
  * Body: {} (empty — uses Authorization header)
  * No body validation needed — token from header
  */
-export const logoutSchema = z.object({});
+const _logoutSchema = z.object({});
 
-export type LogoutInput = z.infer<typeof logoutSchema>;
+export type LogoutInput = z.infer<typeof _logoutSchema>;
 
 // ==================== LOGIN EMAIL ====================
 

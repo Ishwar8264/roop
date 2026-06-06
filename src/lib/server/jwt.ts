@@ -27,7 +27,7 @@ const JWT_REFRESH_SECRET = new TextEncoder().encode(process.env.JWT_REFRESH_SECR
  * Sign a new access token (15 min expiry)
  * Contains: userId, role, sessionId — minimal payload for performance
  */
-export async function signAccessToken(payload: AccessTokenPayload): Promise<string> {
+async function signAccessToken(payload: AccessTokenPayload): Promise<string> {
   return new SignJWT({
     userId: payload.userId,
     role: payload.role,
@@ -72,7 +72,7 @@ export async function verifyAccessToken(
  * Contains: userId, sessionId, family (for reuse detection)
  * The "family" links all refresh tokens in a rotation chain
  */
-export async function signRefreshToken(
+async function signRefreshToken(
   payload: RefreshTokenPayload
 ): Promise<string> {
   return new SignJWT({

@@ -8,7 +8,7 @@
  */
 
 import { z } from "zod";
-import { cuid, nonEmptyString, pageParam, pageSizeParam } from "../common";
+import { cuid, nonEmptyString as _nonEmptyString, pageParam, pageSizeParam } from "../common";
 
 // ==================== LIST NOTIFICATIONS ====================
 

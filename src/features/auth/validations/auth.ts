@@ -13,43 +13,43 @@ import { indianPhone, otp6, email, password, fullName, googleIdToken } from "./p
 // ==================== SEND OTP ====================
 
 /** POST /api/auth/send-otp */
-export const sendOtpSchema = z.object({
+const _sendOtpSchema = z.object({
   phone: indianPhone,
 });
 
-export type SendOtpInput = z.infer<typeof sendOtpSchema>;
+export type SendOtpInput = z.infer<typeof _sendOtpSchema>;
 
 // ==================== VERIFY OTP ====================
 
 /** POST /api/auth/verify-otp */
-export const verifyOtpSchema = z.object({
+const _verifyOtpSchema = z.object({
   phone: indianPhone,
   otp: otp6,
 });
 
-export type VerifyOtpInput = z.infer<typeof verifyOtpSchema>;
+export type VerifyOtpInput = z.infer<typeof _verifyOtpSchema>;
 
 // ==================== REGISTER EMAIL ====================
 
 /** POST /api/auth/register-email */
-export const registerEmailSchema = z.object({
+const _registerEmailSchema = z.object({
   name: fullName,
   email: email,
   password: password,
   phone: indianPhone.optional(),
 });
 
-export type RegisterEmailInput = z.infer<typeof registerEmailSchema>;
+export type RegisterEmailInput = z.infer<typeof _registerEmailSchema>;
 
 // ==================== LOGIN EMAIL ====================
 
 /** POST /api/auth/login-email */
-export const loginEmailSchema = z.object({
+const _loginEmailSchema = z.object({
   email: email,
   password: z.string().min(1, "Password is required").max(72, "Password too long"),
 });
 
-export type LoginEmailInput = z.infer<typeof loginEmailSchema>;
+export type LoginEmailInput = z.infer<typeof _loginEmailSchema>;
 
 // ==================== MAGIC LINK ====================
 
@@ -63,20 +63,20 @@ export type MagicLinkInput = z.infer<typeof magicLinkSchema>;
 // ==================== VERIFY MAGIC LINK ====================
 
 /** GET /api/auth/verify-magic-link?token=xxx */
-export const verifyMagicLinkSchema = z.object({
+const _verifyMagicLinkSchema = z.object({
   token: z.string().min(1, "Magic link token is required"),
 });
 
-export type VerifyMagicLinkInput = z.infer<typeof verifyMagicLinkSchema>;
+export type VerifyMagicLinkInput = z.infer<typeof _verifyMagicLinkSchema>;
 
 // ==================== GOOGLE AUTH ====================
 
 /** POST /api/auth/google */
-export const googleAuthSchema = z.object({
+const _googleAuthSchema = z.object({
   idToken: googleIdToken,
 });
 
-export type GoogleAuthInput = z.infer<typeof googleAuthSchema>;
+export type GoogleAuthInput = z.infer<typeof _googleAuthSchema>;
 
 // ==================== REVOKE SESSION ====================
 

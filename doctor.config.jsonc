@@ -1,0 +1,21 @@
+/**
+ * Purpose: Configure React Doctor quality gates for this React and Next.js project.
+ * Responsibility: Keep React Doctor strict, deterministic, and aligned with local hooks.
+ * Important Notes: Blocking is set to warning so any warning or error fails commit and push checks.
+ */
+{
+  "$schema": "https://react.doctor/schema/config.json",
+  "blocking": "warning",
+  "warnings": true,
+  "verbose": true,
+  "adoptExistingLintConfig": true,
+  "ignore": {
+    "files": [
+      "node_modules/**",
+      ".next/**",
+      "out/**",
+      "build/**",
+      "coverage/**"
+    ]
+  }
+}

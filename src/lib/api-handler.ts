@@ -22,7 +22,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { ZodSchema } from "zod";
-import { AppError, isAppError, toAppError } from "./errors";
+import { AppError as _AppError, isAppError, toAppError } from "./errors";
 import { HTTP_STATUS } from "./http";
 
 // ==================== TYPES ====================
@@ -38,10 +38,10 @@ export interface ApiContext<T = unknown> {
 /** API handler function signature */
 export type ApiHandler<T = unknown, R = unknown> = (
   ctx: ApiContext<T>
-) => Promise<R>;
+) => Promise<Awaited<R>>;
 
 /** Custom response builder — allows routes to modify the NextResponse (e.g., set cookies) */
-export type ApiResponseBuilder<R = unknown> = (data: R) => NextResponse;
+export type ApiResponseBuilder<R = unknown> = (data: Awaited<R>) => NextResponse;
 
 /** Configuration for creating an API route handler */
 export interface ApiRouteConfig<T = unknown, R = unknown> {

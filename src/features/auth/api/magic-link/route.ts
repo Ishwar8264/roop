@@ -52,7 +52,7 @@ export const POST = createApiHandler({
     });
 
     // 5. Send magic link email (stubbed)
-    console.log(`[STUB_EMAIL] Magic link email sent to ${email}`);
+    console.warn(`[STUB_EMAIL] Magic link email sent to ${email}`);
 
     // TODO: Send email via SendGrid/Resend/SES
 

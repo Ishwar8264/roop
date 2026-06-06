@@ -221,6 +221,6 @@ async function checkResendCooldown(
 /**
  * Delete OTP for a phone number (used after successful verification or admin action)
  */
-export async function deleteOtp(phone: string): Promise<void> {
+async function _deleteOtp(phone: string): Promise<void> {
   await redis.del(`${REDIS_KEYS.OTP_PREFIX}${phone}`);
 }

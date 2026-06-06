@@ -31,7 +31,7 @@
 import { createApiHandler } from "@/lib/api-handler";
 import { prisma } from "@/lib/prisma";
 import { requireActiveUser } from "@/lib/auth-helpers";
-import { NotFoundError, AdminRequiredError, ValidationError } from "@/lib/errors";
+import { NotFoundError, AdminRequiredError, ValidationError as _ValidationError } from "@/lib/errors";
 import { HTTP_STATUS } from "@/lib/http";
 import {
   createProductSaleSchema,

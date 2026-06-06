@@ -20,7 +20,7 @@
 import { createApiHandler } from "@/lib/api-handler";
 import { prisma } from "@/lib/prisma";
 import { requireActiveUser } from "@/lib/auth-helpers";
-import { AdminRequiredError, StaffRequiredError } from "@/lib/errors";
+import { AdminRequiredError as _AdminRequiredError, StaffRequiredError } from "@/lib/errors";
 import { HTTP_STATUS } from "@/lib/http";
 import { listPaymentsQuerySchema } from "@/lib/validations/payments";
 

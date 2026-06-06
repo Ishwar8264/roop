@@ -11,38 +11,38 @@ import type { UserProfile } from "@/types";
 
 // ==================== Primitives ====================
 
-export const indianMobile = z
+const indianMobile = z
   .string()
   .min(1, "Mobile number is required")
   .regex(/^[6-9]\d{9}$/, "Must be 10 digits starting with 6-9");
 
-export const fullName = z
+const fullName = z
   .string()
   .min(1, "Name is required")
   .max(100, "Name too long")
   .trim();
 
-export const otp6 = z
+const otp6 = z
   .string()
   .min(1, "OTP is required")
   .regex(/^\d{6}$/, "OTP must be exactly 6 digits");
 
-export const emailField = z
+const emailField = z
   .string()
   .min(1, "Email is required")
   .email("Enter a valid email");
 
-export const passwordField = z
+const passwordField = z
   .string()
   .min(1, "Password is required");
 
-export const usernameField = z
+const usernameField = z
   .string()
   .min(3, "Username must be at least 3 characters")
   .max(30, "Username too long")
   .regex(/^[a-zA-Z0-9_]+$/, "Only letters, numbers, and underscores");
 
-export const registerPassword = z
+const registerPassword = z
   .string()
   .min(8, "Password must be at least 8 characters")
   .regex(/[A-Z]/, "Must contain at least 1 uppercase letter")

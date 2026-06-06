@@ -12,18 +12,18 @@ import { z } from "zod";
 // ==================== CREATE ORDER ====================
 
 /** Body for POST /api/payments/create-order */
-export const createOrderSchema = z.object({
+const _createOrderSchema = z.object({
   bookingId: z
     .string()
     .min(1, "बुकिंग ID आवश्यक है / Booking ID is required"),
 });
 
-export type CreateOrderInput = z.infer<typeof createOrderSchema>;
+export type CreateOrderInput = z.infer<typeof _createOrderSchema>;
 
 // ==================== VERIFY PAYMENT ====================
 
 /** Body for POST /api/payments/verify */
-export const verifyPaymentSchema = z.object({
+const _verifyPaymentSchema = z.object({
   bookingId: z
     .string()
     .min(1, "बुकिंग ID आवश्यक है / Booking ID is required"),
@@ -38,7 +38,7 @@ export const verifyPaymentSchema = z.object({
     .min(1, "Razorpay हस्ताक्षर आवश्यक है / Razorpay signature is required"),
 });
 
-export type VerifyPaymentInput = z.infer<typeof verifyPaymentSchema>;
+export type VerifyPaymentInput = z.infer<typeof _verifyPaymentSchema>;
 
 // ==================== CASH PAYMENT ====================
 

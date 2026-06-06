@@ -179,7 +179,7 @@ export const GET = createApiHandler({
       const dayOfWeek = dateObj.getUTCDay(); // 0=Sun, 1=Mon, ...
       const dayKeys = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
       const dayKey = dayKeys[dayOfWeek];
-      const workDays = staff.workDays as Record<string, boolean>;
+      const workDays = JSON.parse(staff.workDays) as Record<string, boolean>;
       if (!workDays[dayKey]) {
         // Staff doesn't work on this day
         return {

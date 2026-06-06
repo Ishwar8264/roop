@@ -13,7 +13,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { ZodSchema } from "zod";
-import { AppError, isAppError, toAppError } from "./errors";
+import { AppError as _AppError, isAppError, toAppError } from "./errors";
 import { HTTP_STATUS, ERROR_CODES } from "@/shared/constants";
 
 // ==================== TYPES ====================
@@ -30,7 +30,7 @@ export interface ApiContext<T = unknown> {
 
 export type ApiHandler<T = unknown, R = unknown> = (
   ctx: ApiContext<T>
-) => Promise<R>;
+) => Promise<Awaited<R>>;
 
 export interface ApiRouteConfig<T = unknown, R = unknown> {
   /** Zod schema for request body validation. null = skip validation (GET/cookie routes) */
@@ -47,7 +47,7 @@ export interface ApiRouteConfig<T = unknown, R = unknown> {
     user?: { id: string; isActive: boolean; role: string };
   }>;
   /** Custom response builder — override default JSON response */
-  responseBuilder?: (data: R, ctx: ApiContext<T>) => Promise<NextResponse> | NextResponse;
+  responseBuilder?: (data: Awaited<R>, ctx: ApiContext<T>) => Promise<NextResponse> | NextResponse;
 }
 
 // ==================== HANDLER FACTORY ====================

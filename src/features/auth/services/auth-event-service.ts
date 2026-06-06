@@ -8,7 +8,7 @@
  */
 
 import { prisma } from "@/lib/database/prisma";
-import { parseUserAgent, extractClientIp, extractGeoFromIp } from "@/lib/server/device";
+import { parseUserAgent as _parseUserAgent, extractClientIp, extractGeoFromIp } from "@/lib/server/device";
 import type { NextRequest } from "next/server";
 import type { AuthEventType } from "@/shared/types/enums";
 

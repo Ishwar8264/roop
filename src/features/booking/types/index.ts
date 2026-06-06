@@ -98,7 +98,7 @@ export interface StaffScheduleInfo {
 export type BookingStatus = "PENDING" | "CONFIRMED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED" | "NO_SHOW";
 
 /** Valid status transitions map */
-export const VALID_TRANSITIONS: Record<BookingStatus, BookingStatus[]> = {
+const _VALID_TRANSITIONS: Record<BookingStatus, BookingStatus[]> = {
   PENDING: ["CONFIRMED", "CANCELLED"],
   CONFIRMED: ["IN_PROGRESS", "CANCELLED", "NO_SHOW"],
   IN_PROGRESS: ["COMPLETED"],
@@ -108,7 +108,7 @@ export const VALID_TRANSITIONS: Record<BookingStatus, BookingStatus[]> = {
 };
 
 /** Terminal statuses — no further transitions allowed */
-export const TERMINAL_STATUSES: BookingStatus[] = ["COMPLETED", "CANCELLED", "NO_SHOW"];
+const _TERMINAL_STATUSES: BookingStatus[] = ["COMPLETED", "CANCELLED", "NO_SHOW"];
 
 /** Add-on snapshot in booking response */
 export interface BookingAddOnResponse {

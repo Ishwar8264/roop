@@ -11,7 +11,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { motion, useReducedMotion } from "framer-motion";
+import { LazyMotion, domAnimation, m, useReducedMotion } from "framer-motion";
 import { Construction, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/i18n/use-translation";
@@ -29,8 +29,9 @@ export function ComingSoon({ title }: ComingSoonProps) {
   const animateProps = prefersReducedMotion ? { initial: false, animate: false } : {};
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
-      <motion.div
+    <LazyMotion features={domAnimation}>
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
+      <m.div
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
@@ -40,9 +41,9 @@ export function ComingSoon({ title }: ComingSoonProps) {
         <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-primary/10 text-primary">
           <Construction className="h-12 w-12" />
         </div>
-      </motion.div>
+      </m.div>
 
-      <motion.div
+      <m.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2, duration: 0.5 }}
@@ -57,9 +58,9 @@ export function ComingSoon({ title }: ComingSoonProps) {
         <p className="text-muted-foreground max-w-md mb-6">
           {t("comingSoon.subtitle")}
         </p>
-      </motion.div>
+      </m.div>
 
-      <motion.div
+      <m.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4, duration: 0.5 }}
@@ -72,7 +73,8 @@ export function ComingSoon({ title }: ComingSoonProps) {
           <ArrowLeft className="mr-2 h-4 w-4" />
           {t("comingSoon.goBack")}
         </Button>
-      </motion.div>
-    </div>
+      </m.div>
+      </div>
+    </LazyMotion>
   );
 }

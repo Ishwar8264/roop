@@ -30,7 +30,7 @@
 import { createApiHandler } from "@/lib/api-handler";
 import { prisma } from "@/lib/prisma";
 import { requireActiveUser } from "@/lib/auth-helpers";
-import { NotFoundError, ConflictError, ForbiddenError, ValidationError } from "@/lib/errors";
+import { NotFoundError, ConflictError, ForbiddenError as _ForbiddenError, ValidationError } from "@/lib/errors";
 import { HTTP_STATUS } from "@/lib/http";
 import {
   createBookingSchema,
@@ -347,7 +347,7 @@ export const POST = createApiHandler({
     }
 
     let addOnsTotal = 0;
-    let addOnRecords: { addOnId: string; name: string; price: number }[] = [];
+    const addOnRecords: { addOnId: string; name: string; price: number }[] = [];
 
     if (addOnIds && addOnIds.length > 0) {
       const addOns = await prisma.serviceAddOn.findMany({

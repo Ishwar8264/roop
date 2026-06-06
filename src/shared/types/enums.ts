@@ -39,14 +39,14 @@ export type AuthEventType =
 export type DeviceType = "mobile" | "desktop" | "tablet" | "unknown";
 
 /** Human-readable auth provider names */
-export const AUTH_PROVIDER_LABELS: Record<AuthProvider, string> = {
+const _AUTH_PROVIDER_LABELS: Record<AuthProvider, string> = {
   MOBILE: "Phone OTP",
   EMAIL: "Email",
   GOOGLE: "Google",
 };
 
 /** Human-readable role names (Hindi-first) */
-export const USER_ROLE_LABELS: Record<UserRole, { hi: string; en: string }> = {
+const _USER_ROLE_LABELS: Record<UserRole, { hi: string; en: string }> = {
   GUEST: { hi: "अतिथि", en: "Guest" },
   USER: { hi: "ग्राहक", en: "Customer" },
   STAFF: { hi: "स्टाफ", en: "Staff" },

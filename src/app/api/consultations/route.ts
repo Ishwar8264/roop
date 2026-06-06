@@ -32,7 +32,7 @@
 import { createApiHandler } from "@/lib/api-handler";
 import { prisma } from "@/lib/prisma";
 import { requireActiveUser } from "@/lib/auth-helpers";
-import { NotFoundError, ForbiddenError } from "@/lib/errors";
+import { NotFoundError, ForbiddenError as _ForbiddenError } from "@/lib/errors";
 import { HTTP_STATUS } from "@/lib/http";
 import {
   createConsultationSchema,

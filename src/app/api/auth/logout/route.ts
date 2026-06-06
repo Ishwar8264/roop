@@ -19,7 +19,7 @@ import { clearRefreshTokenCookie, clearAccessTokenCookie } from "@/lib/server/co
 import { redis } from "@/lib/config/redis";
 import { REDIS_KEYS } from "@/lib/config/auth";
 import { isAppError, toAppError } from "@/lib/server/errors";
-import { HTTP_STATUS } from "@/shared/constants";
+import { HTTP_STATUS as _HTTP_STATUS } from "@/shared/constants";
 
 export async function POST(request: NextRequest) {
   try {

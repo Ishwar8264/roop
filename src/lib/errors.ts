@@ -5,10 +5,10 @@
  *   - Every API error should throw these classes — never raw Error
  *   - api-handler.ts catches these and returns proper JSON responses
  *   - Each error has: code (machine), statusCode (HTTP), message (human)
- *   - Supports i18n messages via HttpMessage type
+ *   - Supports i18n messages via HttpMessage as _HttpMessage type
  */
 
-import { HTTP_STATUS, ERROR_CODES, HTTP_MESSAGES, type HttpMessage } from "./http";
+import { HTTP_STATUS, ERROR_CODES, HTTP_MESSAGES } from "./http";
 
 // ==================== BASE ERROR ====================
 
@@ -38,7 +38,7 @@ export class AppError extends Error {
 
 // ==================== AUTH ERRORS ====================
 
-export class AuthMissingTokenError extends AppError {
+class _AuthMissingTokenError extends AppError {
   constructor() {
     super(
       ERROR_CODES.AUTH_MISSING_TOKEN,
@@ -48,7 +48,7 @@ export class AuthMissingTokenError extends AppError {
   }
 }
 
-export class AuthInvalidTokenError extends AppError {
+class _AuthInvalidTokenError extends AppError {
   constructor() {
     super(
       ERROR_CODES.AUTH_INVALID_TOKEN,
@@ -58,7 +58,7 @@ export class AuthInvalidTokenError extends AppError {
   }
 }
 
-export class AuthSessionInvalidError extends AppError {
+class _AuthSessionInvalidError extends AppError {
   constructor() {
     super(
       ERROR_CODES.AUTH_SESSION_INVALID,
@@ -91,7 +91,7 @@ export class AuthOtpInvalidError extends AppError {
   }
 }
 
-export class AuthOtpExpiredError extends AppError {
+class _AuthOtpExpiredError extends AppError {
   constructor() {
     super(
       ERROR_CODES.AUTH_OTP_EXPIRED,
@@ -121,7 +121,7 @@ export class AuthOtpAlreadySentError extends AppError {
   }
 }
 
-export class AuthRateLimitedError extends AppError {
+class _AuthRateLimitedError extends AppError {
   constructor(public readonly retryAfterSeconds?: number) {
     super(
       ERROR_CODES.AUTH_RATE_LIMITED,
@@ -231,7 +231,7 @@ export class AuthGoogleTokenInvalidError extends AppError {
   }
 }
 
-export class AuthEmailNotVerifiedError extends AppError {
+class _AuthEmailNotVerifiedError extends AppError {
   constructor() {
     super(
       ERROR_CODES.AUTH_EMAIL_NOT_VERIFIED,
@@ -312,7 +312,7 @@ export class StaffRequiredError extends AppError {
 
 // ==================== SYSTEM ERRORS ====================
 
-export class InternalError extends AppError {
+class InternalError extends AppError {
   constructor(message?: string) {
     super(
       ERROR_CODES.SYS_INTERNAL,
@@ -323,7 +323,7 @@ export class InternalError extends AppError {
   }
 }
 
-export class DatabaseError extends AppError {
+class _DatabaseError extends AppError {
   constructor() {
     super(
       ERROR_CODES.SYS_DATABASE,

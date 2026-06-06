@@ -15,7 +15,7 @@ import { cuid, positiveInt, pageParam, pageSizeParam } from "../common";
 // ==================== LOYALTY TYPE ENUM ====================
 
 /** Loyalty transaction type enum matching Prisma LoyaltyTransactionType */
-export const loyaltyTypeEnum = z.enum(["EARN", "REDEEM", "EXPIRE"]);
+const loyaltyTypeEnum = z.enum(["EARN", "REDEEM", "EXPIRE"]);
 
 // ==================== REDEEM POINTS ====================
 

@@ -15,7 +15,7 @@ import { createApiHandler } from "@/lib/api-handler";
 import { prisma } from "@/lib/prisma";
 import { requireActiveUser } from "@/lib/auth-helpers";
 import { NotFoundError, ForbiddenError } from "@/lib/errors";
-import { HTTP_STATUS } from "@/lib/http";
+import { HTTP_STATUS as _HTTP_STATUS } from "@/lib/http";
 import { updateAddressSchema } from "@/lib/validations/addresses";
 
 // Helper: Get address ID from URL

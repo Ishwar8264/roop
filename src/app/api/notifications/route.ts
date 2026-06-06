@@ -14,7 +14,7 @@
 import { createApiHandler } from "@/lib/api-handler";
 import { prisma } from "@/lib/prisma";
 import { requireActiveUser } from "@/lib/auth-helpers";
-import { AdminRequiredError, NotFoundError } from "@/lib/errors";
+import { AdminRequiredError as _AdminRequiredError, NotFoundError } from "@/lib/errors";
 import { HTTP_STATUS } from "@/lib/http";
 import {
   listNotificationsQuerySchema,

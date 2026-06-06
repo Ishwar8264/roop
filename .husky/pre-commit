@@ -1,5 +1,9 @@
 # Purpose: Runs the production build before every local commit.
-# Responsibilities: Block commits when the production build is broken.
-# Notes: Husky's generated shim invokes this file with the project binaries on PATH.
+# Responsibilities: Block commits when linting, types, React Doctor, or the production build fails.
+# Notes: React Doctor uses blocking warning so warnings and errors both stop the commit.
 
+pnpm exec lint-staged
+pnpm run lint:strict
+pnpm run typecheck
+pnpm run doctor:staged
 pnpm run build

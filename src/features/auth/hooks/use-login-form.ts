@@ -18,7 +18,7 @@
  */
 
 import { useState, useCallback } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useOtpTimer } from "@/features/auth/hooks/use-otp-timer";
 import { useLoginHandlers } from "@/features/auth/logic/login-handlers";
@@ -127,8 +127,8 @@ export function useLoginForm(options: UseLoginFormOptions): LoginFormState {
   });
 
   /** Watch values for display */
-  const watchedMobile = otpSendForm.watch("mobile");
-  const watchedEmail = emailOtpSendForm.watch("email");
+  const watchedMobile = useWatch({ control: otpSendForm.control, name: "mobile" });
+  const watchedEmail = useWatch({ control: emailOtpSendForm.control, name: "email" });
 
   /**
    * Send OTP to the user's mobile number (Phone OTP method).

@@ -1,0 +1,34 @@
+# Purpose: Run React Doctor in GitHub Actions.
+# Responsibility: Block pull requests and main pushes when React Doctor finds warnings or errors.
+# Important Notes: Uses blocking warning so any React Doctor diagnostic fails CI.
+
+name: React Doctor
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: react-doctor-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  react-doctor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: millionco/react-doctor@v2
+        with:
+          blocking: warning
+          scope: full
+          node-version: 24

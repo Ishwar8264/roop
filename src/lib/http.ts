@@ -264,7 +264,7 @@ export const HTTP_MESSAGES = {
  * Get message in preferred language
  * Defaults to Hindi (Hi) — our platform is Hindi-first
  */
-export function getMessage(
+function _getMessage(
   msg: HttpMessage,
   lang: "hi" | "en" = "hi"
 ): string {
@@ -276,7 +276,7 @@ export function getMessage(
  * Example: replaceVars("Galat OTP. {count} prayas baaki.", { count: 2 })
  *          → "Galat OTP. 2 prayas baaki."
  */
-export function replaceVars(
+function _replaceVars(
   template: string,
   vars: Record<string, string | number>
 ): string {

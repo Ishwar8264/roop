@@ -17,18 +17,18 @@ import { z } from "zod";
 // ==================== SHARED PRIMITIVES ====================
 
 /** Time string — "HH:mm" format (24-hour) */
-export const timeString = z
+const timeString = z
   .string()
   .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "समय HH:mm प्रारूप में होना चाहिए / Time must be in HH:mm format (e.g., 09:00)");
 
 /** Date string — "YYYY-MM-DD" format */
-export const dateString = z
+const dateString = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, "तारीख YYYY-MM-DD प्रारूप में होनी चाहिए / Date must be in YYYY-MM-DD format")
   .refine((val) => !isNaN(Date.parse(val)), { message: "अमान्य तारीख / Invalid date" });
 
 /** Work days structure — all 7 days required with boolean values */
-export const workDaysSchema = z.object({
+const workDaysSchema = z.object({
   mon: z.boolean(),
   tue: z.boolean(),
   wed: z.boolean(),
@@ -39,7 +39,7 @@ export const workDaysSchema = z.object({
 });
 
 /** Specialization — array of non-empty strings */
-export const specializationSchema = z
+const specializationSchema = z
   .array(
     z.string()
       .min(1, "विशेषज्ञता खाली नहीं हो सकती / Specialization cannot be empty")
@@ -49,7 +49,7 @@ export const specializationSchema = z
   .min(1, "कम से कम एक विशेषज्ञता आवश्यक है / At least one specialization is required");
 
 /** Commission rate — percentage (0-100) with up to 2 decimal places */
-export const commissionRateSchema = z
+const commissionRateSchema = z
   .number()
   .min(0, "कमीशन दर 0 या अधिक होनी चाहिए / Commission rate must be 0 or greater")
   .max(100, "कमीशन दर 100 से कम होनी चाहिए / Commission rate must be at most 100");
@@ -57,7 +57,7 @@ export const commissionRateSchema = z
 // ==================== CREATE STAFF ====================
 
 /** POST /api/staff */
-export const createStaffSchema = z
+const _createStaffSchema = z
   .object({
     userId: z
       .string()
@@ -96,12 +96,12 @@ export const createStaffSchema = z
     path: ["workStart"],
   });
 
-export type CreateStaffInput = z.infer<typeof createStaffSchema>;
+export type CreateStaffInput = z.infer<typeof _createStaffSchema>;
 
 // ==================== UPDATE STAFF ====================
 
 /** PATCH /api/staff/[id] */
-export const updateStaffSchema = z
+const _updateStaffSchema = z
   .object({
     branchId: z
       .string()
@@ -147,12 +147,12 @@ export const updateStaffSchema = z
     }
   );
 
-export type UpdateStaffInput = z.infer<typeof updateStaffSchema>;
+export type UpdateStaffInput = z.infer<typeof _updateStaffSchema>;
 
 // ==================== ASSIGN SERVICES ====================
 
 /** POST /api/staff/[id]/services — bulk assign */
-export const assignServicesSchema = z.object({
+const _assignServicesSchema = z.object({
   serviceIds: z
     .array(
       z.string().min(1, "सेवा ID आवश्यक है / Service ID is required")
@@ -160,12 +160,12 @@ export const assignServicesSchema = z.object({
     .min(1, "कम से कम एक सेवा ID आवश्यक है / At least one service ID is required"),
 });
 
-export type AssignServicesInput = z.infer<typeof assignServicesSchema>;
+export type AssignServicesInput = z.infer<typeof _assignServicesSchema>;
 
 // ==================== ADD LEAVE ====================
 
 /** POST /api/staff/[id]/leaves */
-export const addStaffLeaveSchema = z.object({
+const _addStaffLeaveSchema = z.object({
   date: dateString,
   reason: z
     .string()
@@ -174,4 +174,4 @@ export const addStaffLeaveSchema = z.object({
     .optional(),
 });
 
-export type AddStaffLeaveInput = z.infer<typeof addStaffLeaveSchema>;
+export type AddStaffLeaveInput = z.infer<typeof _addStaffLeaveSchema>;
