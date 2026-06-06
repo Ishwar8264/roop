@@ -12,7 +12,7 @@
 
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, User, Shield, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -41,6 +41,15 @@ export function SettingsClient() {
   const [email, setEmail] = useState(displayUser?.email || "");
   const [phone, setPhone] = useState(displayUser?.mobile || "");
   const [isEditing, setIsEditing] = useState(false);
+
+  // Sync form state when profile data loads or changes
+  useEffect(() => {
+    if (!isEditing) {
+      setName(displayUser?.name || "");
+      setEmail(displayUser?.email || "");
+      setPhone(displayUser?.mobile || "");
+    }
+  }, [displayUser, isEditing]);
 
   const handleSave = useCallback(() => {
     const payload: Record<string, string> = {};
@@ -207,7 +216,7 @@ export function SettingsClient() {
 
         {/* Tab 2: Security */}
         <TabsContent value="security">
-          <SecurityCard profile={profileData?.user} />
+          <SecurityCard profile={profileData?.user} onProfileChange={refetchProfile} />
         </TabsContent>
 
         {/* Tab 3: Danger Zone */}
