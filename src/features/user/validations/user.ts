@@ -48,7 +48,7 @@ export const updateProfileSchema = z.object({
   name: fullName.optional(),
   email: email.optional(),
   phone: indianPhone.optional(),
-  avatarUrl: z.string().url("Invalid avatar URL").optional(),
+  avatarUrl: z.url("Invalid avatar URL").optional(),
 }).refine(
   data => data.name !== undefined || data.email !== undefined || data.phone !== undefined || data.avatarUrl !== undefined,
   { message: "At least one field must be provided for update" }
